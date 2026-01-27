@@ -16,10 +16,28 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "iris-table-editor",
+          "title": "IRIS Table Editor",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "iris-table-editor": [
+        {
+          "type": "webview",
+          "id": "iris-table-editor.mainView",
+          "name": "IRIS Table Editor"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "iris-table-editor.helloWorld",
-        "title": "Hello World"
+        "command": "iris-table-editor.openTableEditor",
+        "title": "IRIS Table Editor: Open Table Editor"
       }
     ]
   },
@@ -31,7 +49,8 @@
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run check-types && node esbuild.js --production",
     "check-types": "tsc --noEmit",
-    "pretest": "npm run compile && npm run lint",
+    "compile-tests": "tsc -p . --outDir out",
+    "pretest": "npm run compile && npm run compile-tests && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },

@@ -1,0 +1,28 @@
+<!--
+  REFERENCE TEMPLATE - NOT USED AT RUNTIME
+
+  This file serves as documentation/reference for the webview HTML structure.
+  The actual HTML is generated dynamically by TableEditorProvider._getHtmlForWebview()
+  which replaces placeholders (${cspSource}, ${nonce}, etc.) with runtime values.
+
+  Keep this file in sync with TableEditorProvider.ts for documentation purposes.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource}; script-src 'nonce-${nonce}';">
+    <link href="${styleUri}" rel="stylesheet">
+    <title>IRIS Table Editor</title>
+</head>
+<body>
+    <div class="ite-container">
+        <div class="ite-placeholder">
+            <h2>IRIS Table Editor</h2>
+            <p>Server connection coming in Story 1.3</p>
+        </div>
+    </div>
+    <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>
