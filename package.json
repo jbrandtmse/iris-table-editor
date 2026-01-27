@@ -65,5 +65,9 @@
     "npm-run-all2": "^8.0.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.52.0"
+  },
+  "dependencies": {
+    "@intersystems-community/intersystems-servermanager": "^3.10.2",
+    "@vscode/codicons": "^0.0.44"
   }
 }

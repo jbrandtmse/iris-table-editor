@@ -15,24 +15,209 @@ body {
     box-sizing: border-box;
 }
 
-.ite-placeholder {
+/* Visually hidden utility for screen readers */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Loading State */
+.ite-loading {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
     text-align: center;
+}
+
+.ite-loading__spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--vscode-progressBar-background);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ite-spin 1s linear infinite;
+}
+
+@keyframes ite-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ite-loading__text {
+    margin-top: 8px;
     color: var(--vscode-descriptionForeground);
 }
 
-.ite-placeholder h2 {
+/* Message States */
+.ite-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 16px;
+}
+
+.ite-message__title {
     margin: 0 0 8px 0;
-    font-size: 1.2em;
+    font-size: 1.1em;
     font-weight: 600;
     color: var(--vscode-foreground);
 }
 
-.ite-placeholder p {
+.ite-message__text {
+    margin: 0 0 16px 0;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+}
+
+.ite-message--warning .ite-message__title {
+    color: var(--vscode-editorWarning-foreground);
+}
+
+.ite-message--error .ite-message__title {
+    color: var(--vscode-errorForeground);
+}
+
+/* Buttons */
+.ite-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 2px;
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+}
+
+.ite-button--primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.ite-button--primary:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.ite-button--secondary {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.ite-button--secondary:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.ite-button--icon {
+    padding: 4px;
+    background: transparent;
+    color: var(--vscode-foreground);
+    opacity: 0.7;
+}
+
+.ite-button--icon:hover {
+    opacity: 1;
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.ite-button--icon:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+/* Server List */
+.ite-server-list__header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+.ite-server-list__header {
     margin: 0;
-    font-size: 0.9em;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--vscode-sideBarSectionHeader-foreground);
+    letter-spacing: 0.05em;
+}
+
+.ite-server-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ite-server-list__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ite-server-list__item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-server-list__item:focus {
+    outline: none;
+    background-color: var(--vscode-list-focusBackground);
+    box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.ite-server-list__item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+
+.ite-server-list__item--selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.ite-server-list__item--selected:focus {
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.ite-server-list__icon {
+    font-size: 16px;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.ite-server-list__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .ite-loading__spinner {
+        animation: none;
+        border-color: var(--vscode-progressBar-background);
+    }
+
+    .ite-server-list__item {
+        transition: none;
+    }
 }

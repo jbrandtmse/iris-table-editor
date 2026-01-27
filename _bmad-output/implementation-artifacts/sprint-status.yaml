@@ -42,7 +42,7 @@ development_status:
   epic-1: in-progress
   1-1-project-initialization: done
   1-2-extension-shell-with-sidebar-view: done
-  1-3-server-manager-integration: backlog
+  1-3-server-manager-integration: done
   1-4-server-authentication-connection-status: backlog
   1-5-namespace-browsing: backlog
   1-6-table-browsing: backlog
