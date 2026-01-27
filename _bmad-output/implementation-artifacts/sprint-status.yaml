@@ -1,0 +1,81 @@
+# generated: 2026-01-27
+# project: iris-table-editor
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-01-27
+project: iris-table-editor
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Extension Foundation & Server Connection
+  epic-1: backlog
+  1-1-project-initialization: backlog
+  1-2-extension-shell-with-sidebar-view: backlog
+  1-3-server-manager-integration: backlog
+  1-4-server-authentication-connection-status: backlog
+  1-5-namespace-browsing: backlog
+  1-6-table-browsing: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Table Data Display
+  epic-2: backlog
+  2-1-grid-component-table-schema: backlog
+  2-2-table-data-loading-with-pagination: backlog
+  2-3-data-type-formatting: backlog
+  2-4-theme-support-light-dark: backlog
+  2-5-data-refresh-context-display: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Inline Cell Editing
+  epic-3: backlog
+  3-1-cell-selection-keyboard-navigation: backlog
+  3-2-inline-cell-editing: backlog
+  3-3-save-cell-changes-update: backlog
+  3-4-edit-cancellation-visual-feedback: backlog
+  3-5-error-handling-user-feedback: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Row Creation
+  epic-4: backlog
+  4-1-new-row-affordance: backlog
+  4-2-new-row-data-entry: backlog
+  4-3-save-new-row-insert: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Row Deletion
+  epic-5: backlog
+  5-1-row-selection-for-deletion: backlog
+  5-2-delete-confirmation-dialog: backlog
+  5-3-execute-delete-feedback: backlog
+  epic-5-retrospective: optional

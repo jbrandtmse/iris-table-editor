@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IRIS Table Editor is a VS Code extension that provides Excel-like grid editing for InterSystems IRIS database tables. It connects via the Atelier REST API (HTTP-based) and uses InterSystems Server Manager for connection management.
 
+## Research First
+
+Always use Perplexity to research topics you are unsure about before making assumptions or proceeding with implementation. This includes:
+- Unfamiliar APIs or libraries
+- Best practices for specific technologies
+- Current documentation for third-party dependencies
+- InterSystems IRIS-specific behavior or syntax
+
 ## Build Commands
 
 ```bash
