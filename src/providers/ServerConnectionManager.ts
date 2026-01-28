@@ -565,6 +565,76 @@ export class ServerConnectionManager {
     }
 
     /**
+     * Update a single cell value in a table
+     * Story 3.3: Cell update wrapper
+     * @param namespace - Target namespace
+     * @param tableName - Table name
+     * @param columnName - Column to update
+     * @param newValue - New value
+     * @param primaryKeyColumn - Primary key column name
+     * @param primaryKeyValue - Primary key value for the row
+     * @returns Result with success flag and optional error
+     */
+    public async updateCell(
+        namespace: string,
+        tableName: string,
+        columnName: string,
+        newValue: unknown,
+        primaryKeyColumn: string,
+        primaryKeyValue: unknown
+    ): Promise<{ success: boolean; rowsAffected?: number; error?: IUserError }> {
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'updateCell'
+                }
+            };
+        }
+
+        if (!namespace || !tableName || !columnName || !primaryKeyColumn) {
+            return {
+                success: false,
+                error: {
+                    message: 'Missing required parameters for update',
+                    code: ErrorCodes.INVALID_INPUT,
+                    recoverable: false,
+                    context: 'updateCell'
+                }
+            };
+        }
+
+        try {
+            console.debug(`${LOG_PREFIX} Updating cell: ${tableName}.${columnName} WHERE ${primaryKeyColumn}=${primaryKeyValue}`);
+            return this._atelierApiService.updateCell(
+                this._serverSpec,
+                namespace,
+                tableName,
+                columnName,
+                newValue,
+                primaryKeyColumn,
+                primaryKeyValue,
+                this._credentials.username,
+                this._credentials.password
+            );
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Update cell error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'updateCell') || {
+                    message: 'Failed to update cell',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'updateCell'
+                }
+            };
+        }
+    }
+
+    /**
      * Check if currently connected
      */
     public isConnected(): boolean {

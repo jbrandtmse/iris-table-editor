@@ -8,7 +8,9 @@ import {
     ITableLoadingPayload,
     IErrorPayload,
     IRequestDataPayload,
-    IPaginatePayload
+    IPaginatePayload,
+    ISaveCellPayload,
+    ISaveCellResultPayload
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -181,6 +183,113 @@ export class GridPanelManager {
                 await this._loadTableData(panelKey, newPage, payload.pageSize);
                 break;
             }
+            // Story 3.3: Handle cell save command
+            case 'saveCell': {
+                const payload = message.payload as ISaveCellPayload;
+                await this._handleSaveCell(panelKey, payload);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Handle saveCell command from grid webview
+     * Story 3.3: Cell update with server persistence
+     */
+    private async _handleSaveCell(panelKey: string, payload: ISaveCellPayload): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        // Validate payload
+        if (!payload || typeof payload.rowIndex !== 'number' || typeof payload.colIndex !== 'number' ||
+            !payload.columnName || !payload.primaryKeyColumn) {
+            console.warn(`${LOG_PREFIX} Invalid saveCell payload`);
+            this._postMessage(panel, {
+                event: 'saveCellResult',
+                payload: {
+                    success: false,
+                    rowIndex: payload?.rowIndex ?? -1,
+                    colIndex: payload?.colIndex ?? -1,
+                    columnName: payload?.columnName ?? '',
+                    oldValue: payload?.oldValue,
+                    newValue: payload?.newValue,
+                    primaryKeyValue: payload?.primaryKeyValue,
+                    error: {
+                        message: 'Invalid save request',
+                        code: 'INVALID_INPUT'
+                    }
+                } as ISaveCellResultPayload
+            });
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Saving cell: ${context.tableName}.${payload.columnName} = ${payload.newValue}`);
+
+        try {
+            const result = await this._serverConnectionManager.updateCell(
+                context.namespace,
+                context.tableName,
+                payload.columnName,
+                payload.newValue,
+                payload.primaryKeyColumn,
+                payload.primaryKeyValue
+            );
+
+            if (result.success) {
+                console.debug(`${LOG_PREFIX} Cell saved successfully`);
+                this._postMessage(panel, {
+                    event: 'saveCellResult',
+                    payload: {
+                        success: true,
+                        rowIndex: payload.rowIndex,
+                        colIndex: payload.colIndex,
+                        columnName: payload.columnName,
+                        oldValue: payload.oldValue,
+                        newValue: payload.newValue,
+                        primaryKeyValue: payload.primaryKeyValue
+                    } as ISaveCellResultPayload
+                });
+            } else {
+                console.debug(`${LOG_PREFIX} Cell save failed: ${result.error?.message}`);
+                this._postMessage(panel, {
+                    event: 'saveCellResult',
+                    payload: {
+                        success: false,
+                        rowIndex: payload.rowIndex,
+                        colIndex: payload.colIndex,
+                        columnName: payload.columnName,
+                        oldValue: payload.oldValue,
+                        newValue: payload.newValue,
+                        primaryKeyValue: payload.primaryKeyValue,
+                        error: {
+                            message: result.error?.message || 'Failed to save cell',
+                            code: result.error?.code || 'UNKNOWN_ERROR'
+                        }
+                    } as ISaveCellResultPayload
+                });
+            }
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Save cell error:`, error);
+            this._postMessage(panel, {
+                event: 'saveCellResult',
+                payload: {
+                    success: false,
+                    rowIndex: payload.rowIndex,
+                    colIndex: payload.colIndex,
+                    columnName: payload.columnName,
+                    oldValue: payload.oldValue,
+                    newValue: payload.newValue,
+                    primaryKeyValue: payload.primaryKeyValue,
+                    error: {
+                        message: 'An unexpected error occurred while saving',
+                        code: 'UNKNOWN_ERROR'
+                    }
+                } as ISaveCellResultPayload
+            });
         }
     }
 

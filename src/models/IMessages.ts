@@ -193,6 +193,38 @@ export interface IPaginatePayload {
 }
 
 /**
+ * Payload for saveCell command (grid webview to extension)
+ * Story 3.3: Cell update support
+ */
+export interface ISaveCellPayload {
+    rowIndex: number;
+    colIndex: number;
+    columnName: string;
+    oldValue: unknown;
+    newValue: unknown;
+    primaryKeyColumn: string;
+    primaryKeyValue: unknown;
+}
+
+/**
+ * Payload for saveCellResult event (extension to grid webview)
+ * Story 3.3: Cell update result
+ */
+export interface ISaveCellResultPayload {
+    success: boolean;
+    rowIndex: number;
+    colIndex: number;
+    columnName: string;
+    oldValue: unknown;
+    newValue: unknown;
+    primaryKeyValue: unknown;
+    error?: {
+        message: string;
+        code: string;
+    };
+}
+
+/**
  * Server-related commands sent from webview to extension
  */
 export type ServerCommand =
@@ -208,12 +240,14 @@ export type ServerCommand =
 
 /**
  * Grid-related commands sent from grid webview to extension
+ * Story 3.3: Added saveCell command
  */
 export type GridCommand =
     | { command: 'requestData'; payload: IRequestDataPayload }
     | { command: 'refresh'; payload: IEmptyPayload }
     | { command: 'paginateNext'; payload: IPaginatePayload }
-    | { command: 'paginatePrev'; payload: IPaginatePayload };
+    | { command: 'paginatePrev'; payload: IPaginatePayload }
+    | { command: 'saveCell'; payload: ISaveCellPayload };
 
 /**
  * Server-related events sent from extension to webview
@@ -232,9 +266,11 @@ export type ServerEvent =
 
 /**
  * Grid-related events sent from extension to grid webview
+ * Story 3.3: Added saveCellResult event
  */
 export type GridEvent =
     | { event: 'tableSchema'; payload: ITableSchemaPayload }
     | { event: 'tableData'; payload: ITableDataPayload }
     | { event: 'tableLoading'; payload: ITableLoadingPayload }
+    | { event: 'saveCellResult'; payload: ISaveCellResultPayload }
     | { event: 'error'; payload: IErrorPayload };

@@ -43,6 +43,8 @@
             this.editingCell = { rowIndex: null, colIndex: null };
             /** @type {unknown} - Story 3.2: Original value for cancel/restore */
             this.editOriginalValue = null;
+            /** @type {Map<string, { rowIndex: number; colIndex: number; oldValue: unknown; pkValue: unknown }>} - Story 3.3: Pending saves tracking */
+            this.pendingSaves = new Map();
         }
 
         /**
@@ -292,6 +294,7 @@
     /**
      * Exit edit mode for the current cell
      * Story 3.2: Exit edit function
+     * Story 3.3: Added server save via saveCell command
      * @param {boolean} saveValue - Whether to save the new value (true) or restore original (false)
      * @returns {{ saved: boolean; oldValue: unknown; newValue: unknown; rowIndex: number; colIndex: number } | null}
      */
@@ -317,7 +320,7 @@
             cell.classList.remove('ite-grid__cell--editing');
 
             if (saveValue) {
-                // Update local state with new value
+                // Update local state with new value (optimistic update)
                 // Convert empty string to null for proper NULL handling
                 const valueToStore = newValue === '' ? null : newValue;
                 state.rows[rowIndex][colName] = valueToStore;
@@ -331,8 +334,49 @@
                 result = { saved: true, oldValue, newValue: valueToStore, rowIndex, colIndex };
                 console.debug(`${LOG_PREFIX} Exited edit mode with save: "${oldValue}" -> "${valueToStore}"`);
 
-                // Announce save for screen readers
-                announce(`Saved ${colName}`);
+                // Story 3.3: Send save command to extension if value changed
+                // Check for actual change (handle null comparisons)
+                const hasChanged = String(oldValue ?? '') !== String(valueToStore ?? '');
+                if (hasChanged) {
+                    // Find primary key column and value
+                    // Look for ID column first, then fall back to first column
+                    const pkColumn = findPrimaryKeyColumn();
+                    if (pkColumn) {
+                        const pkValue = state.rows[rowIndex][pkColumn];
+                        // Validate primary key value exists
+                        if (pkValue === null || pkValue === undefined) {
+                            console.warn(`${LOG_PREFIX} Cannot save: Row has no primary key value`);
+                            announce(`Cannot save: Row has no ID value`);
+                            rollbackCellValue(rowIndex, colIndex, oldValue);
+                        } else {
+                            // Track pending save using primary key value as identifier
+                            const saveKey = `${pkValue}:${colName}`;
+                            state.pendingSaves.set(saveKey, { rowIndex, colIndex, oldValue, pkValue });
+
+                            sendCommand('saveCell', {
+                                rowIndex,
+                                colIndex,
+                                columnName: colName,
+                                oldValue,
+                                newValue: valueToStore,
+                                primaryKeyColumn: pkColumn,
+                                primaryKeyValue: pkValue
+                            });
+                            // Mark cell as saving (pending server response)
+                            cell.classList.add('ite-grid__cell--saving');
+                            announce(`Saving ${colName}...`);
+                        }
+                    } else {
+                        // No primary key - can't save
+                        console.warn(`${LOG_PREFIX} Cannot save: No primary key column found`);
+                        announce(`Cannot save: Table has no ID column`);
+                        // Rollback immediately
+                        rollbackCellValue(rowIndex, colIndex, oldValue);
+                    }
+                } else {
+                    // No change - just announce
+                    announce(`No changes to ${colName}`);
+                }
             } else {
                 // Restore original value
                 const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
@@ -365,6 +409,154 @@
         saveState();
 
         return result;
+    }
+
+    /**
+     * Find the primary key column name
+     * Story 3.3: Used for UPDATE WHERE clause
+     * @returns {string | null}
+     */
+    function findPrimaryKeyColumn() {
+        // Look for common primary key column names
+        const pkNames = ['ID', 'Id', 'id', '%ID'];
+        for (const name of pkNames) {
+            if (state.columns.some(col => col.name === name)) {
+                return name;
+            }
+        }
+        // No primary key found
+        return null;
+    }
+
+    /**
+     * Rollback cell value after failed save
+     * Story 3.3: Error handling
+     * @param {number} rowIndex
+     * @param {number} colIndex
+     * @param {unknown} originalValue
+     */
+    function rollbackCellValue(rowIndex, colIndex, originalValue) {
+        const colName = state.columns[colIndex].name;
+
+        // Restore state
+        state.rows[rowIndex][colName] = originalValue;
+
+        // Update display
+        const cell = getCellElement(rowIndex, colIndex);
+        if (cell) {
+            const { display, cssClass } = formatCellValue(originalValue, state.columns[colIndex].dataType);
+            cell.textContent = display;
+            cell.title = String(originalValue ?? 'NULL');
+            cell.classList.remove('ite-grid__cell--saving');
+            cell.classList.remove('ite-grid__cell--save-success');
+            // Keep selected state if this cell is selected
+            if (state.selectedCell.rowIndex === rowIndex && state.selectedCell.colIndex === colIndex) {
+                cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+            } else {
+                cell.className = `ite-grid__cell ${cssClass}`.trim();
+            }
+        }
+
+        saveState();
+    }
+
+    /**
+     * Show save success feedback on a cell
+     * Story 3.3: Visual feedback
+     * @param {number} rowIndex
+     * @param {number} colIndex
+     */
+    function showSaveSuccess(rowIndex, colIndex) {
+        const cell = getCellElement(rowIndex, colIndex);
+        if (cell) {
+            cell.classList.remove('ite-grid__cell--saving');
+            cell.classList.add('ite-grid__cell--save-success');
+
+            // Remove success class after animation completes (matches 500ms CSS animation)
+            setTimeout(() => {
+                cell.classList.remove('ite-grid__cell--save-success');
+            }, 500);
+        }
+        // Save state after successful save to persist the optimistic update
+        saveState();
+    }
+
+    /**
+     * Handle saveCellResult event from extension
+     * Story 3.3: Server response handling with pending saves tracking
+     * @param {{ success: boolean; rowIndex: number; colIndex: number; columnName: string; oldValue: unknown; newValue: unknown; primaryKeyValue: unknown; error?: { message: string; code: string } }} payload
+     */
+    function handleSaveCellResult(payload) {
+        const { success, rowIndex, colIndex, columnName, oldValue, primaryKeyValue, error } = payload;
+
+        // Look up the pending save using primary key + column as identifier
+        const saveKey = `${primaryKeyValue}:${columnName}`;
+        const pendingSave = state.pendingSaves.get(saveKey);
+
+        // Remove from pending saves
+        state.pendingSaves.delete(saveKey);
+
+        // Determine the actual row/col to update
+        // If pagination changed, try to find the row by its primary key value
+        let actualRowIndex = rowIndex;
+        let actualColIndex = colIndex;
+
+        if (pendingSave) {
+            // Check if indices are still valid
+            if (rowIndex < 0 || rowIndex >= state.rows.length ||
+                colIndex < 0 || colIndex >= state.columns.length) {
+                // Row indices are stale (e.g., pagination happened)
+                // Try to find the row by primary key
+                const pkColumn = findPrimaryKeyColumn();
+                if (pkColumn) {
+                    actualRowIndex = state.rows.findIndex(row => row[pkColumn] === primaryKeyValue);
+                    if (actualRowIndex >= 0) {
+                        actualColIndex = state.columns.findIndex(col => col.name === columnName);
+                    }
+                }
+            }
+        }
+
+        if (success) {
+            console.debug(`${LOG_PREFIX} Cell saved successfully`);
+            if (actualRowIndex >= 0 && actualColIndex >= 0) {
+                showSaveSuccess(actualRowIndex, actualColIndex);
+            }
+            announce(`Saved successfully`);
+        } else {
+            console.debug(`${LOG_PREFIX} Cell save failed:`, error?.message);
+            // Rollback to original value if we can find the row
+            if (actualRowIndex >= 0 && actualColIndex >= 0) {
+                rollbackCellValue(actualRowIndex, actualColIndex, oldValue);
+            } else {
+                // Can't rollback visually - data will be stale until refresh
+                console.warn(`${LOG_PREFIX} Cannot rollback: Row no longer visible`);
+            }
+            announce(`Save failed: ${error?.message || 'Unknown error'}`);
+
+            // Show error in UI (Story 3.5 will enhance this)
+            showError({ message: error?.message || 'Failed to save changes' });
+        }
+    }
+
+    /**
+     * Show error message to user
+     * Story 3.3: Basic error display (enhanced in Story 3.5)
+     * @param {{ message: string }} payload
+     */
+    function showError(payload) {
+        // For now, just update status bar with error
+        const statusText = document.getElementById('statusText');
+        if (statusText) {
+            statusText.textContent = `Error: ${payload.message}`;
+            statusText.classList.add('ite-status-bar__text--error');
+
+            // Clear after 5 seconds
+            setTimeout(() => {
+                updateStatusBar();
+                statusText.classList.remove('ite-status-bar__text--error');
+            }, 5000);
+        }
     }
 
     /**
@@ -1177,6 +1369,10 @@
                 break;
             case 'tableLoading':
                 handleTableLoading(message.payload);
+                break;
+            case 'saveCellResult':
+                // Story 3.3: Handle cell save result
+                handleSaveCellResult(message.payload);
                 break;
             case 'error':
                 handleError(message.payload);

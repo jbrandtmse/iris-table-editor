@@ -321,6 +321,27 @@ body {
     background-color: var(--vscode-editor-selectionBackground);
 }
 
+/* Story 3.3: Cell Saving/Success States */
+.ite-grid__cell--saving {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+@keyframes ite-save-success {
+    0% { background-color: var(--vscode-list-activeSelectionBackground); }
+    50% { background-color: var(--vscode-testing-iconPassed, #4caf50); }
+    100% { background-color: var(--vscode-list-activeSelectionBackground); }
+}
+
+.ite-grid__cell--save-success {
+    animation: ite-save-success 0.5s ease-out;
+}
+
+/* Story 3.3: Error state in status bar */
+.ite-status-bar__text--error {
+    color: var(--vscode-errorForeground);
+}
+
 /* Status Bar */
 .ite-status-bar {
     display: flex;

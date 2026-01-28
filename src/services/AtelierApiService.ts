@@ -934,6 +934,161 @@ export class AtelierApiService {
     }
 
     /**
+     * Update a single cell value in a table
+     * Story 3.3: Cell update with parameterized query
+     * @param spec - Server specification
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table
+     * @param columnName - Name of the column to update
+     * @param newValue - New value for the cell
+     * @param primaryKeyColumn - Name of the primary key column (e.g., 'ID')
+     * @param primaryKeyValue - Value of the primary key for the row
+     * @param username - Authentication username
+     * @param password - Authentication password
+     * @returns Result with success flag and optional error
+     */
+    public async updateCell(
+        spec: IServerSpec,
+        namespace: string,
+        tableName: string,
+        columnName: string,
+        newValue: unknown,
+        primaryKeyColumn: string,
+        primaryKeyValue: unknown,
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; rowsAffected?: number; error?: IUserError }> {
+        const url = UrlBuilder.buildQueryUrl(
+            UrlBuilder.buildBaseUrl(spec),
+            namespace
+        );
+
+        const headers = this._buildAuthHeaders(username, password);
+
+        // SECURITY: Validate and escape all identifiers to prevent SQL injection
+        let escapedTableName: string;
+        let escapedColumnName: string;
+        let escapedPkColumn: string;
+
+        try {
+            // Parse schema-qualified table name and escape each part separately
+            const { schemaName, baseTableName } = this._parseQualifiedTableName(tableName);
+            const escapedSchema = this._validateAndEscapeIdentifier(schemaName, 'schema name');
+            const escapedBase = this._validateAndEscapeIdentifier(baseTableName, 'table name');
+            escapedTableName = `${escapedSchema}.${escapedBase}`;
+            escapedColumnName = this._validateAndEscapeIdentifier(columnName, 'column name');
+            escapedPkColumn = this._validateAndEscapeIdentifier(primaryKeyColumn, 'primary key column');
+        } catch (validationError) {
+            console.error(`${LOG_PREFIX} Validation error:`, validationError);
+            return {
+                success: false,
+                error: {
+                    message: validationError instanceof Error ? validationError.message : 'Invalid query parameters',
+                    code: ErrorCodes.INVALID_INPUT,
+                    recoverable: false,
+                    context: 'updateCell'
+                }
+            };
+        }
+
+        // SECURITY: Use parameterized query - values are NEVER interpolated into SQL
+        const query = `UPDATE ${escapedTableName} SET ${escapedColumnName} = ? WHERE ${escapedPkColumn} = ?`;
+        const parameters = [newValue, primaryKeyValue];
+
+        console.debug(`${LOG_PREFIX} Updating cell: ${tableName}.${columnName} WHERE ${primaryKeyColumn}=${primaryKeyValue}`);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query,
+                    parameters
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Check HTTP status
+            if (response.status === 401) {
+                console.debug(`${LOG_PREFIX} Update cell failed: Authentication error`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication failed. Please check your credentials.',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'updateCell'
+                    }
+                };
+            }
+
+            if (!response.ok) {
+                console.debug(`${LOG_PREFIX} Update cell failed: HTTP ${response.status}`);
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned status ${response.status}`,
+                        code: ErrorCodes.CONNECTION_FAILED,
+                        recoverable: true,
+                        context: 'updateCell'
+                    }
+                };
+            }
+
+            // Parse response body
+            const body = await response.json() as IAtelierQueryResponse;
+
+            // Check for Atelier errors
+            if (body.status?.errors?.length > 0) {
+                const error = ErrorHandler.parse(body, 'updateCell');
+                if (error) {
+                    console.debug(`${LOG_PREFIX} Update cell failed: ${error.message}`);
+                    return { success: false, error };
+                }
+            }
+
+            // Success - IRIS doesn't return rowsAffected in standard response
+            // but we assume 1 row was affected if no errors
+            console.debug(`${LOG_PREFIX} Cell updated successfully`);
+            return {
+                success: true,
+                rowsAffected: 1
+            };
+
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.debug(`${LOG_PREFIX} Update cell failed: Timeout`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Connection timed out. The server may be busy or unreachable.',
+                        code: ErrorCodes.CONNECTION_TIMEOUT,
+                        recoverable: true,
+                        context: 'updateCell'
+                    }
+                };
+            }
+
+            // Network error
+            console.debug(`${LOG_PREFIX} Update cell failed: Network error`, error);
+            return {
+                success: false,
+                error: {
+                    message: 'Cannot reach server. Please verify the server address and that IRIS is running.',
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: true,
+                    context: 'updateCell'
+                }
+            };
+        }
+    }
+
+    /**
      * Set the request timeout
      * @param timeout - Timeout in milliseconds
      */
