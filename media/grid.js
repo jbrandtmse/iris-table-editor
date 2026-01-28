@@ -751,6 +751,7 @@
             case 'Tab':
                 // Save and move to next/previous cell (Story 3.3 will enhance this)
                 event.preventDefault();
+                event.stopPropagation(); // Prevent grid's handleCellKeydown from also handling Tab
                 exitEditMode(true);
                 // Navigate to next/previous cell
                 if (state.selectedCell.rowIndex !== null && state.selectedCell.colIndex !== null) {
