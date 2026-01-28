@@ -236,8 +236,8 @@ body {
 }
 
 .ite-connection-header__indicator--connected {
-    background-color: var(--vscode-testing-iconPassed, #73c991);
-    box-shadow: 0 0 4px var(--vscode-testing-iconPassed, #73c991);
+    background-color: var(--vscode-testing-iconPassed, var(--vscode-terminal-ansiGreen, var(--vscode-gitDecoration-addedResourceForeground)));
+    box-shadow: 0 0 4px var(--vscode-testing-iconPassed, var(--vscode-terminal-ansiGreen));
 }
 
 .ite-connection-header__indicator--disconnected {
@@ -465,5 +465,99 @@ body {
 
     .ite-table-list__item {
         transition: none;
+    }
+}
+
+/* High Contrast Theme Support
+   VS Code provides --vscode-contrastBorder and --vscode-contrastActiveBorder
+   in high contrast themes. We use these with fallbacks for regular themes.
+   This ensures the sidebar is fully usable in High Contrast Light/Dark modes. */
+
+/* High contrast borders for connection header */
+.ite-connection-header {
+    border-bottom-color: var(--vscode-contrastBorder, var(--vscode-sideBarSectionHeader-border));
+}
+
+/* High contrast borders for table list header */
+.ite-table-list__header-row {
+    border-top-color: var(--vscode-contrastBorder, var(--vscode-sideBarSectionHeader-border));
+}
+
+/* Enhanced focus indicators for high contrast - 2px solid border per UX12 */
+.ite-button:focus-visible {
+    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline-offset: 1px;
+}
+
+.ite-server-list__item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+}
+
+.ite-namespace-list__item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+}
+
+.ite-table-list__item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+}
+
+/* Windows High Contrast Mode (forced-colors)
+   This media query targets Windows High Contrast mode specifically,
+   ensuring system colors are properly applied for accessibility. */
+@media (forced-colors: active) {
+    /* Use system colors for borders */
+    .ite-connection-header {
+        border-color: CanvasText;
+    }
+
+    .ite-table-list__header-row {
+        border-color: CanvasText;
+    }
+
+    /* Ensure buttons use system colors */
+    .ite-button--primary,
+    .ite-button--secondary {
+        border: 1px solid ButtonText;
+    }
+
+    /* Ensure focus is visible with system highlight color */
+    .ite-button:focus,
+    .ite-server-list__item:focus,
+    .ite-namespace-list__item:focus,
+    .ite-table-list__item:focus {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    /* Selection states use system colors */
+    .ite-server-list__item--selected,
+    .ite-namespace-list__item--selected,
+    .ite-table-list__item--selected {
+        background-color: Highlight;
+        color: HighlightText;
+    }
+
+    /* Hover states use system colors */
+    .ite-server-list__item:hover,
+    .ite-namespace-list__item:hover,
+    .ite-table-list__item:hover {
+        background-color: Highlight;
+        color: HighlightText;
+    }
+
+    /* Loading spinner visibility */
+    .ite-loading__spinner {
+        border-color: CanvasText;
+        border-top-color: Canvas;
+    }
+
+    /* Connection indicator visibility */
+    .ite-connection-header__indicator--connected {
+        background-color: LinkText;
+        box-shadow: none;
+    }
+
+    .ite-connection-header__indicator--disconnected {
+        background-color: GrayText;
     }
 }

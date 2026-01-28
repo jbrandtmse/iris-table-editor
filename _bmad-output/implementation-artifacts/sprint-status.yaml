@@ -52,8 +52,8 @@ development_status:
   epic-2: in-progress
   2-1-grid-component-table-schema: done
   2-2-table-data-loading-with-pagination: done
-  2-3-data-type-formatting: review
-  2-4-theme-support-light-dark: backlog
+  2-3-data-type-formatting: done
+  2-4-theme-support-light-dark: done
   2-5-data-refresh-context-display: backlog
   epic-2-retrospective: optional
 

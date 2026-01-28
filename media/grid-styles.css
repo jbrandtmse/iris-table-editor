@@ -296,6 +296,11 @@ body {
     background-color: var(--vscode-button-hoverBackground);
 }
 
+.ite-grid-error__button:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
 /* Empty State */
 .ite-grid-empty {
     display: flex;
@@ -404,5 +409,79 @@ body {
 
     .ite-pagination__button {
         transition: none;
+    }
+}
+
+/* High Contrast Theme Support
+   VS Code provides --vscode-contrastBorder and --vscode-contrastActiveBorder
+   in high contrast themes. We use these with fallbacks for regular themes.
+   This ensures the grid is fully usable in High Contrast Light/Dark modes. */
+
+/* High contrast borders for grid elements */
+.ite-grid__header-cell {
+    border-bottom-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
+    border-right-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
+}
+
+.ite-grid__cell {
+    border-bottom-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
+    border-right-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
+}
+
+/* Enhanced focus indicators for high contrast - 2px solid border per UX12 */
+.ite-toolbar__button:focus-visible {
+    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline-offset: 1px;
+}
+
+.ite-pagination__button:focus-visible {
+    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline-offset: 1px;
+}
+
+.ite-grid-error__button:focus-visible {
+    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline-offset: 1px;
+}
+
+/* Windows High Contrast Mode (forced-colors)
+   This media query targets Windows High Contrast mode specifically,
+   ensuring system colors are properly applied for accessibility. */
+@media (forced-colors: active) {
+    /* Use system colors for borders */
+    .ite-grid__header-cell,
+    .ite-grid__cell {
+        border-color: CanvasText;
+    }
+
+    .ite-context-bar,
+    .ite-toolbar,
+    .ite-pagination,
+    .ite-status-bar {
+        border-color: CanvasText;
+    }
+
+    /* Ensure focus is visible with system highlight color */
+    .ite-toolbar__button:focus,
+    .ite-pagination__button:focus,
+    .ite-grid-error__button:focus {
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+    }
+
+    /* Row hover state uses system colors */
+    .ite-grid__row:hover {
+        background-color: Highlight;
+        color: HighlightText;
+    }
+
+    .ite-grid__row:hover .ite-grid__cell {
+        color: HighlightText;
+    }
+
+    /* Loading spinner visibility */
+    .ite-loading__spinner {
+        border-color: CanvasText;
+        border-top-color: Canvas;
     }
 }
