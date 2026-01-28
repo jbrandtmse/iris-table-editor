@@ -475,6 +475,7 @@
     /**
      * Rollback cell value after failed save
      * Story 3.3: Error handling
+     * Story 4.2: Updated to handle new rows
      * @param {number} rowIndex
      * @param {number} colIndex
      * @param {unknown} originalValue
@@ -482,8 +483,11 @@
     function rollbackCellValue(rowIndex, colIndex, originalValue) {
         const colName = state.columns[colIndex].name;
 
-        // Restore state
-        state.rows[rowIndex][colName] = originalValue;
+        // Story 4.2: Restore state (handles both server rows and new rows)
+        const rowData = getRowData(rowIndex);
+        if (rowData) {
+            rowData[colName] = originalValue;
+        }
 
         // Update display
         const cell = getCellElement(rowIndex, colIndex);
@@ -850,14 +854,16 @@
                 break;
 
             case 'Tab':
-                // Save and move to next/previous cell (Story 3.3 will enhance this)
+                // Save and move to next/previous cell
+                // Story 4.2: Updated to work with new rows
                 event.preventDefault();
                 event.stopPropagation(); // Prevent grid's handleCellKeydown from also handling Tab
                 exitEditMode(true);
                 // Navigate to next/previous cell
                 if (state.selectedCell.rowIndex !== null && state.selectedCell.colIndex !== null) {
                     const { rowIndex, colIndex } = state.selectedCell;
-                    const maxRow = state.rows.length - 1;
+                    // Story 4.2: Include new rows in max calculation
+                    const maxRow = state.totalDisplayRows - 1;
                     const maxCol = state.columns.length - 1;
 
                     if (event.shiftKey) {
