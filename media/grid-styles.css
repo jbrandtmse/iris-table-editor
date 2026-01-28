@@ -284,6 +284,43 @@ body {
     text-align: center;
 }
 
+/* Story 3.2: Cell Editing Styles */
+.ite-grid__cell--editing {
+    padding: 0;
+    overflow: visible;
+    /* Keep position relative for z-index */
+    position: relative;
+    z-index: 2;
+}
+
+.ite-grid__cell-input {
+    width: 100%;
+    height: 100%;
+    min-height: 28px;
+    padding: 5px 11px; /* Slightly less than cell for border */
+    border: 2px solid var(--vscode-focusBorder);
+    border-radius: 0;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.ite-grid__cell-input:focus {
+    border-color: var(--vscode-inputOption-activeBorder, var(--vscode-focusBorder));
+}
+
+.ite-grid__cell-input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}
+
+.ite-grid__cell-input::selection {
+    background-color: var(--vscode-editor-selectionBackground);
+}
+
 /* Status Bar */
 .ite-status-bar {
     display: flex;
@@ -497,6 +534,11 @@ body {
     outline-offset: -2px;
 }
 
+/* Story 3.2: High contrast cell editing */
+.ite-grid__cell-input:focus {
+    border-color: var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+}
+
 /* Windows High Contrast Mode (forced-colors)
    This media query targets Windows High Contrast mode specifically,
    ensuring system colors are properly applied for accessibility. */
@@ -541,6 +583,17 @@ body {
 
     .ite-grid__cell:focus {
         outline: 2px solid Highlight;
+    }
+
+    /* Story 3.2: Cell editing in forced colors mode */
+    .ite-grid__cell-input {
+        border: 2px solid Highlight;
+        background-color: Canvas;
+        color: CanvasText;
+    }
+
+    .ite-grid__cell-input:focus {
+        border-color: Highlight;
     }
 
     /* Loading spinner visibility */

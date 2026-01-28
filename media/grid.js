@@ -15,6 +15,7 @@
      * Grid application state
      * Story 2.2: Added pagination state management with computed properties
      * Story 3.1: Added cell selection state
+     * Story 3.2: Added cell editing state
      */
     class AppState {
         constructor() {
@@ -38,6 +39,10 @@
             this.error = null;
             /** @type {{ rowIndex: number | null, colIndex: number | null }} - Story 3.1: Selected cell tracking */
             this.selectedCell = { rowIndex: null, colIndex: null };
+            /** @type {{ rowIndex: number | null, colIndex: number | null }} - Story 3.2: Editing cell tracking */
+            this.editingCell = { rowIndex: null, colIndex: null };
+            /** @type {unknown} - Story 3.2: Original value for cancel/restore */
+            this.editOriginalValue = null;
         }
 
         /**
@@ -71,6 +76,15 @@
          */
         get shouldShowPagination() {
             return this.totalRows > this.pageSize;
+        }
+
+        /**
+         * Check if a cell is currently being edited
+         * Story 3.2: Edit state helper
+         * @returns {boolean}
+         */
+        get isEditing() {
+            return this.editingCell.rowIndex !== null && this.editingCell.colIndex !== null;
         }
     }
 
@@ -183,6 +197,293 @@
     }
 
     // ==========================================
+    // Story 3.2: Cell Editing Functions
+    // ==========================================
+
+    /**
+     * Get the raw value of a cell from state
+     * Story 3.2: Helper for edit mode
+     * @param {number} rowIndex
+     * @param {number} colIndex
+     * @returns {unknown}
+     */
+    function getCellValue(rowIndex, colIndex) {
+        if (rowIndex < 0 || rowIndex >= state.rows.length) return null;
+        if (colIndex < 0 || colIndex >= state.columns.length) return null;
+        const colName = state.columns[colIndex].name;
+        return state.rows[rowIndex][colName];
+    }
+
+    /**
+     * Enter edit mode for a cell
+     * Story 3.2: Core edit function
+     * @param {number} rowIndex - Row index (0-based)
+     * @param {number} colIndex - Column index (0-based)
+     * @param {string | null} [initialValue] - Initial value for input (null = use current cell value)
+     * @param {'end' | 'select' | 'start'} [cursorPosition='select'] - Where to position cursor
+     */
+    function enterEditMode(rowIndex, colIndex, initialValue = null, cursorPosition = 'select') {
+        // Validate bounds
+        if (rowIndex < 0 || rowIndex >= state.rows.length) return;
+        if (colIndex < 0 || colIndex >= state.columns.length) return;
+
+        // If already editing a different cell, exit that first
+        if (state.isEditing) {
+            if (state.editingCell.rowIndex !== rowIndex || state.editingCell.colIndex !== colIndex) {
+                exitEditMode(false); // Cancel without saving
+            } else {
+                // Already editing this cell, just return
+                return;
+            }
+        }
+
+        // Ensure cell is selected
+        if (state.selectedCell.rowIndex !== rowIndex || state.selectedCell.colIndex !== colIndex) {
+            selectCell(rowIndex, colIndex, false);
+        }
+
+        // Get current cell value and element
+        const currentValue = getCellValue(rowIndex, colIndex);
+        state.editOriginalValue = currentValue;
+        state.editingCell = { rowIndex, colIndex };
+
+        const cell = getCellElement(rowIndex, colIndex);
+        if (!cell) return;
+
+        // Determine the value to show in input
+        const displayValue = initialValue !== null ? initialValue :
+            (currentValue === null || currentValue === undefined) ? '' : String(currentValue);
+
+        // Create input element
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'ite-grid__cell-input';
+        input.value = displayValue;
+        input.setAttribute('aria-label', `Edit ${state.columns[colIndex].name}`);
+
+        // Replace cell content with input
+        cell.textContent = '';
+        cell.appendChild(input);
+        cell.classList.add('ite-grid__cell--editing');
+
+        // Setup input event handlers
+        input.addEventListener('keydown', handleEditInputKeydown);
+        input.addEventListener('blur', handleEditInputBlur);
+
+        // Focus and position cursor
+        input.focus();
+        switch (cursorPosition) {
+            case 'end':
+                input.setSelectionRange(input.value.length, input.value.length);
+                break;
+            case 'start':
+                input.setSelectionRange(0, 0);
+                break;
+            case 'select':
+            default:
+                input.select();
+                break;
+        }
+
+        announce(`Editing ${state.columns[colIndex].name}`);
+        console.debug(`${LOG_PREFIX} Entered edit mode for cell [${rowIndex}, ${colIndex}]`);
+    }
+
+    /**
+     * Exit edit mode for the current cell
+     * Story 3.2: Exit edit function
+     * @param {boolean} saveValue - Whether to save the new value (true) or restore original (false)
+     * @returns {{ saved: boolean; oldValue: unknown; newValue: unknown; rowIndex: number; colIndex: number } | null}
+     */
+    function exitEditMode(saveValue) {
+        if (!state.isEditing) return null;
+
+        const { rowIndex, colIndex } = state.editingCell;
+        const cell = getCellElement(rowIndex, colIndex);
+        const input = cell?.querySelector('.ite-grid__cell-input');
+
+        let result = null;
+
+        if (cell && input) {
+            const newValue = /** @type {HTMLInputElement} */ (input).value;
+            const oldValue = state.editOriginalValue;
+            const colName = state.columns[colIndex].name;
+
+            // Remove input event handlers
+            input.removeEventListener('keydown', handleEditInputKeydown);
+            input.removeEventListener('blur', handleEditInputBlur);
+
+            // Restore cell content
+            cell.classList.remove('ite-grid__cell--editing');
+
+            if (saveValue) {
+                // Update local state with new value
+                // Convert empty string to null for proper NULL handling
+                const valueToStore = newValue === '' ? null : newValue;
+                state.rows[rowIndex][colName] = valueToStore;
+
+                // Update display
+                const { display, cssClass } = formatCellValue(valueToStore, state.columns[colIndex].dataType);
+                cell.textContent = display;
+                cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                cell.title = String(valueToStore ?? 'NULL');
+
+                result = { saved: true, oldValue, newValue: valueToStore, rowIndex, colIndex };
+                console.debug(`${LOG_PREFIX} Exited edit mode with save: "${oldValue}" -> "${valueToStore}"`);
+
+                // Announce save for screen readers
+                announce(`Saved ${colName}`);
+            } else {
+                // Restore original value
+                const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
+                cell.textContent = display;
+                cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                cell.title = String(oldValue ?? 'NULL');
+
+                result = { saved: false, oldValue, newValue: oldValue, rowIndex, colIndex };
+                console.debug(`${LOG_PREFIX} Exited edit mode with cancel`);
+
+                // Announce cancel for screen readers
+                announce(`Cancelled editing ${colName}`);
+            }
+
+            // Restore cell attributes
+            cell.setAttribute('aria-selected', 'true');
+            cell.setAttribute('tabindex', '0');
+        }
+
+        // Clear edit state BEFORE any callbacks
+        state.editingCell = { rowIndex: null, colIndex: null };
+        state.editOriginalValue = null;
+
+        // Re-focus the cell
+        if (cell) {
+            cell.focus();
+        }
+
+        // Save state after edit
+        saveState();
+
+        return result;
+    }
+
+    /**
+     * Handle keydown events on the edit input
+     * Story 3.2: Edit input keyboard handling
+     * @param {KeyboardEvent} event
+     */
+    function handleEditInputKeydown(event) {
+        switch (event.key) {
+            case 'Enter':
+                // Save and exit edit mode
+                event.preventDefault();
+                exitEditMode(true);
+                break;
+
+            case 'Escape':
+                // Cancel and exit edit mode
+                event.preventDefault();
+                exitEditMode(false);
+                break;
+
+            case 'Tab':
+                // Save and move to next/previous cell (Story 3.3 will enhance this)
+                event.preventDefault();
+                exitEditMode(true);
+                // Navigate to next/previous cell
+                if (state.selectedCell.rowIndex !== null && state.selectedCell.colIndex !== null) {
+                    const { rowIndex, colIndex } = state.selectedCell;
+                    const maxRow = state.rows.length - 1;
+                    const maxCol = state.columns.length - 1;
+
+                    if (event.shiftKey) {
+                        // Move to previous cell
+                        if (colIndex > 0) {
+                            selectCell(rowIndex, colIndex - 1);
+                        } else if (rowIndex > 0) {
+                            selectCell(rowIndex - 1, maxCol);
+                        }
+                    } else {
+                        // Move to next cell
+                        if (colIndex < maxCol) {
+                            selectCell(rowIndex, colIndex + 1);
+                        } else if (rowIndex < maxRow) {
+                            selectCell(rowIndex + 1, 0);
+                        }
+                    }
+                }
+                break;
+
+            // Arrow keys should work normally in input for cursor movement
+            // Only prevent if at boundaries and we want grid navigation
+            case 'ArrowUp':
+            case 'ArrowDown':
+                // Allow these to work in input normally
+                // Future: Could save and navigate to cell above/below
+                break;
+        }
+    }
+
+    /**
+     * Handle blur event on edit input
+     * Story 3.2: Save on blur (click outside)
+     * @param {FocusEvent} event
+     */
+    function handleEditInputBlur(event) {
+        // Check what element is receiving focus
+        const relatedTarget = /** @type {HTMLElement | null} */ (event.relatedTarget);
+
+        // If focus is going to another cell in the grid, let click/dblclick handlers manage the transition
+        // They will call exitEditMode before entering edit on the new cell
+        if (relatedTarget && relatedTarget.closest('.ite-grid__cell')) {
+            return;
+        }
+
+        // Small delay to allow other handlers to process first
+        // This handles cases like clicking toolbar buttons
+        setTimeout(() => {
+            if (state.isEditing) {
+                exitEditMode(true); // Save on blur
+            }
+        }, 50);
+    }
+
+    /**
+     * Handle double-click to enter edit mode
+     * Story 3.2: Double-click edit entry
+     * @param {MouseEvent} event
+     */
+    function handleCellDoubleClick(event) {
+        const target = /** @type {HTMLElement} */ (event.target);
+
+        // If clicking on the input itself, ignore
+        if (target.classList.contains('ite-grid__cell-input')) return;
+
+        const cell = target.closest('.ite-grid__cell');
+        if (!cell) return;
+
+        // Don't edit header cells
+        if (cell.closest('.ite-grid__header-row')) return;
+
+        // Find row and column index
+        const row = cell.closest('.ite-grid__row');
+        if (!row) return;
+
+        const grid = document.getElementById('dataGrid');
+        if (!grid) return;
+
+        const rows = Array.from(grid.querySelectorAll('.ite-grid__row'));
+        const rowIndex = rows.indexOf(row);
+        if (rowIndex < 0) return;
+
+        const cells = Array.from(row.querySelectorAll('.ite-grid__cell'));
+        const colIndex = cells.indexOf(cell);
+        if (colIndex < 0) return;
+
+        enterEditMode(rowIndex, colIndex, null, 'select');
+    }
+
+    // ==========================================
     // Story 3.1: Cell Selection Functions
     // ==========================================
 
@@ -263,10 +564,15 @@
     /**
      * Handle cell click for selection
      * Story 3.1: Click selection
+     * Story 3.2: Coordinate with edit mode - exit edit before selecting new cell
      * @param {MouseEvent} event
      */
     function handleCellClick(event) {
         const target = /** @type {HTMLElement} */ (event.target);
+
+        // If clicking on edit input, don't process as cell click
+        if (target.classList.contains('ite-grid__cell-input')) return;
+
         const cell = target.closest('.ite-grid__cell');
         if (!cell) return;
 
@@ -288,12 +594,20 @@
         const colIndex = cells.indexOf(cell);
         if (colIndex < 0) return;
 
+        // Story 3.2: If editing a different cell, exit edit mode first (save)
+        if (state.isEditing) {
+            if (state.editingCell.rowIndex !== rowIndex || state.editingCell.colIndex !== colIndex) {
+                exitEditMode(true);
+            }
+        }
+
         selectCell(rowIndex, colIndex);
     }
 
     /**
      * Handle keyboard navigation for cell selection
      * Story 3.1: Keyboard navigation (Arrow keys, Tab, Shift+Tab)
+     * Story 3.2: Added F2 to edit and typing to edit
      * @param {KeyboardEvent} event
      */
     function handleCellKeydown(event) {
@@ -302,11 +616,22 @@
             return;
         }
 
+        // Story 3.2: If editing, let the input handle the event
+        if (state.isEditing) {
+            return;
+        }
+
         const { rowIndex, colIndex } = state.selectedCell;
         const maxRow = state.rows.length - 1;
         const maxCol = state.columns.length - 1;
 
         switch (event.key) {
+            // Story 3.2: F2 to enter edit mode
+            case 'F2':
+                event.preventDefault();
+                enterEditMode(rowIndex, colIndex, null, 'end');
+                return;
+
             case 'ArrowUp':
                 event.preventDefault();
                 if (rowIndex > 0) {
@@ -378,6 +703,22 @@
                 } else {
                     // End: Go to last cell in row
                     selectCell(rowIndex, maxCol);
+                }
+                break;
+
+            // Story 3.2: Delete/Backspace to clear and edit
+            case 'Delete':
+            case 'Backspace':
+                event.preventDefault();
+                enterEditMode(rowIndex, colIndex, '', 'start');
+                break;
+
+            default:
+                // Story 3.2: Printable characters start edit mode (overwrite)
+                // Check if it's a single printable character and no modifier keys
+                if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+                    event.preventDefault();
+                    enterEditMode(rowIndex, colIndex, event.key, 'end');
                 }
                 break;
         }
@@ -746,6 +1087,9 @@
 
         // Story 3.1: Clear selection on page change - indices are page-relative
         state.selectedCell = { rowIndex: null, colIndex: null };
+        // Story 3.2: Clear edit state on page change
+        state.editingCell = { rowIndex: null, colIndex: null };
+        state.editOriginalValue = null;
 
         renderGrid();
         updatePaginationUI();
@@ -858,6 +1202,9 @@
             if (!state.selectedCell) {
                 state.selectedCell = { rowIndex: null, colIndex: null };
             }
+            // Story 3.2: Ensure editingCell is properly initialized (never persist edit state)
+            state.editingCell = { rowIndex: null, colIndex: null };
+            state.editOriginalValue = null;
             if (state.columns.length > 0) {
                 renderGrid();
             }
@@ -884,11 +1231,13 @@
         }
 
         // Story 3.1: Setup cell selection click handler (delegated on grid)
+        // Story 3.2: Added double-click for edit mode
         // Note: Using named functions allows removeEventListener if needed
         // Event listeners are safe here because init() only runs once per webview load
         const grid = document.getElementById('dataGrid');
         if (grid && !grid.dataset.listenersAttached) {
             grid.addEventListener('click', handleCellClick);
+            grid.addEventListener('dblclick', handleCellDoubleClick);
             grid.addEventListener('keydown', handleCellKeydown);
             grid.dataset.listenersAttached = 'true';
         }
