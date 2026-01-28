@@ -267,6 +267,8 @@
         cell.textContent = '';
         cell.appendChild(input);
         cell.classList.add('ite-grid__cell--editing');
+        // Story 3.5: Clear any error state when user starts editing
+        cell.classList.remove('ite-grid__cell--error');
 
         // Setup input event handlers
         input.addEventListener('keydown', handleEditInputKeydown);
@@ -525,6 +527,11 @@
             console.debug(`${LOG_PREFIX} Cell saved successfully`);
             if (actualRowIndex >= 0 && actualColIndex >= 0) {
                 showSaveSuccess(actualRowIndex, actualColIndex);
+                // Remove any error state from previous failed attempt
+                const cell = getCellElement(actualRowIndex, actualColIndex);
+                if (cell) {
+                    cell.classList.remove('ite-grid__cell--error');
+                }
             }
             announce(`Saved successfully`);
         } else {
@@ -532,30 +539,163 @@
             // Rollback to original value if we can find the row
             if (actualRowIndex >= 0 && actualColIndex >= 0) {
                 rollbackCellValue(actualRowIndex, actualColIndex, oldValue);
+                // Story 3.5: Add error state to cell
+                const cell = getCellElement(actualRowIndex, actualColIndex);
+                if (cell) {
+                    cell.classList.add('ite-grid__cell--error');
+                }
             } else {
                 // Can't rollback visually - data will be stale until refresh
                 console.warn(`${LOG_PREFIX} Cannot rollback: Row no longer visible`);
             }
             announce(`Save failed: ${error?.message || 'Unknown error'}`);
 
-            // Show error in UI (Story 3.5 will enhance this)
-            showError({ message: error?.message || 'Failed to save changes' });
+            // Story 3.5: Show error toast with formatted message
+            showError({ message: error?.message || 'Failed to save changes', code: error?.code });
+        }
+    }
+
+    // ========================================================================
+    // Story 3.5: Toast Notification System
+    // ========================================================================
+
+    /** @type {HTMLElement | null} */
+    let activeToast = null;
+
+    /**
+     * Format error message based on error code
+     * Story 3.5: User-friendly error messages
+     * @param {{ message: string; code: string }} error
+     * @returns {string}
+     */
+    function formatErrorMessage(error) {
+        switch (error.code) {
+            case 'CONNECTION_TIMEOUT':
+                return 'Connection timed out. The server may be busy. Try again.';
+            case 'SERVER_UNREACHABLE':
+                return 'Cannot reach server. Please verify the server is running.';
+            case 'AUTH_FAILED':
+                return 'Authentication failed. Please reconnect to the server.';
+            case 'CONSTRAINT_VIOLATION':
+                return `Constraint violation: ${error.message}`;
+            case 'INVALID_INPUT':
+                return `Invalid value: ${error.message}`;
+            case 'CONNECTION_FAILED':
+                return 'Connection lost. Please check your connection.';
+            default:
+                return error.message || 'An unexpected error occurred. Please try again.';
         }
     }
 
     /**
+     * Show toast notification
+     * Story 3.5: Dismissable error notifications
+     * @param {string} message - Message to display
+     * @param {'error' | 'warning' | 'info'} type - Toast type
+     * @param {number} duration - Auto-dismiss duration in ms (0 = no auto-dismiss)
+     */
+    function showToast(message, type = 'error', duration = 5000) {
+        // Dismiss any existing toast
+        if (activeToast) {
+            dismissToast(activeToast, true);
+        }
+
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `ite-toast ite-toast--${type}`;
+        toast.setAttribute('role', 'alert');
+
+        // Icon based on type
+        const iconMap = { error: '\u26A0', warning: '\u26A0', info: '\u2139' }; // ⚠, ⚠, ℹ
+        const icon = document.createElement('span');
+        icon.className = 'ite-toast__icon';
+        icon.textContent = iconMap[type];
+        toast.appendChild(icon);
+
+        // Message
+        const messageEl = document.createElement('span');
+        messageEl.className = 'ite-toast__message';
+        messageEl.textContent = message;
+        toast.appendChild(messageEl);
+
+        // Dismiss button
+        const dismissBtn = document.createElement('button');
+        dismissBtn.className = 'ite-toast__dismiss';
+        dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+        dismissBtn.textContent = '\u2715'; // ✕
+        dismissBtn.addEventListener('click', () => dismissToast(toast));
+        toast.appendChild(dismissBtn);
+
+        // Add keyboard handler for Escape
+        toast.tabIndex = -1;
+        toast.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                dismissToast(toast);
+            }
+        });
+
+        container.appendChild(toast);
+        activeToast = toast;
+
+        // Focus the dismiss button for keyboard users
+        dismissBtn.focus();
+
+        // Auto-dismiss after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                if (activeToast === toast) {
+                    dismissToast(toast);
+                }
+            }, duration);
+        }
+
+        console.debug(`${LOG_PREFIX} Toast shown: ${type} - ${message}`);
+    }
+
+    /**
+     * Dismiss a toast notification
+     * @param {HTMLElement} toast - Toast element to dismiss
+     * @param {boolean} immediate - Skip animation
+     */
+    function dismissToast(toast, immediate = false) {
+        if (!toast || !toast.parentNode) return;
+
+        if (immediate) {
+            toast.remove();
+            if (activeToast === toast) activeToast = null;
+            return;
+        }
+
+        // Add dismissing animation
+        toast.classList.add('ite-toast--dismissing');
+        setTimeout(() => {
+            toast.remove();
+            if (activeToast === toast) activeToast = null;
+        }, 150); // Match CSS animation duration
+    }
+
+    /**
      * Show error message to user
-     * Story 3.3: Basic error display (enhanced in Story 3.5)
-     * @param {{ message: string }} payload
+     * Story 3.5: Enhanced error display with toast
+     * @param {{ message: string; code?: string }} payload
      */
     function showError(payload) {
-        // For now, just update status bar with error
+        const formattedMessage = formatErrorMessage({
+            message: payload.message,
+            code: payload.code || 'UNKNOWN_ERROR'
+        });
+        showToast(formattedMessage, 'error', 8000);
+
+        // Also update status bar briefly
         const statusText = document.getElementById('statusText');
         if (statusText) {
             statusText.textContent = `Error: ${payload.message}`;
             statusText.classList.add('ite-status-bar__text--error');
 
-            // Clear after 5 seconds
             setTimeout(() => {
                 updateStatusBar();
                 statusText.classList.remove('ite-status-bar__text--error');

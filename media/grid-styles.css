@@ -367,6 +367,161 @@ body {
     animation: ite-save-success 0.5s ease-out;
 }
 
+/* Story 3.5: Cell Error State */
+.ite-grid__cell--error {
+    outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    outline-offset: -2px;
+    position: relative;
+}
+
+/* Ensure error state is visible above other states */
+.ite-grid__cell--error.ite-grid__cell--selected {
+    outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+/* High contrast support for error state */
+@media (forced-colors: active) {
+    .ite-grid__cell--error {
+        outline-color: Mark;
+    }
+}
+
+/* Story 3.5: Toast Notification System */
+.ite-toast-container {
+    position: fixed;
+    bottom: 60px; /* Above status bar */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.ite-toast {
+    pointer-events: auto;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    background-color: var(--vscode-notifications-background);
+    border: 1px solid var(--vscode-notifications-border);
+    border-radius: 4px;
+    color: var(--vscode-notifications-foreground);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: ite-toast-in 0.2s ease-out;
+    max-width: 400px;
+}
+
+.ite-toast--error {
+    background-color: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.1));
+    border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.ite-toast--warning {
+    background-color: var(--vscode-inputValidation-warningBackground, rgba(204, 167, 0, 0.1));
+    border-color: var(--vscode-inputValidation-warningBorder, #cca700);
+}
+
+.ite-toast--info {
+    background-color: var(--vscode-inputValidation-infoBackground, rgba(0, 120, 212, 0.1));
+    border-color: var(--vscode-inputValidation-infoBorder, #0078d4);
+}
+
+.ite-toast__icon {
+    flex-shrink: 0;
+    font-size: 16px;
+}
+
+.ite-toast--error .ite-toast__icon {
+    color: var(--vscode-errorForeground, #f48771);
+}
+
+.ite-toast--warning .ite-toast__icon {
+    color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.ite-toast--info .ite-toast__icon {
+    color: var(--vscode-editorInfo-foreground, #75beff);
+}
+
+.ite-toast__message {
+    flex-grow: 1;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.ite-toast__dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--vscode-icon-foreground);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 14px;
+    opacity: 0.7;
+    border-radius: 2px;
+}
+
+.ite-toast__dismiss:hover {
+    opacity: 1;
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.ite-toast__dismiss:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
+@keyframes ite-toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes ite-toast-out {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+.ite-toast--dismissing {
+    animation: ite-toast-out 0.15s ease-in forwards;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .ite-toast {
+        animation: none;
+    }
+    .ite-toast--dismissing {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+/* High contrast support for toast */
+@media (forced-colors: active) {
+    .ite-toast {
+        border: 2px solid ButtonText;
+    }
+    .ite-toast--error {
+        border-color: Mark;
+    }
+    .ite-toast__dismiss {
+        color: ButtonText;
+    }
+}
+
 /* Story 3.3: Error state in status bar */
 .ite-status-bar__text--error {
     color: var(--vscode-errorForeground);

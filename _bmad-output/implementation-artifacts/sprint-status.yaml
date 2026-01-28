@@ -58,12 +58,12 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Inline Cell Editing
-  epic-3: in-progress
+  epic-3: done
   3-1-cell-selection-keyboard-navigation: done
   3-2-inline-cell-editing: done
   3-3-save-cell-changes-update: done
   3-4-edit-cancellation-visual-feedback: done
-  3-5-error-handling-user-feedback: backlog
+  3-5-error-handling-user-feedback: done
   epic-3-retrospective: optional
 
   # Epic 4: Row Creation

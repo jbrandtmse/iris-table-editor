@@ -501,6 +501,9 @@ export class GridPanelManager {
         <div class="ite-status-bar" id="statusBar">
             <span class="ite-status-bar__text" id="statusText">Loading...</span>
         </div>
+
+        <!-- Story 3.5: Toast notification container -->
+        <div id="toastContainer" class="ite-toast-container" aria-live="assertive" aria-atomic="true"></div>
     </div>
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
     <script nonce="${nonce}">
