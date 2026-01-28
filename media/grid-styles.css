@@ -32,7 +32,8 @@ body {
     overflow: hidden;
 }
 
-/* Context Bar (Breadcrumb) */
+/* Context Bar (Breadcrumb)
+   Story 2.5: Enhanced with truncation and tooltip support (UX5, UX17) */
 .ite-context-bar {
     display: flex;
     align-items: center;
@@ -42,12 +43,33 @@ body {
     border-bottom: 1px solid var(--vscode-widget-border);
     font-size: 0.9em;
     flex-shrink: 0;
+    /* Story 2.5: Enable truncation behavior */
+    overflow: hidden;
+    min-width: 0;
 }
 
 .ite-context-bar__server,
-.ite-context-bar__namespace,
-.ite-context-bar__table {
+.ite-context-bar__namespace {
     color: var(--vscode-breadcrumb-foreground);
+    /* Story 2.5: Truncation - can shrink, show ellipsis */
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 20px; /* Minimum visible width before fully hiding */
+    max-width: 150px; /* Cap individual segment width */
+}
+
+.ite-context-bar__table {
+    /* Table name uses foreground color, not breadcrumb color */
+    color: var(--vscode-foreground);
+    font-weight: 600;
+    /* Story 2.5: Truncation - table name gets more space */
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 40px;
 }
 
 .ite-context-bar__server:hover,
@@ -56,14 +78,11 @@ body {
     color: var(--vscode-breadcrumb-focusForeground);
 }
 
-.ite-context-bar__table {
-    font-weight: 600;
-    color: var(--vscode-foreground);
-}
-
 .ite-context-bar__separator {
     color: var(--vscode-breadcrumb-foreground);
     opacity: 0.6;
+    /* Story 2.5: Separators don't shrink */
+    flex-shrink: 0;
 }
 
 /* Toolbar */

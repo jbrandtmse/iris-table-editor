@@ -54,7 +54,7 @@ development_status:
   2-2-table-data-loading-with-pagination: done
   2-3-data-type-formatting: done
   2-4-theme-support-light-dark: done
-  2-5-data-refresh-context-display: backlog
+  2-5-data-refresh-context-display: done
   epic-2-retrospective: optional
 
   # Epic 3: Inline Cell Editing

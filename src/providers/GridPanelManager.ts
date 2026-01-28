@@ -343,12 +343,13 @@ export class GridPanelManager {
 </head>
 <body>
     <div class="ite-grid-container">
-        <div class="ite-context-bar">
-            <span class="ite-context-bar__server">${escapeHtml(serverName)}</span>
+        <!-- Story 2.5: Context bar with tooltip for full path (UX5, UX17) -->
+        <div class="ite-context-bar" title="${escapeHtml(serverName)} > ${escapeHtml(namespace)} > ${escapeHtml(tableName)}">
+            <span class="ite-context-bar__server" title="${escapeHtml(serverName)}">${escapeHtml(serverName)}</span>
             <span class="ite-context-bar__separator">&gt;</span>
-            <span class="ite-context-bar__namespace">${escapeHtml(namespace)}</span>
+            <span class="ite-context-bar__namespace" title="${escapeHtml(namespace)}">${escapeHtml(namespace)}</span>
             <span class="ite-context-bar__separator">&gt;</span>
-            <span class="ite-context-bar__table">${escapeHtml(tableName)}</span>
+            <span class="ite-context-bar__table" title="${escapeHtml(tableName)}">${escapeHtml(tableName)}</span>
         </div>
 
         <div class="ite-toolbar">
