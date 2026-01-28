@@ -12,6 +12,7 @@ import {
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
+const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * Context for a table grid panel
@@ -77,7 +78,7 @@ export class GridPanelManager {
             serverName,
             namespace,
             tableName,
-            pageSize: 50,
+            pageSize: DEFAULT_PAGE_SIZE,
             currentPage: 0
         });
 
@@ -148,16 +149,34 @@ export class GridPanelManager {
                 break;
             case 'paginateNext': {
                 const payload = message.payload as IPaginatePayload;
-                // currentPage from webview is 1-indexed, convert to 0-indexed for API
-                const newPage = payload.currentPage; // Already next page in 0-indexed terms
+                // Input validation: ensure payload has valid positive numbers
+                if (!payload || typeof payload.currentPage !== 'number' || payload.currentPage < 1 ||
+                    typeof payload.pageSize !== 'number' || payload.pageSize < 1) {
+                    console.warn(`${LOG_PREFIX} Invalid paginateNext payload`);
+                    return;
+                }
+                // Page conversion: webview sends 1-indexed page (1, 2, 3...)
+                // API uses 0-indexed offset calculation: offset = page * pageSize
+                // So 1-indexed page N -> 0-indexed page N-1 for current, we want N for next
+                // When user is on page 1 and clicks Next: currentPage=1, API page=1, offset=50 (rows 51-100)
+                const newPage = payload.currentPage;
                 context.currentPage = newPage;
                 await this._loadTableData(panelKey, newPage, payload.pageSize);
                 break;
             }
             case 'paginatePrev': {
                 const payload = message.payload as IPaginatePayload;
-                // currentPage from webview is 1-indexed, convert to 0-indexed for API
-                const newPage = payload.currentPage - 2; // -1 for prev, -1 for 0-index conversion
+                // Input validation: ensure payload has valid positive numbers
+                // currentPage must be >= 2 for prev to make sense
+                if (!payload || typeof payload.currentPage !== 'number' || payload.currentPage < 2 ||
+                    typeof payload.pageSize !== 'number' || payload.pageSize < 1) {
+                    console.warn(`${LOG_PREFIX} Invalid paginatePrev payload`);
+                    return;
+                }
+                // Page conversion: webview sends 1-indexed page (1, 2, 3...)
+                // When user is on page 2 and clicks Prev: currentPage=2, want API page=0, offset=0 (rows 1-50)
+                // Formula: (1-indexed current) - 2 = 0-indexed previous page
+                const newPage = Math.max(0, payload.currentPage - 2);
                 context.currentPage = newPage;
                 await this._loadTableData(panelKey, newPage, payload.pageSize);
                 break;
@@ -169,7 +188,7 @@ export class GridPanelManager {
      * Load table schema and data for a panel
      * Story 2.2: Default pageSize changed to 50
      */
-    private async _loadTableData(panelKey: string, page = 0, pageSize = 50): Promise<void> {
+    private async _loadTableData(panelKey: string, page = 0, pageSize = DEFAULT_PAGE_SIZE): Promise<void> {
         const panel = this._panels.get(panelKey);
         const context = this._panelContexts.get(panelKey);
 

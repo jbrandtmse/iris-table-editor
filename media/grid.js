@@ -401,7 +401,7 @@
         const emptyCell = document.createElement('div');
         emptyCell.className = 'ite-grid__empty-cell';
         emptyCell.setAttribute('role', 'gridcell');
-        emptyCell.setAttribute('colspan', String(state.columns.length));
+        // Note: colspan is invalid on div elements; empty cell spans via CSS width: 100%
         emptyCell.textContent = 'No data in table';
 
         emptyRow.appendChild(emptyCell);
