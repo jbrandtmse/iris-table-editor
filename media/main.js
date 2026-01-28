@@ -822,16 +822,13 @@
     }
 
     /**
-     * Handle table selection
-     * @param {string} tableName - Selected table name
+     * Handle table click - opens the table directly
+     * @param {string} tableName - Table name to open
      * @param {string} namespace - Current namespace
      */
     function selectTable(tableName, namespace) {
-        appState.update({
-            selectedTable: tableName
-        });
-        announce(`Selected table ${tableName}`);
-        postCommand('selectTable', { tableName, namespace });
+        // Single-click opens the table directly
+        openTable(tableName, namespace);
     }
 
     /**
@@ -913,17 +910,9 @@
     // This avoids listener stacking issues when innerHTML is replaced
     const container = document.querySelector('.ite-container');
     if (container) {
-        // Double-click delegation - open table in editor
-        container.addEventListener('dblclick', (e) => {
-            const target = e.target;
-
-            // Table list item double-click - open in editor
-            const tableItem = target.closest('.ite-table-list__item');
-            if (tableItem) {
-                openTable(tableItem.dataset.table, tableItem.dataset.namespace);
-                return;
-            }
-        });
+        // Note: Native dblclick doesn't work for table items because the re-render
+        // between clicks destroys the DOM element. Double-click detection for tables
+        // is handled in selectTable() using timestamp comparison instead.
 
         // Click delegation
         container.addEventListener('click', (e) => {
@@ -1013,14 +1002,15 @@
             // Table list keyboard navigation
             const tableItem = e.target.closest('.ite-table-list__item');
             if (tableItem) {
-                // Enter opens the table, Space selects it
-                if (e.key === 'Enter') {
+                // Enter or Space opens the table
+                if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     openTable(tableItem.dataset.table, tableItem.dataset.namespace);
                     return;
                 }
-                handleListKeydown(e, tableItem, '.ite-table-list', '.ite-table-list__item', (item) => {
-                    selectTable(item.dataset.table, item.dataset.namespace);
+                // Arrow keys for navigation only
+                handleListKeydown(e, tableItem, '.ite-table-list', '.ite-table-list__item', () => {
+                    // No action on arrow key selection - just navigate
                 });
                 return;
             }
