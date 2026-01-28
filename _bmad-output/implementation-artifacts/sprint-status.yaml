@@ -67,7 +67,7 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Row Creation
-  epic-4: in-progress
+  epic-4: done
   4-1-new-row-affordance: done
   4-2-new-row-data-entry: done
   4-3-save-new-row-insert: done
