@@ -271,6 +271,8 @@
         // Setup input event handlers
         input.addEventListener('keydown', handleEditInputKeydown);
         input.addEventListener('blur', handleEditInputBlur);
+        // Story 3.4: Track modified state while typing
+        input.addEventListener('input', handleEditInputChange);
 
         // Focus and position cursor
         input.focus();
@@ -315,9 +317,11 @@
             // Remove input event handlers
             input.removeEventListener('keydown', handleEditInputKeydown);
             input.removeEventListener('blur', handleEditInputBlur);
+            input.removeEventListener('input', handleEditInputChange);
 
-            // Restore cell content
+            // Restore cell content and remove edit/modified states
             cell.classList.remove('ite-grid__cell--editing');
+            cell.classList.remove('ite-grid__cell--modified');
 
             if (saveValue) {
                 // Update local state with new value (optimistic update)
@@ -556,6 +560,32 @@
                 updateStatusBar();
                 statusText.classList.remove('ite-status-bar__text--error');
             }, 5000);
+        }
+    }
+
+    /**
+     * Handle input change events to track modified state
+     * Story 3.4: Visual feedback for unsaved changes
+     * @param {Event} event
+     */
+    function handleEditInputChange(event) {
+        if (!state.isEditing) return;
+
+        const { rowIndex, colIndex } = state.editingCell;
+        const cell = getCellElement(rowIndex, colIndex);
+        if (!cell) return;
+
+        const currentValue = /** @type {HTMLInputElement} */ (event.target).value;
+        // Compare with original value (handle null/undefined)
+        const originalStr = state.editOriginalValue === null || state.editOriginalValue === undefined
+            ? ''
+            : String(state.editOriginalValue);
+        const isModified = currentValue !== originalStr;
+
+        if (isModified) {
+            cell.classList.add('ite-grid__cell--modified');
+        } else {
+            cell.classList.remove('ite-grid__cell--modified');
         }
     }
 
