@@ -5,6 +5,8 @@
 
 import { IServerSpec } from '../models/IServerSpec';
 import { IUserError } from '../models/IMessages';
+import { IColumnInfo, ITableSchema } from '../models/ITableSchema';
+import { ITableRow } from '../models/ITableData';
 import { ErrorHandler, ErrorCodes } from '../utils/ErrorHandler';
 import { UrlBuilder } from '../utils/UrlBuilder';
 
@@ -42,10 +44,59 @@ interface IAtelierServerDescriptor {
 }
 
 /**
+ * Regular expression for valid SQL identifiers
+ * Allows: letters, numbers, underscore, dot (for schema.table), percent (for IRIS system tables like %Dictionary)
+ * SECURITY: This is used to prevent SQL injection in dynamic queries
+ */
+const VALID_SQL_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_%$.]*$/;
+
+/**
  * Service for communicating with InterSystems Atelier REST API
  */
 export class AtelierApiService {
     private _timeout = 10000; // 10 second timeout
+
+    /**
+     * Validate and escape a SQL identifier (table name, column name)
+     * SECURITY: Prevents SQL injection by validating identifier format
+     * @param identifier - The identifier to validate
+     * @param context - Context for error messages (e.g., 'table name', 'column name')
+     * @returns The escaped identifier wrapped in delimited identifier quotes
+     * @throws Error if identifier is invalid
+     */
+    private _validateAndEscapeIdentifier(identifier: string, context: string): string {
+        if (!identifier || typeof identifier !== 'string') {
+            throw new Error(`Invalid ${context}: identifier cannot be empty`);
+        }
+
+        // Trim whitespace
+        const trimmed = identifier.trim();
+
+        // Check against valid identifier pattern
+        if (!VALID_SQL_IDENTIFIER.test(trimmed)) {
+            throw new Error(`Invalid ${context}: "${identifier}" contains invalid characters`);
+        }
+
+        // For IRIS SQL, use double quotes as delimited identifiers
+        // Double any existing quotes to escape them
+        const escaped = trimmed.replace(/"/g, '""');
+        return `"${escaped}"`;
+    }
+
+    /**
+     * Validate a numeric value for use in SQL queries
+     * SECURITY: Ensures only valid integers are used for pagination
+     * @param value - The value to validate
+     * @param context - Context for error messages
+     * @returns The validated integer
+     * @throws Error if value is not a valid non-negative integer
+     */
+    private _validateNumeric(value: number, context: string): number {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+            throw new Error(`Invalid ${context}: must be a non-negative integer`);
+        }
+        return value;
+    }
 
     /**
      * Test connection to server by hitting the root Atelier endpoint
@@ -446,6 +497,399 @@ export class AtelierApiService {
                 }
             };
         }
+    }
+
+    /**
+     * Get table schema (column metadata) from INFORMATION_SCHEMA.COLUMNS
+     * @param spec - Server specification
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table to get schema for
+     * @param username - Authentication username
+     * @param password - Authentication password
+     * @returns Result with success flag, schema, and optional error
+     */
+    public async getTableSchema(
+        spec: IServerSpec,
+        namespace: string,
+        tableName: string,
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; schema?: ITableSchema; error?: IUserError }> {
+        const url = UrlBuilder.buildQueryUrl(
+            UrlBuilder.buildBaseUrl(spec),
+            namespace
+        );
+
+        const headers = this._buildAuthHeaders(username, password);
+
+        // Parameterized query to prevent SQL injection
+        const query = `
+            SELECT
+                COLUMN_NAME,
+                DATA_TYPE,
+                IS_NULLABLE,
+                CHARACTER_MAXIMUM_LENGTH,
+                NUMERIC_PRECISION,
+                NUMERIC_SCALE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = ?
+            ORDER BY ORDINAL_POSITION
+        `;
+
+        console.debug(`${LOG_PREFIX} Fetching schema for table ${tableName} in ${namespace}`);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query,
+                    parameters: [tableName]
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Check HTTP status
+            if (response.status === 401) {
+                console.debug(`${LOG_PREFIX} Get table schema failed: Authentication error`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication failed. Please check your credentials.',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'getTableSchema'
+                    }
+                };
+            }
+
+            if (!response.ok) {
+                console.debug(`${LOG_PREFIX} Get table schema failed: HTTP ${response.status}`);
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned status ${response.status}`,
+                        code: ErrorCodes.CONNECTION_FAILED,
+                        recoverable: true,
+                        context: 'getTableSchema'
+                    }
+                };
+            }
+
+            // Parse response body
+            const body = await response.json() as IAtelierQueryResponse;
+
+            // Check for Atelier errors
+            if (body.status?.errors?.length > 0) {
+                const error = ErrorHandler.parse(body, 'getTableSchema');
+                if (error) {
+                    console.debug(`${LOG_PREFIX} Get table schema failed: ${error.message}`);
+                    return { success: false, error };
+                }
+            }
+
+            // Parse columns from response with runtime validation
+            const columns: IColumnInfo[] = (body.result?.content || [])
+                .filter((row: unknown) => {
+                    // SECURITY: Validate that required fields exist and have correct types
+                    if (!row || typeof row !== 'object') {
+                        console.debug(`${LOG_PREFIX} Skipping invalid row: not an object`);
+                        return false;
+                    }
+                    const r = row as Record<string, unknown>;
+                    if (typeof r.COLUMN_NAME !== 'string' || !r.COLUMN_NAME) {
+                        console.debug(`${LOG_PREFIX} Skipping row with invalid COLUMN_NAME`);
+                        return false;
+                    }
+                    if (typeof r.DATA_TYPE !== 'string') {
+                        console.debug(`${LOG_PREFIX} Skipping row with invalid DATA_TYPE for column ${r.COLUMN_NAME}`);
+                        return false;
+                    }
+                    return true;
+                })
+                .map((row: unknown) => {
+                    const r = row as {
+                        COLUMN_NAME: string;
+                        DATA_TYPE: string;
+                        IS_NULLABLE: string;
+                        CHARACTER_MAXIMUM_LENGTH?: number;
+                        NUMERIC_PRECISION?: number;
+                        NUMERIC_SCALE?: number;
+                    };
+                    const column: IColumnInfo = {
+                        name: r.COLUMN_NAME,
+                        dataType: r.DATA_TYPE,
+                        nullable: r.IS_NULLABLE === 'YES'
+                    };
+                    if (r.CHARACTER_MAXIMUM_LENGTH !== undefined && r.CHARACTER_MAXIMUM_LENGTH !== null) {
+                        column.maxLength = r.CHARACTER_MAXIMUM_LENGTH;
+                    }
+                    if (r.NUMERIC_PRECISION !== undefined && r.NUMERIC_PRECISION !== null) {
+                        column.precision = r.NUMERIC_PRECISION;
+                    }
+                    if (r.NUMERIC_SCALE !== undefined && r.NUMERIC_SCALE !== null) {
+                        column.scale = r.NUMERIC_SCALE;
+                    }
+                    return column;
+                });
+
+            const schema: ITableSchema = {
+                tableName,
+                namespace,
+                columns
+            };
+
+            console.debug(`${LOG_PREFIX} Retrieved schema for ${tableName}: ${columns.length} columns`);
+            return {
+                success: true,
+                schema
+            };
+
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.debug(`${LOG_PREFIX} Get table schema failed: Timeout`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Connection timed out. The server may be busy or unreachable.',
+                        code: ErrorCodes.CONNECTION_TIMEOUT,
+                        recoverable: true,
+                        context: 'getTableSchema'
+                    }
+                };
+            }
+
+            // Network error
+            console.debug(`${LOG_PREFIX} Get table schema failed: Network error`, error);
+            return {
+                success: false,
+                error: {
+                    message: 'Cannot reach server. Please verify the server address and that IRIS is running.',
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: true,
+                    context: 'getTableSchema'
+                }
+            };
+        }
+    }
+
+    /**
+     * Get table data with pagination
+     * @param spec - Server specification
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table to get data from
+     * @param schema - Table schema for column names
+     * @param pageSize - Number of rows to fetch
+     * @param offset - Row offset for pagination
+     * @param username - Authentication username
+     * @param password - Authentication password
+     * @returns Result with success flag, rows, totalRows, and optional error
+     */
+    public async getTableData(
+        spec: IServerSpec,
+        namespace: string,
+        tableName: string,
+        schema: ITableSchema,
+        pageSize: number,
+        offset: number,
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; rows?: ITableRow[]; totalRows?: number; error?: IUserError }> {
+        const url = UrlBuilder.buildQueryUrl(
+            UrlBuilder.buildBaseUrl(spec),
+            namespace
+        );
+
+        const headers = this._buildAuthHeaders(username, password);
+
+        // SECURITY: Validate and escape all identifiers to prevent SQL injection
+        let escapedTableName: string;
+        let escapedColumnNames: string;
+        let validatedPageSize: number;
+        let validatedOffset: number;
+
+        try {
+            escapedTableName = this._validateAndEscapeIdentifier(tableName, 'table name');
+            escapedColumnNames = schema.columns
+                .map(col => this._validateAndEscapeIdentifier(col.name, 'column name'))
+                .join(', ');
+            validatedPageSize = this._validateNumeric(pageSize, 'page size');
+            validatedOffset = this._validateNumeric(offset, 'offset');
+        } catch (validationError) {
+            console.error(`${LOG_PREFIX} Validation error:`, validationError);
+            return {
+                success: false,
+                error: {
+                    message: validationError instanceof Error ? validationError.message : 'Invalid query parameters',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: false,
+                    context: 'getTableData'
+                }
+            };
+        }
+
+        // IRIS SQL pagination syntax uses TOP with %VID for offset
+        // For simple pagination, we use TOP and a subquery for offset
+        // NOTE: For very large tables (millions of rows), this offset-based pagination
+        // may become slow. Consider cursor-based pagination for future optimization.
+        let query: string;
+        if (validatedOffset > 0) {
+            // Use %VID (virtual ID) for offset pagination in IRIS
+            query = `
+                SELECT TOP ${validatedPageSize} ${escapedColumnNames}
+                FROM (
+                    SELECT TOP ${validatedOffset + validatedPageSize} ${escapedColumnNames}, %VID AS _vid
+                    FROM ${escapedTableName}
+                )
+                WHERE _vid > ${validatedOffset}
+            `;
+        } else {
+            query = `SELECT TOP ${validatedPageSize} ${escapedColumnNames} FROM ${escapedTableName}`;
+        }
+
+        console.debug(`${LOG_PREFIX} Fetching data for table ${tableName} (page size: ${pageSize}, offset: ${offset})`);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+
+            // Execute data query
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query,
+                    parameters: []
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Check HTTP status
+            if (response.status === 401) {
+                console.debug(`${LOG_PREFIX} Get table data failed: Authentication error`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication failed. Please check your credentials.',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'getTableData'
+                    }
+                };
+            }
+
+            if (!response.ok) {
+                console.debug(`${LOG_PREFIX} Get table data failed: HTTP ${response.status}`);
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned status ${response.status}`,
+                        code: ErrorCodes.CONNECTION_FAILED,
+                        recoverable: true,
+                        context: 'getTableData'
+                    }
+                };
+            }
+
+            // Parse response body
+            const body = await response.json() as IAtelierQueryResponse;
+
+            // Check for Atelier errors
+            if (body.status?.errors?.length > 0) {
+                const error = ErrorHandler.parse(body, 'getTableData');
+                if (error) {
+                    console.debug(`${LOG_PREFIX} Get table data failed: ${error.message}`);
+                    return { success: false, error };
+                }
+            }
+
+            // Parse rows from response
+            const rows: ITableRow[] = (body.result?.content || []) as ITableRow[];
+
+            // Get total row count (separate query) - pass already-escaped table name
+            const countResult = await this._getTableRowCount(url, headers, escapedTableName, controller.signal);
+
+            console.debug(`${LOG_PREFIX} Retrieved ${rows.length} rows from ${tableName}`);
+            return {
+                success: true,
+                rows,
+                totalRows: countResult.totalRows
+            };
+
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.debug(`${LOG_PREFIX} Get table data failed: Timeout`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Connection timed out. The server may be busy or unreachable.',
+                        code: ErrorCodes.CONNECTION_TIMEOUT,
+                        recoverable: true,
+                        context: 'getTableData'
+                    }
+                };
+            }
+
+            // Network error
+            console.debug(`${LOG_PREFIX} Get table data failed: Network error`, error);
+            return {
+                success: false,
+                error: {
+                    message: 'Cannot reach server. Please verify the server address and that IRIS is running.',
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: true,
+                    context: 'getTableData'
+                }
+            };
+        }
+    }
+
+    /**
+     * Get total row count for a table
+     * @param url - Query endpoint URL
+     * @param headers - Auth headers
+     * @param escapedTableName - Already validated and escaped table name
+     * @param signal - Abort signal
+     * @returns Total row count or 0 on error
+     */
+    private async _getTableRowCount(
+        url: string,
+        headers: Record<string, string>,
+        escapedTableName: string,
+        signal: AbortSignal
+    ): Promise<{ totalRows: number }> {
+        try {
+            // SECURITY: tableName is already validated and escaped by caller
+            const countQuery = `SELECT COUNT(*) AS total FROM ${escapedTableName}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query: countQuery,
+                    parameters: []
+                }),
+                signal
+            });
+
+            if (response.ok) {
+                const body = await response.json() as IAtelierQueryResponse;
+                const content = body.result?.content;
+                if (content && content.length > 0) {
+                    const row = content[0] as { total: number };
+                    return { totalRows: row.total || 0 };
+                }
+            }
+        } catch (error) {
+            console.debug(`${LOG_PREFIX} Failed to get row count, returning 0`, error);
+        }
+        return { totalRows: 0 };
     }
 
     /**

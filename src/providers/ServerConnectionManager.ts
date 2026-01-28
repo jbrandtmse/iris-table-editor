@@ -12,6 +12,8 @@ interface ICredentials {
 }
 import { IServerSpec } from '../models/IServerSpec';
 import { IUserError } from '../models/IMessages';
+import { ITableSchema } from '../models/ITableSchema';
+import { ITableRow } from '../models/ITableData';
 import { AtelierApiService } from '../services/AtelierApiService';
 import { ErrorHandler, ErrorCodes } from '../utils/ErrorHandler';
 
@@ -20,12 +22,22 @@ const LOG_PREFIX = '[IRIS-TE]';
 /**
  * Manages server connections via InterSystems Server Manager extension
  */
+/**
+ * Cached schema entry with timestamp for TTL
+ */
+interface ISchemaCacheEntry {
+    schema: ITableSchema;
+    timestamp: number;
+}
+
 export class ServerConnectionManager {
     private _serverManagerApi: ServerManagerAPI | undefined;
     private _connectedServer: string | null = null;
     private _serverSpec: IServerSpec | null = null;
     private _credentials: ICredentials | null = null;
     private _atelierApiService: AtelierApiService;
+    private _schemaCache: Map<string, ISchemaCacheEntry> = new Map();
+    private static readonly SCHEMA_CACHE_TTL_MS = 3600000; // 1 hour TTL
 
     constructor() {
         this._atelierApiService = new AtelierApiService();
@@ -254,13 +266,14 @@ export class ServerConnectionManager {
 
     /**
      * Disconnect from current server
-     * SECURITY: Clears credentials from memory
+     * SECURITY: Clears credentials and cache from memory
      */
     public disconnect(): void {
         console.debug(`${LOG_PREFIX} Disconnecting from server: ${this._connectedServer}`);
         this._connectedServer = null;
         this._serverSpec = null;
         this._credentials = null;
+        this._schemaCache.clear();
     }
 
     /**
@@ -364,6 +377,188 @@ export class ServerConnectionManager {
                     code: ErrorCodes.UNKNOWN_ERROR,
                     recoverable: true,
                     context: 'getTables'
+                }
+            };
+        }
+    }
+
+    /**
+     * Get table schema (column metadata) from connected server
+     * Uses 1-hour TTL cache per architecture specification
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table to get schema for
+     * @returns Result with success flag, schema, and optional error
+     */
+    public async getTableSchema(namespace: string, tableName: string): Promise<{
+        success: boolean;
+        schema?: ITableSchema;
+        error?: IUserError;
+    }> {
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'getTableSchema'
+                }
+            };
+        }
+
+        if (!namespace) {
+            return {
+                success: false,
+                error: {
+                    message: 'Namespace is required',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTableSchema'
+                }
+            };
+        }
+
+        if (!tableName) {
+            return {
+                success: false,
+                error: {
+                    message: 'Table name is required',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTableSchema'
+                }
+            };
+        }
+
+        // Check cache first
+        const cacheKey = `${namespace}.${tableName}`;
+        const cached = this._schemaCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < ServerConnectionManager.SCHEMA_CACHE_TTL_MS) {
+            console.debug(`${LOG_PREFIX} Schema cache hit for ${cacheKey}`);
+            return { success: true, schema: cached.schema };
+        }
+
+        try {
+            console.debug(`${LOG_PREFIX} Fetching schema for ${tableName} in ${namespace}`);
+            const result = await this._atelierApiService.getTableSchema(
+                this._serverSpec,
+                namespace,
+                tableName,
+                this._credentials.username,
+                this._credentials.password
+            );
+
+            // Cache on success
+            if (result.success && result.schema) {
+                this._schemaCache.set(cacheKey, {
+                    schema: result.schema,
+                    timestamp: Date.now()
+                });
+                console.debug(`${LOG_PREFIX} Schema cached for ${cacheKey}`);
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Get table schema error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'getTableSchema') || {
+                    message: 'Failed to get table schema',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTableSchema'
+                }
+            };
+        }
+    }
+
+    /**
+     * Get table data with pagination from connected server
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table to get data from
+     * @param pageSize - Number of rows to fetch
+     * @param offset - Row offset for pagination
+     * @returns Result with success flag, rows, totalRows, and optional error
+     */
+    public async getTableData(namespace: string, tableName: string, pageSize: number, offset: number): Promise<{
+        success: boolean;
+        rows?: ITableRow[];
+        totalRows?: number;
+        error?: IUserError;
+    }> {
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'getTableData'
+                }
+            };
+        }
+
+        if (!namespace) {
+            return {
+                success: false,
+                error: {
+                    message: 'Namespace is required',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTableData'
+                }
+            };
+        }
+
+        if (!tableName) {
+            return {
+                success: false,
+                error: {
+                    message: 'Table name is required',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTableData'
+                }
+            };
+        }
+
+        try {
+            // First get schema (uses cache)
+            const schemaResult = await this.getTableSchema(namespace, tableName);
+            if (!schemaResult.success || !schemaResult.schema) {
+                return {
+                    success: false,
+                    error: schemaResult.error || {
+                        message: 'Failed to get table schema',
+                        code: ErrorCodes.UNKNOWN_ERROR,
+                        recoverable: true,
+                        context: 'getTableData'
+                    }
+                };
+            }
+
+            console.debug(`${LOG_PREFIX} Fetching data for ${tableName} in ${namespace} (pageSize: ${pageSize}, offset: ${offset})`);
+            return this._atelierApiService.getTableData(
+                this._serverSpec,
+                namespace,
+                tableName,
+                schemaResult.schema,
+                pageSize,
+                offset,
+                this._credentials.username,
+                this._credentials.password
+            );
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Get table data error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'getTableData') || {
+                    message: 'Failed to get table data',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTableData'
                 }
             };
         }

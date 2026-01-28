@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import { AtelierApiService } from '../services/AtelierApiService';
 import { IServerSpec } from '../models/IServerSpec';
 import { ErrorCodes } from '../utils/ErrorHandler';
+import { IColumnInfo, ITableSchema } from '../models/ITableSchema';
 
 suite('AtelierApiService Test Suite', () => {
 
@@ -305,6 +306,139 @@ suite('AtelierApiService Test Suite', () => {
 
             // Verify URL doesn't contain unencoded %
             assert.ok(!queryUrl.includes('/%S'), 'URL should not contain unencoded %S');
+        }
+    });
+
+    // Story 2.1: ITableSchema and IColumnInfo interface tests
+    test('IColumnInfo interface has required properties', () => {
+        const columnInfo: IColumnInfo = {
+            name: 'TestColumn',
+            dataType: 'VARCHAR',
+            nullable: true,
+            maxLength: 255
+        };
+
+        assert.strictEqual(columnInfo.name, 'TestColumn', 'name should be set');
+        assert.strictEqual(columnInfo.dataType, 'VARCHAR', 'dataType should be set');
+        assert.strictEqual(columnInfo.nullable, true, 'nullable should be set');
+        assert.strictEqual(columnInfo.maxLength, 255, 'maxLength should be set');
+    });
+
+    test('IColumnInfo interface allows optional properties to be undefined', () => {
+        const columnInfo: IColumnInfo = {
+            name: 'ID',
+            dataType: 'INTEGER',
+            nullable: false
+        };
+
+        assert.strictEqual(columnInfo.name, 'ID', 'name should be set');
+        assert.strictEqual(columnInfo.maxLength, undefined, 'maxLength should be optional');
+        assert.strictEqual(columnInfo.precision, undefined, 'precision should be optional');
+        assert.strictEqual(columnInfo.scale, undefined, 'scale should be optional');
+    });
+
+    test('ITableSchema interface has required properties', () => {
+        const schema: ITableSchema = {
+            tableName: 'TestTable',
+            namespace: 'USER',
+            columns: [
+                { name: 'ID', dataType: 'INTEGER', nullable: false },
+                { name: 'Name', dataType: 'VARCHAR', nullable: true, maxLength: 100 }
+            ]
+        };
+
+        assert.strictEqual(schema.tableName, 'TestTable', 'tableName should be set');
+        assert.strictEqual(schema.namespace, 'USER', 'namespace should be set');
+        assert.strictEqual(schema.columns.length, 2, 'columns should contain 2 items');
+    });
+
+    // Story 2.1: getTableSchema method tests
+    test('AtelierApiService has getTableSchema method', () => {
+        assert.ok(typeof service.getTableSchema === 'function', 'getTableSchema should be a function');
+    });
+
+    test('getTableSchema returns proper error structure on network failure', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-that-does-not-exist-12345.local'
+        };
+
+        service.setTimeout(1000);
+
+        const result = await service.getTableSchema(invalidSpec, 'USER', 'TestTable', 'test', 'test');
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(
+            [ErrorCodes.SERVER_UNREACHABLE, ErrorCodes.CONNECTION_TIMEOUT].includes(result.error!.code as typeof ErrorCodes.SERVER_UNREACHABLE),
+            'Should be network-related error'
+        );
+        assert.ok(result.error!.recoverable, 'Should be recoverable');
+    });
+
+    test('getTableSchema context is set correctly', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid.local'
+        };
+
+        service.setTimeout(500);
+
+        const result = await service.getTableSchema(invalidSpec, 'USER', 'TestTable', 'user', 'pass');
+
+        if (result.error) {
+            assert.strictEqual(result.error.context, 'getTableSchema', 'Context should be getTableSchema');
+        }
+    });
+
+    // Story 2.1: getTableData method tests
+    test('AtelierApiService has getTableData method', () => {
+        assert.ok(typeof service.getTableData === 'function', 'getTableData should be a function');
+    });
+
+    test('getTableData returns proper error structure on network failure', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-that-does-not-exist-12345.local'
+        };
+
+        const schema: ITableSchema = {
+            tableName: 'TestTable',
+            namespace: 'USER',
+            columns: [{ name: 'ID', dataType: 'INTEGER', nullable: false }]
+        };
+
+        service.setTimeout(1000);
+
+        const result = await service.getTableData(invalidSpec, 'USER', 'TestTable', schema, 100, 0, 'test', 'test');
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(
+            [ErrorCodes.SERVER_UNREACHABLE, ErrorCodes.CONNECTION_TIMEOUT].includes(result.error!.code as typeof ErrorCodes.SERVER_UNREACHABLE),
+            'Should be network-related error'
+        );
+        assert.ok(result.error!.recoverable, 'Should be recoverable');
+    });
+
+    test('getTableData context is set correctly', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid.local'
+        };
+
+        const schema: ITableSchema = {
+            tableName: 'TestTable',
+            namespace: 'USER',
+            columns: [{ name: 'ID', dataType: 'INTEGER', nullable: false }]
+        };
+
+        service.setTimeout(500);
+
+        const result = await service.getTableData(invalidSpec, 'USER', 'TestTable', schema, 100, 0, 'user', 'pass');
+
+        if (result.error) {
+            assert.strictEqual(result.error.context, 'getTableData', 'Context should be getTableData');
         }
     });
 });

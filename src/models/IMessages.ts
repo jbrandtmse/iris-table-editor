@@ -132,6 +132,61 @@ export interface ITableSelectedPayload {
     namespace: string;
 }
 
+// Re-export types for grid webview
+export type { ITableSchema, IColumnInfo } from './ITableSchema';
+export type { ITableRow, ITableDataResult } from './ITableData';
+
+/**
+ * Payload for openTable command (from sidebar to extension)
+ */
+export interface IOpenTablePayload {
+    namespace: string;
+    tableName: string;
+}
+
+/**
+ * Payload for tableSchema event (extension to grid webview)
+ */
+export interface ITableSchemaPayload {
+    tableName: string;
+    namespace: string;
+    serverName: string;
+    columns: Array<{
+        name: string;
+        dataType: string;
+        nullable: boolean;
+        maxLength?: number;
+        precision?: number;
+        scale?: number;
+    }>;
+}
+
+/**
+ * Payload for tableData event (extension to grid webview)
+ */
+export interface ITableDataPayload {
+    rows: Record<string, unknown>[];
+    totalRows: number;
+    page: number;
+    pageSize: number;
+}
+
+/**
+ * Payload for tableLoading event (extension to grid webview)
+ */
+export interface ITableLoadingPayload {
+    loading: boolean;
+    context: string;
+}
+
+/**
+ * Payload for requestData command (grid webview to extension)
+ */
+export interface IRequestDataPayload {
+    page: number;
+    pageSize: number;
+}
+
 /**
  * Server-related commands sent from webview to extension
  */
@@ -143,7 +198,15 @@ export type ServerCommand =
     | { command: 'getNamespaces'; payload: IGetNamespacesPayload }
     | { command: 'selectNamespace'; payload: ISelectNamespacePayload }
     | { command: 'getTables'; payload: IGetTablesPayload }
-    | { command: 'selectTable'; payload: ISelectTablePayload };
+    | { command: 'selectTable'; payload: ISelectTablePayload }
+    | { command: 'openTable'; payload: IOpenTablePayload };
+
+/**
+ * Grid-related commands sent from grid webview to extension
+ */
+export type GridCommand =
+    | { command: 'requestData'; payload: IRequestDataPayload }
+    | { command: 'refresh'; payload: IEmptyPayload };
 
 /**
  * Server-related events sent from extension to webview
@@ -158,4 +221,13 @@ export type ServerEvent =
     | { event: 'namespaceSelected'; payload: INamespaceSelectedPayload }
     | { event: 'tableList'; payload: ITableListPayload }
     | { event: 'tableSelected'; payload: ITableSelectedPayload }
+    | { event: 'error'; payload: IErrorPayload };
+
+/**
+ * Grid-related events sent from extension to grid webview
+ */
+export type GridEvent =
+    | { event: 'tableSchema'; payload: ITableSchemaPayload }
+    | { event: 'tableData'; payload: ITableDataPayload }
+    | { event: 'tableLoading'; payload: ITableLoadingPayload }
     | { event: 'error'; payload: IErrorPayload };

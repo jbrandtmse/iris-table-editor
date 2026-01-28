@@ -835,6 +835,16 @@
     }
 
     /**
+     * Open table in grid editor (Story 2.1)
+     * @param {string} tableName - Table name to open
+     * @param {string} namespace - Namespace containing the table
+     */
+    function openTable(tableName, namespace) {
+        announce(`Opening table ${tableName}`);
+        postCommand('openTable', { tableName, namespace });
+    }
+
+    /**
      * Refresh the table list
      */
     function refreshTables() {
@@ -903,6 +913,18 @@
     // This avoids listener stacking issues when innerHTML is replaced
     const container = document.querySelector('.ite-container');
     if (container) {
+        // Double-click delegation - open table in editor
+        container.addEventListener('dblclick', (e) => {
+            const target = e.target;
+
+            // Table list item double-click - open in editor
+            const tableItem = target.closest('.ite-table-list__item');
+            if (tableItem) {
+                openTable(tableItem.dataset.table, tableItem.dataset.namespace);
+                return;
+            }
+        });
+
         // Click delegation
         container.addEventListener('click', (e) => {
             const target = e.target;
@@ -991,6 +1013,12 @@
             // Table list keyboard navigation
             const tableItem = e.target.closest('.ite-table-list__item');
             if (tableItem) {
+                // Enter opens the table, Space selects it
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    openTable(tableItem.dataset.table, tableItem.dataset.namespace);
+                    return;
+                }
                 handleListKeydown(e, tableItem, '.ite-table-list', '.ite-table-list__item', (item) => {
                     selectTable(item.dataset.table, item.dataset.namespace);
                 });

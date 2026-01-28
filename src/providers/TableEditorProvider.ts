@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ServerConnectionManager } from './ServerConnectionManager';
+import { GridPanelManager } from './GridPanelManager';
 import {
     ICommand,
     IEvent,
@@ -15,7 +16,8 @@ import {
     ISelectTablePayload,
     ITableListPayload,
     ITableSelectedPayload,
-    IErrorPayload
+    IErrorPayload,
+    IOpenTablePayload
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -25,6 +27,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private _serverConnectionManager: ServerConnectionManager;
+    private _gridPanelManager: GridPanelManager;
     private _disposables: vscode.Disposable[] = [];
     private _isConnected = false;
     private _connectedServer: string | null = null;
@@ -35,6 +38,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         private readonly _extensionUri: vscode.Uri
     ) {
         this._serverConnectionManager = new ServerConnectionManager();
+        this._gridPanelManager = new GridPanelManager(this._extensionUri, this._serverConnectionManager);
     }
 
     public resolveWebviewView(
@@ -68,6 +72,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
             console.debug(`${LOG_PREFIX} Webview view disposed`);
             this._disposables.forEach(d => d.dispose());
             this._disposables = [];
+            this._gridPanelManager.dispose();
         });
 
         // Send initial server list
@@ -110,6 +115,9 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
                 break;
             case 'selectTable':
                 this._handleSelectTable(message.payload as ISelectTablePayload);
+                break;
+            case 'openTable':
+                await this._handleOpenTable(message.payload as IOpenTablePayload);
                 break;
         }
     }
@@ -270,6 +278,33 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
                 namespace: payload.namespace
             } as ITableSelectedPayload
         });
+    }
+
+    /**
+     * Handle open table command - opens grid panel in editor area
+     * @param payload - Open table payload with namespace and table name
+     */
+    private async _handleOpenTable(payload: IOpenTablePayload): Promise<void> {
+        if (!this._connectedServer) {
+            this._postMessage({
+                event: 'error',
+                payload: {
+                    message: 'Not connected to a server',
+                    code: 'CONNECTION_FAILED',
+                    recoverable: true,
+                    context: 'openTable'
+                } as IErrorPayload
+            });
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Opening grid for table: ${payload.tableName} in ${payload.namespace}`);
+
+        await this._gridPanelManager.openTableGrid(
+            this._connectedServer,
+            payload.namespace,
+            payload.tableName
+        );
     }
 
     /**

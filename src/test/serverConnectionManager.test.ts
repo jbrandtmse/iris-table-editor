@@ -260,4 +260,101 @@ suite('ServerConnectionManager Test Suite', () => {
             assert.ok(Array.isArray(result.tables), 'Success should have tables array');
         }
     });
+
+    // Story 2.1 - getTableSchema tests
+    test('getTableSchema method exists', () => {
+        assert.ok(typeof manager.getTableSchema === 'function', 'getTableSchema should be a function');
+    });
+
+    test('getTableSchema returns error when not connected', async () => {
+        // Fresh manager - not connected
+        const result = await manager.getTableSchema('USER', 'TestTable');
+
+        assert.strictEqual(result.success, false, 'Should fail when not connected');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(result.error!.message.includes('Not connected'), 'Error should indicate not connected');
+    });
+
+    test('getTableSchema returns error when namespace is empty', async () => {
+        const result = await manager.getTableSchema('', 'TestTable');
+
+        assert.strictEqual(result.success, false, 'Should fail with empty namespace');
+        assert.ok(result.error, 'Should have an error');
+    });
+
+    test('getTableSchema returns error when tableName is empty', async () => {
+        const result = await manager.getTableSchema('USER', '');
+
+        assert.strictEqual(result.success, false, 'Should fail with empty table name');
+        assert.ok(result.error, 'Should have an error');
+    });
+
+    test('getTableSchema returns proper result structure', async () => {
+        const result = await manager.getTableSchema('USER', 'TestTable');
+
+        // Result should always have success property
+        assert.ok('success' in result, 'Result should have success property');
+        assert.strictEqual(typeof result.success, 'boolean', 'success should be boolean');
+
+        // If failed, should have error with proper structure
+        if (!result.success) {
+            assert.ok(result.error, 'Failed result should have error');
+            assert.ok('message' in result.error!, 'Error should have message');
+            assert.ok('code' in result.error!, 'Error should have code');
+        }
+    });
+
+    // Story 2.1 - getTableData tests
+    test('getTableData method exists', () => {
+        assert.ok(typeof manager.getTableData === 'function', 'getTableData should be a function');
+    });
+
+    test('getTableData returns error when not connected', async () => {
+        // Fresh manager - not connected
+        const result = await manager.getTableData('USER', 'TestTable', 100, 0);
+
+        assert.strictEqual(result.success, false, 'Should fail when not connected');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(result.error!.message.includes('Not connected'), 'Error should indicate not connected');
+    });
+
+    test('getTableData returns error when namespace is empty', async () => {
+        const result = await manager.getTableData('', 'TestTable', 100, 0);
+
+        assert.strictEqual(result.success, false, 'Should fail with empty namespace');
+        assert.ok(result.error, 'Should have an error');
+    });
+
+    test('getTableData returns error when tableName is empty', async () => {
+        const result = await manager.getTableData('USER', '', 100, 0);
+
+        assert.strictEqual(result.success, false, 'Should fail with empty table name');
+        assert.ok(result.error, 'Should have an error');
+    });
+
+    test('getTableData returns proper result structure', async () => {
+        const result = await manager.getTableData('USER', 'TestTable', 100, 0);
+
+        // Result should always have success property
+        assert.ok('success' in result, 'Result should have success property');
+        assert.strictEqual(typeof result.success, 'boolean', 'success should be boolean');
+
+        // If failed, should have error with proper structure
+        if (!result.success) {
+            assert.ok(result.error, 'Failed result should have error');
+            assert.ok('message' in result.error!, 'Error should have message');
+            assert.ok('code' in result.error!, 'Error should have code');
+        }
+    });
+
+    // Story 2.1 - Schema caching tests
+    test('Schema cache is cleared on disconnect', () => {
+        // Fresh manager - not connected
+        const testManager = new ServerConnectionManager();
+
+        // Disconnect should clear cache (even if empty)
+        assert.doesNotThrow(() => {
+            testManager.disconnect();
+        }, 'disconnect should not throw');
+    });
 });

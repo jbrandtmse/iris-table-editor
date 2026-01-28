@@ -49,8 +49,8 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Table Data Display
-  epic-2: backlog
-  2-1-grid-component-table-schema: backlog
+  epic-2: in-progress
+  2-1-grid-component-table-schema: review
   2-2-table-data-loading-with-pagination: backlog
   2-3-data-type-formatting: backlog
   2-4-theme-support-light-dark: backlog

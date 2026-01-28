@@ -1,0 +1,330 @@
+/* IRIS Table Editor - Grid Styles
+   BEM naming with ite- prefix */
+
+body {
+    padding: 0;
+    margin: 0;
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    overflow: hidden;
+}
+
+/* Visually hidden utility for screen readers */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Main Grid Container */
+.ite-grid-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Context Bar (Breadcrumb) */
+.ite-context-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background-color: var(--vscode-breadcrumb-background);
+    border-bottom: 1px solid var(--vscode-widget-border);
+    font-size: 0.9em;
+    flex-shrink: 0;
+}
+
+.ite-context-bar__server,
+.ite-context-bar__namespace,
+.ite-context-bar__table {
+    color: var(--vscode-breadcrumb-foreground);
+}
+
+.ite-context-bar__server:hover,
+.ite-context-bar__namespace:hover,
+.ite-context-bar__table:hover {
+    color: var(--vscode-breadcrumb-focusForeground);
+}
+
+.ite-context-bar__table {
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.ite-context-bar__separator {
+    color: var(--vscode-breadcrumb-foreground);
+    opacity: 0.6;
+}
+
+/* Toolbar */
+.ite-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background-color: var(--vscode-editor-background);
+    border-bottom: 1px solid var(--vscode-widget-border);
+    flex-shrink: 0;
+}
+
+.ite-toolbar__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.ite-toolbar__button:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+    opacity: 1;
+}
+
+.ite-toolbar__button:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+.ite-toolbar__button:active {
+    background-color: var(--vscode-toolbar-activeBackground);
+}
+
+/* Loading Overlay */
+.ite-grid-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    text-align: center;
+    background-color: var(--vscode-editor-background);
+}
+
+.ite-loading__spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--vscode-progressBar-background);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ite-spin 1s linear infinite;
+}
+
+@keyframes ite-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ite-loading__text {
+    margin-top: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Grid Wrapper */
+.ite-grid-wrapper {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+/* Grid */
+.ite-grid {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+/* Grid Header Row */
+.ite-grid__header-row {
+    display: table-row;
+    background-color: var(--vscode-editorWidget-background);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Grid Header Cell */
+.ite-grid__header-cell {
+    display: table-cell;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editorWidget-background);
+    border-bottom: 2px solid var(--vscode-widget-border);
+    border-right: 1px solid var(--vscode-widget-border);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.ite-grid__header-cell:last-child {
+    border-right: none;
+}
+
+/* Grid Data Row */
+.ite-grid__row {
+    display: table-row;
+    transition: background-color 0.1s ease;
+}
+
+.ite-grid__row:nth-child(even) {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-grid__row:hover {
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.ite-grid__row:hover .ite-grid__cell {
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* Grid Cell */
+.ite-grid__cell {
+    display: table-cell;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--vscode-widget-border);
+    border-right: 1px solid var(--vscode-widget-border);
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.ite-grid__cell:last-child {
+    border-right: none;
+}
+
+/* Cell Data Type Styling */
+.ite-grid__cell--null {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+.ite-grid__cell--number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.ite-grid__cell--date {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Status Bar */
+.ite-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background-color: var(--vscode-statusBar-background);
+    border-top: 1px solid var(--vscode-widget-border);
+    flex-shrink: 0;
+}
+
+.ite-status-bar__text {
+    font-size: 0.85em;
+    color: var(--vscode-statusBar-foreground);
+}
+
+/* Error State */
+.ite-grid-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 24px;
+    text-align: center;
+}
+
+.ite-grid-error__icon {
+    font-size: 48px;
+    color: var(--vscode-errorForeground);
+    margin-bottom: 16px;
+}
+
+.ite-grid-error__title {
+    margin: 0 0 8px 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.ite-grid-error__message {
+    margin: 0 0 16px 0;
+    color: var(--vscode-descriptionForeground);
+}
+
+.ite-grid-error__button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.ite-grid-error__button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+/* Empty State */
+.ite-grid-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 24px;
+    text-align: center;
+}
+
+.ite-grid-empty__icon {
+    font-size: 48px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.ite-grid-empty__text {
+    margin: 0;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .ite-loading__spinner {
+        animation: none;
+        border-color: var(--vscode-progressBar-background);
+    }
+
+    .ite-grid__row {
+        transition: none;
+    }
+
+    .ite-toolbar__button {
+        transition: none;
+    }
+}
