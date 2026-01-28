@@ -68,9 +68,9 @@ development_status:
 
   # Epic 4: Row Creation
   epic-4: in-progress
-  4-1-new-row-affordance: in-progress
-  4-2-new-row-data-entry: backlog
-  4-3-save-new-row-insert: backlog
+  4-1-new-row-affordance: done
+  4-2-new-row-data-entry: done
+  4-3-save-new-row-insert: done
   epic-4-retrospective: optional
 
   # Epic 5: Row Deletion

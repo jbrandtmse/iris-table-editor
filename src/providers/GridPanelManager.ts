@@ -10,7 +10,9 @@ import {
     IRequestDataPayload,
     IPaginatePayload,
     ISaveCellPayload,
-    ISaveCellResultPayload
+    ISaveCellResultPayload,
+    IInsertRowPayload,
+    IInsertRowResultPayload
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -189,6 +191,12 @@ export class GridPanelManager {
                 await this._handleSaveCell(panelKey, payload);
                 break;
             }
+            // Story 4.3: Handle insert row command
+            case 'insertRow': {
+                const payload = message.payload as IInsertRowPayload;
+                await this._handleInsertRow(panelKey, payload);
+                break;
+            }
         }
     }
 
@@ -289,6 +297,86 @@ export class GridPanelManager {
                         code: 'UNKNOWN_ERROR'
                     }
                 } as ISaveCellResultPayload
+            });
+        }
+    }
+
+    /**
+     * Handle insertRow command from grid webview
+     * Story 4.3: New row insertion
+     */
+    private async _handleInsertRow(panelKey: string, payload: IInsertRowPayload): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        // Validate payload
+        if (!payload || typeof payload.newRowIndex !== 'number' ||
+            !Array.isArray(payload.columns) || !Array.isArray(payload.values) ||
+            payload.columns.length === 0 || payload.columns.length !== payload.values.length) {
+            console.warn(`${LOG_PREFIX} Invalid insertRow payload`);
+            this._postMessage(panel, {
+                event: 'insertRowResult',
+                payload: {
+                    success: false,
+                    newRowIndex: payload?.newRowIndex ?? -1,
+                    error: {
+                        message: 'Invalid insert request',
+                        code: 'INVALID_INPUT'
+                    }
+                } as IInsertRowResultPayload
+            });
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Inserting row into ${context.tableName}`);
+
+        try {
+            const result = await this._serverConnectionManager.insertRow(
+                context.namespace,
+                context.tableName,
+                payload.columns,
+                payload.values
+            );
+
+            if (result.success) {
+                console.debug(`${LOG_PREFIX} Row inserted successfully`);
+                this._postMessage(panel, {
+                    event: 'insertRowResult',
+                    payload: {
+                        success: true,
+                        newRowIndex: payload.newRowIndex
+                    } as IInsertRowResultPayload
+                });
+            } else {
+                console.debug(`${LOG_PREFIX} Row insert failed: ${result.error?.message}`);
+                this._postMessage(panel, {
+                    event: 'insertRowResult',
+                    payload: {
+                        success: false,
+                        newRowIndex: payload.newRowIndex,
+                        error: {
+                            message: result.error?.message || 'Failed to insert row',
+                            code: result.error?.code || 'UNKNOWN_ERROR'
+                        }
+                    } as IInsertRowResultPayload
+                });
+            }
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Insert row error:`, error);
+            this._postMessage(panel, {
+                event: 'insertRowResult',
+                payload: {
+                    success: false,
+                    newRowIndex: payload.newRowIndex,
+                    error: {
+                        message: 'An unexpected error occurred while inserting',
+                        code: 'UNKNOWN_ERROR'
+                    }
+                } as IInsertRowResultPayload
             });
         }
     }
@@ -467,6 +555,9 @@ export class GridPanelManager {
             </button>
             <button class="ite-toolbar__button" id="addRowBtn" title="Add new row (Ctrl+N)">
                 <i class="codicon codicon-add"></i>
+            </button>
+            <button class="ite-toolbar__button" id="saveRowBtn" title="Save new row (Ctrl+S)" disabled>
+                <i class="codicon codicon-save"></i>
             </button>
         </div>
 

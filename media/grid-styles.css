@@ -263,6 +263,29 @@ body {
     }
 }
 
+/* Story 4.3: New Row Saving State */
+.ite-grid__row--saving {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* Story 4.3: New Row Save Success Animation */
+@keyframes ite-row-save-success {
+    0% { background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15)); }
+    50% { background-color: var(--vscode-testing-iconPassed, rgba(76, 175, 80, 0.3)); }
+    100% { background-color: transparent; }
+}
+
+.ite-grid__row--save-success {
+    animation: ite-row-save-success 0.5s ease-out;
+}
+
+/* Story 4.3: New Row Error State */
+.ite-grid__row--error {
+    outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    outline-offset: -2px;
+}
+
 /* Grid Cell */
 .ite-grid__cell {
     display: table-cell;

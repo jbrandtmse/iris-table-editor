@@ -1089,6 +1089,158 @@ export class AtelierApiService {
     }
 
     /**
+     * Insert a new row into a table
+     * Story 4.3: Row insertion with parameterized query
+     * @param spec - Server specification
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table
+     * @param columns - Array of column names
+     * @param values - Array of values (same order as columns)
+     * @param username - Authentication username
+     * @param password - Authentication password
+     * @returns Result with success flag and optional error
+     */
+    public async insertRow(
+        spec: IServerSpec,
+        namespace: string,
+        tableName: string,
+        columns: string[],
+        values: unknown[],
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; error?: IUserError }> {
+        const url = UrlBuilder.buildQueryUrl(
+            UrlBuilder.buildBaseUrl(spec),
+            namespace
+        );
+
+        const headers = this._buildAuthHeaders(username, password);
+
+        // SECURITY: Validate and escape all identifiers to prevent SQL injection
+        let escapedTableName: string;
+        let escapedColumnList: string;
+        let placeholders: string;
+
+        try {
+            // Parse schema-qualified table name and escape each part separately
+            const { schemaName, baseTableName } = this._parseQualifiedTableName(tableName);
+            const escapedSchema = this._validateAndEscapeIdentifier(schemaName, 'schema name');
+            const escapedBase = this._validateAndEscapeIdentifier(baseTableName, 'table name');
+            escapedTableName = `${escapedSchema}.${escapedBase}`;
+
+            // Escape each column name
+            const escapedColumns = columns.map(col =>
+                this._validateAndEscapeIdentifier(col, 'column name')
+            );
+            escapedColumnList = escapedColumns.join(', ');
+
+            // Build placeholders for parameterized query
+            placeholders = columns.map(() => '?').join(', ');
+        } catch (validationError) {
+            console.error(`${LOG_PREFIX} Validation error:`, validationError);
+            return {
+                success: false,
+                error: {
+                    message: validationError instanceof Error ? validationError.message : 'Invalid query parameters',
+                    code: ErrorCodes.INVALID_INPUT,
+                    recoverable: false,
+                    context: 'insertRow'
+                }
+            };
+        }
+
+        // SECURITY: Use parameterized query - values are NEVER interpolated into SQL
+        const query = `INSERT INTO ${escapedTableName} (${escapedColumnList}) VALUES (${placeholders})`;
+
+        console.debug(`${LOG_PREFIX} Inserting row into ${tableName} with ${columns.length} columns`);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query,
+                    parameters: values
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Check HTTP status
+            if (response.status === 401) {
+                console.debug(`${LOG_PREFIX} Insert row failed: Authentication error`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication failed. Please check your credentials.',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'insertRow'
+                    }
+                };
+            }
+
+            if (!response.ok) {
+                console.debug(`${LOG_PREFIX} Insert row failed: HTTP ${response.status}`);
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned status ${response.status}`,
+                        code: ErrorCodes.CONNECTION_FAILED,
+                        recoverable: true,
+                        context: 'insertRow'
+                    }
+                };
+            }
+
+            // Parse response body
+            const body = await response.json() as IAtelierQueryResponse;
+
+            // Check for Atelier errors
+            if (body.status?.errors?.length > 0) {
+                const error = ErrorHandler.parse(body, 'insertRow');
+                if (error) {
+                    console.debug(`${LOG_PREFIX} Insert row failed: ${error.message}`);
+                    return { success: false, error };
+                }
+            }
+
+            console.debug(`${LOG_PREFIX} Row inserted successfully`);
+            return { success: true };
+
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.debug(`${LOG_PREFIX} Insert row failed: Timeout`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Connection timed out. The server may be busy or unreachable.',
+                        code: ErrorCodes.CONNECTION_TIMEOUT,
+                        recoverable: true,
+                        context: 'insertRow'
+                    }
+                };
+            }
+
+            // Network error
+            console.debug(`${LOG_PREFIX} Insert row failed: Network error`, error);
+            return {
+                success: false,
+                error: {
+                    message: 'Cannot reach server. Please verify the server address and that IRIS is running.',
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: true,
+                    context: 'insertRow'
+                }
+            };
+        }
+    }
+
+    /**
      * Set the request timeout
      * @param timeout - Timeout in milliseconds
      */

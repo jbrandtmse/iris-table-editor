@@ -635,6 +635,70 @@ export class ServerConnectionManager {
     }
 
     /**
+     * Insert a new row into a table
+     * Story 4.3: Row insertion wrapper
+     * @param namespace - Target namespace
+     * @param tableName - Table name
+     * @param columns - Column names
+     * @param values - Column values
+     * @returns Result with success flag and optional error
+     */
+    public async insertRow(
+        namespace: string,
+        tableName: string,
+        columns: string[],
+        values: unknown[]
+    ): Promise<{ success: boolean; error?: IUserError }> {
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'insertRow'
+                }
+            };
+        }
+
+        if (!namespace || !tableName || !columns.length) {
+            return {
+                success: false,
+                error: {
+                    message: 'Missing required parameters for insert',
+                    code: ErrorCodes.INVALID_INPUT,
+                    recoverable: false,
+                    context: 'insertRow'
+                }
+            };
+        }
+
+        try {
+            console.debug(`${LOG_PREFIX} Inserting row into ${tableName}`);
+            return this._atelierApiService.insertRow(
+                this._serverSpec,
+                namespace,
+                tableName,
+                columns,
+                values,
+                this._credentials.username,
+                this._credentials.password
+            );
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Insert row error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'insertRow') || {
+                    message: 'Failed to insert row',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'insertRow'
+                }
+            };
+        }
+    }
+
+    /**
      * Check if currently connected
      */
     public isConnected(): boolean {

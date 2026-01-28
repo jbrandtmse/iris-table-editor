@@ -225,6 +225,29 @@ export interface ISaveCellResultPayload {
 }
 
 /**
+ * Payload for insertRow command (grid webview to extension)
+ * Story 4.3: New row insertion
+ */
+export interface IInsertRowPayload {
+    newRowIndex: number;       // Index in newRows array
+    columns: string[];         // Column names
+    values: unknown[];         // Column values (same order as columns)
+}
+
+/**
+ * Payload for insertRowResult event (extension to grid webview)
+ * Story 4.3: New row insertion result
+ */
+export interface IInsertRowResultPayload {
+    success: boolean;
+    newRowIndex: number;       // Original index in newRows array
+    error?: {
+        message: string;
+        code: string;
+    };
+}
+
+/**
  * Server-related commands sent from webview to extension
  */
 export type ServerCommand =
@@ -241,13 +264,15 @@ export type ServerCommand =
 /**
  * Grid-related commands sent from grid webview to extension
  * Story 3.3: Added saveCell command
+ * Story 4.3: Added insertRow command
  */
 export type GridCommand =
     | { command: 'requestData'; payload: IRequestDataPayload }
     | { command: 'refresh'; payload: IEmptyPayload }
     | { command: 'paginateNext'; payload: IPaginatePayload }
     | { command: 'paginatePrev'; payload: IPaginatePayload }
-    | { command: 'saveCell'; payload: ISaveCellPayload };
+    | { command: 'saveCell'; payload: ISaveCellPayload }
+    | { command: 'insertRow'; payload: IInsertRowPayload };
 
 /**
  * Server-related events sent from extension to webview
@@ -267,10 +292,12 @@ export type ServerEvent =
 /**
  * Grid-related events sent from extension to grid webview
  * Story 3.3: Added saveCellResult event
+ * Story 4.3: Added insertRowResult event
  */
 export type GridEvent =
     | { event: 'tableSchema'; payload: ITableSchemaPayload }
     | { event: 'tableData'; payload: ITableDataPayload }
     | { event: 'tableLoading'; payload: ITableLoadingPayload }
     | { event: 'saveCellResult'; payload: ISaveCellResultPayload }
+    | { event: 'insertRowResult'; payload: IInsertRowResultPayload }
     | { event: 'error'; payload: IErrorPayload };
