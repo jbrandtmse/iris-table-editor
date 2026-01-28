@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"typescript.tsc.autoDetect": "off",
+		"intersystems.servers": {
+			"local": {
+				"webServer": {
+					"scheme": "http",
+					"host": "localhost",
+					"port": 52773
+				},
+				"description": "local",
+				"username": "_SYSTEM"
+			}
+		}
+	}
+}

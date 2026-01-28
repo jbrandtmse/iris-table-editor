@@ -9,7 +9,12 @@
       "Bash(git remote add:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "mcp__perplexity-mcp__search"
+      "mcp__perplexity-mcp__search",
+      "Bash(npm run compile:*)",
+      "Bash(npm run test:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix\\(story-2.2\\): Code review fixes - input validation, clarity\n\n- Add input validation for pagination payloads \\(currentPage, pageSize\\)\n- Add boundary check with Math.max\\(0, ...\\) for paginatePrev\n- Add DEFAULT_PAGE_SIZE constant to replace magic number 50\n- Remove invalid colspan attribute from div element in grid.js\n- Add clearer comments explaining page indexing conversion\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npm run lint)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat\\(story-2.3\\): Data type formatting - dates, booleans, numbers\n\n- Add formatDateTimeValue\\(\\) for locale-appropriate date formatting\n- Add boolean type support \\(BIT/BOOLEAN\\) displaying as Yes/No\n- Add MONEY to numeric types for right-alignment\n- Add white-space: nowrap to date cells\n- Add .ite-grid__cell--boolean CSS class \\(centered\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

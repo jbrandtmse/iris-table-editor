@@ -1,6 +1,6 @@
 # Story 2.3: Data Type Formatting
 
-Status: review
+Status: done
 
 ## Story
 

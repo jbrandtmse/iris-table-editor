@@ -1,6 +1,6 @@
 # Story 2.1: Grid Component & Table Schema
 
-Status: review
+Status: done
 
 ## Story
 

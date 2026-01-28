@@ -1,6 +1,6 @@
 # Story 2.2: Table Data Loading with Pagination
 
-Status: review
+Status: done
 
 ## Story
 
