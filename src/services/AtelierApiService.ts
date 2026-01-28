@@ -25,10 +25,20 @@ interface IAtelierQueryResponse {
 
 /**
  * Atelier API server descriptor response (root endpoint)
+ * The actual data is nested inside result.content
  */
 interface IAtelierServerDescriptor {
-    api: number;
-    namespaces: string[];
+    status: {
+        errors: Array<{ error: string }>;
+        summary?: string;
+    };
+    result?: {
+        content?: {
+            api?: number;
+            namespaces?: string[];
+            version?: string;
+        };
+    };
 }
 
 /**
@@ -38,7 +48,8 @@ export class AtelierApiService {
     private _timeout = 10000; // 10 second timeout
 
     /**
-     * Test connection to server with a simple query
+     * Test connection to server by hitting the root Atelier endpoint
+     * This endpoint returns server info and available namespaces without requiring a specific namespace
      * @param spec - Server specification
      * @param username - Authentication username
      * @param password - Authentication password
@@ -49,27 +60,19 @@ export class AtelierApiService {
         username: string,
         password: string
     ): Promise<{ success: boolean; error?: IUserError }> {
-        // Use USER namespace for connection test (most likely to exist)
-        const url = UrlBuilder.buildQueryUrl(
-            UrlBuilder.buildBaseUrl(spec),
-            'USER'
-        );
-
+        // Use root Atelier endpoint - doesn't require a namespace
+        const url = UrlBuilder.buildBaseUrl(spec);
         const headers = this._buildAuthHeaders(username, password);
 
-        console.debug(`${LOG_PREFIX} Testing connection to ${spec.host}:${spec.port}`);
+        console.debug(`${LOG_PREFIX} Testing connection to ${url}`);
 
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this._timeout);
 
             const response = await fetch(url, {
-                method: 'POST',
+                method: 'GET',
                 headers,
-                body: JSON.stringify({
-                    query: 'SELECT 1',
-                    parameters: []
-                }),
                 signal: controller.signal
             });
 
@@ -102,22 +105,13 @@ export class AtelierApiService {
                 };
             }
 
-            // Parse response body
-            const body = await response.json() as IAtelierQueryResponse;
+            // Parse response body - root endpoint returns server descriptor
+            const body = await response.json() as IAtelierServerDescriptor;
 
-            // Check for Atelier errors
-            if (body.status?.errors?.length > 0) {
-                const error = ErrorHandler.parse(body, 'testConnection');
-                // Only fail if it's an auth error - other errors may just be namespace issues
-                if (error?.code === ErrorCodes.AUTH_FAILED) {
-                    console.debug(`${LOG_PREFIX} Connection test failed: Auth error in response`);
-                    return { success: false, error };
-                }
-                // Log non-auth errors but don't fail (connection itself worked)
-                console.debug(`${LOG_PREFIX} Connection successful, but response had errors: ${body.status.errors[0].error}`);
-            }
-
-            console.debug(`${LOG_PREFIX} Connection test successful`);
+            // If we got here with a valid response, connection is successful
+            const apiVersion = body.result?.content?.api;
+            const namespaceCount = body.result?.content?.namespaces?.length || 0;
+            console.debug(`${LOG_PREFIX} Connection test successful - API version: ${apiVersion}, namespaces: ${namespaceCount}`);
             return { success: true };
 
         } catch (error) {
@@ -248,7 +242,7 @@ export class AtelierApiService {
         const url = UrlBuilder.buildBaseUrl(spec);
         const headers = this._buildAuthHeaders(username, password);
 
-        console.debug(`${LOG_PREFIX} Fetching namespaces from ${spec.host}:${spec.port}`);
+        console.debug(`${LOG_PREFIX} Fetching namespaces from URL: ${url}`);
 
         try {
             const controller = new AbortController();
@@ -292,10 +286,14 @@ export class AtelierApiService {
             // Parse response body
             const body = await response.json() as IAtelierServerDescriptor;
 
-            console.debug(`${LOG_PREFIX} Retrieved ${body.namespaces?.length || 0} namespaces`);
+            console.debug(`${LOG_PREFIX} Namespace response:`, JSON.stringify(body));
+
+            // Extract namespaces from result.content.namespaces
+            const namespaces = body.result?.content?.namespaces || [];
+            console.debug(`${LOG_PREFIX} Retrieved ${namespaces.length} namespaces`);
             return {
                 success: true,
-                namespaces: body.namespaces || []
+                namespaces
             };
 
         } catch (error) {

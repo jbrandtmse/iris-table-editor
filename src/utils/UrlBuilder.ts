@@ -11,24 +11,29 @@ import { IServerSpec } from '../models/IServerSpec';
 export class UrlBuilder {
     /**
      * Build base URL from server specification
-     * @param spec - Server specification with host, port, etc.
+     * @param spec - Server specification with host, port, scheme, etc.
      * @returns Base URL for Atelier API (e.g., "http://localhost:52773/api/atelier/")
      */
     public static buildBaseUrl(spec: IServerSpec): string {
-        // Use HTTPS for port 443, HTTP otherwise
-        const protocol = spec.port === 443 ? 'https' : 'http';
+        // Use scheme from spec (provided by Server Manager)
+        const protocol = spec.scheme || 'http';
 
-        // Ensure pathPrefix has proper format
-        let pathPrefix = spec.pathPrefix || '/api/atelier/';
+        // Build path prefix - default to /api/atelier/ if none provided
+        let pathPrefix = spec.pathPrefix;
 
-        // Ensure pathPrefix starts with /
-        if (!pathPrefix.startsWith('/')) {
-            pathPrefix = '/' + pathPrefix;
-        }
+        // If pathPrefix is empty or undefined, use default Atelier path
+        if (!pathPrefix) {
+            pathPrefix = '/api/atelier/';
+        } else {
+            // Ensure pathPrefix starts with /
+            if (!pathPrefix.startsWith('/')) {
+                pathPrefix = '/' + pathPrefix;
+            }
 
-        // Ensure pathPrefix ends with /
-        if (!pathPrefix.endsWith('/')) {
-            pathPrefix = pathPrefix + '/';
+            // Ensure pathPrefix ends with /
+            if (!pathPrefix.endsWith('/')) {
+                pathPrefix = pathPrefix + '/';
+            }
         }
 
         return `${protocol}://${spec.host}:${spec.port}${pathPrefix}`;

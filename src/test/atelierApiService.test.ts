@@ -9,6 +9,7 @@ suite('AtelierApiService Test Suite', () => {
 
     const mockServerSpec: IServerSpec = {
         name: 'test-server',
+        scheme: 'http',
         host: 'localhost',
         port: 52773,
         pathPrefix: '/api/atelier/',

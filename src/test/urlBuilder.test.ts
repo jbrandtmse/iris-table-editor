@@ -6,6 +6,7 @@ suite('UrlBuilder Test Suite', () => {
 
     const mockServerSpec: IServerSpec = {
         name: 'test-server',
+        scheme: 'http',
         host: 'localhost',
         port: 52773,
         pathPrefix: '/api/atelier/',
@@ -25,21 +26,35 @@ suite('UrlBuilder Test Suite', () => {
         assert.strictEqual(url, 'http://localhost:52773/api/atelier/');
     });
 
-    test('buildBaseUrl uses HTTPS for port 443', () => {
+    test('buildBaseUrl uses HTTPS when scheme is https', () => {
         const httpsSpec: IServerSpec = {
             ...mockServerSpec,
+            scheme: 'https',
             port: 443
         };
 
         const url = UrlBuilder.buildBaseUrl(httpsSpec);
 
-        assert.ok(url.startsWith('https://'), 'Should use HTTPS for port 443');
+        assert.ok(url.startsWith('https://'), 'Should use HTTPS when scheme is https');
         assert.ok(url.includes(':443'), 'Should include port 443');
+    });
+
+    test('buildBaseUrl respects scheme from Server Manager', () => {
+        const httpSpec: IServerSpec = {
+            ...mockServerSpec,
+            scheme: 'http',
+            port: 443  // unusual but possible config
+        };
+
+        const url = UrlBuilder.buildBaseUrl(httpSpec);
+
+        assert.ok(url.startsWith('http://'), 'Should respect http scheme even on port 443');
     });
 
     test('buildBaseUrl handles missing pathPrefix', () => {
         const specNoPrefix: IServerSpec = {
             name: 'test',
+            scheme: 'http',
             host: 'localhost',
             port: 52773,
             pathPrefix: ''

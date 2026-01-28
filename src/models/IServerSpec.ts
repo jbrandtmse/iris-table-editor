@@ -3,6 +3,7 @@
  */
 export interface IServerSpec {
     name: string;
+    scheme: 'http' | 'https';
     host: string;
     port: number;
     pathPrefix: string;

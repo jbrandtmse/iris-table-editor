@@ -1043,23 +1043,24 @@
         }
     }
 
-    // Request server list on load (unless already connected)
-    if (previousState.connectionState !== 'connected') {
+    // Request server list on load
+    // Even if we were previously "connected", we need to reconnect because
+    // the extension doesn't persist credentials across reloads
+    if (previousState.connectionState === 'connected' && previousState.connectedServer) {
+        // We had a previous connection - try to reconnect automatically
+        console.debug(`${LOG_PREFIX} Webview initialized, reconnecting to ${previousState.connectedServer}`);
+        appState.update({
+            selectedServer: previousState.connectedServer,
+            connectionState: 'connecting',
+            isLoading: true,
+            loadingContext: 'connecting',
+            // Preserve previous selections for restoration after reconnect
+            selectedNamespace: previousState.selectedNamespace,
+            selectedTable: previousState.selectedTable
+        });
+        postCommand('selectServer', { serverName: previousState.connectedServer });
+    } else {
         console.debug(`${LOG_PREFIX} Webview initialized, requesting server list`);
         postCommand('getServerList');
-    } else {
-        // Re-render with previous state and re-fetch namespaces
-        console.debug(`${LOG_PREFIX} Webview initialized, restoring connected state`);
-        appState.update({
-            isLoading: false,
-            connectionState: previousState.connectionState,
-            connectedServer: previousState.connectedServer,
-            selectedNamespace: previousState.selectedNamespace,
-            selectedTable: previousState.selectedTable,
-            namespacesLoading: true  // Trigger namespace re-fetch
-        });
-        // Re-fetch namespaces since they aren't persisted in state
-        // Tables will be re-fetched after namespace selection is restored
-        postCommand('getNamespaces');
     }
 })();

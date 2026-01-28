@@ -1,5 +1,15 @@
 import * as vscode from 'vscode';
 import type { ServerManagerAPI, IServerName, IServerSpec as ISMServerSpec } from '@intersystems-community/intersystems-servermanager';
+import { AUTHENTICATION_PROVIDER } from '@intersystems-community/intersystems-servermanager';
+
+/**
+ * Cached credentials from Server Manager
+ * SECURITY: Stored in memory only, cleared on disconnect
+ */
+interface ICredentials {
+    username: string;
+    password: string;
+}
 import { IServerSpec } from '../models/IServerSpec';
 import { IUserError } from '../models/IMessages';
 import { AtelierApiService } from '../services/AtelierApiService';
@@ -14,6 +24,7 @@ export class ServerConnectionManager {
     private _serverManagerApi: ServerManagerAPI | undefined;
     private _connectedServer: string | null = null;
     private _serverSpec: IServerSpec | null = null;
+    private _credentials: ICredentials | null = null;
     private _atelierApiService: AtelierApiService;
 
     constructor() {
@@ -54,11 +65,22 @@ export class ServerConnectionManager {
     }
 
     /**
-     * Get server specification by name
+     * Get server specification by name (without credentials)
      * @param serverName - Name of the server to get specification for
      * @returns Server specification or undefined if not found
      */
     public async getServerSpec(serverName: string): Promise<IServerSpec | undefined> {
+        const result = await this._getServerSpecWithCredentials(serverName);
+        return result?.spec;
+    }
+
+    /**
+     * Get server specification with credentials from Server Manager
+     * Uses the authentication provider to get password securely
+     * @param serverName - Name of the server
+     * @returns Server spec with credentials, or undefined if not found
+     */
+    private async _getServerSpecWithCredentials(serverName: string): Promise<{ spec: IServerSpec; credentials: ICredentials } | undefined> {
         if (!this.isServerManagerInstalled()) {
             return undefined;
         }
@@ -68,17 +90,85 @@ export class ServerConnectionManager {
             if (!api) {
                 return undefined;
             }
-            const spec: ISMServerSpec | undefined = await api.getServerSpec(serverName);
-            if (!spec) {
+
+            // 1. Get the server spec (may not include password)
+            const smSpec: ISMServerSpec | undefined = await api.getServerSpec(serverName);
+            if (!smSpec) {
                 console.debug(`${LOG_PREFIX} Server '${serverName}' not found`);
                 return undefined;
             }
+
+            console.debug(`${LOG_PREFIX} Got spec for '${serverName}' - username: ${smSpec.username}`);
+
+            // Build our spec object
+            const spec: IServerSpec = {
+                name: smSpec.name,
+                scheme: (smSpec.webServer.scheme as 'http' | 'https') || 'http',
+                host: smSpec.webServer.host || 'localhost',
+                port: smSpec.webServer.port || 52773,
+                pathPrefix: smSpec.webServer.pathPrefix || '',
+                username: smSpec.username
+            };
+
+            // 2. If password is already on spec, use it directly
+            if (smSpec.password) {
+                console.debug(`${LOG_PREFIX} Password available on spec`);
+                return {
+                    spec,
+                    credentials: {
+                        username: smSpec.username || '',
+                        password: smSpec.password
+                    }
+                };
+            }
+
+            // 3. Otherwise, get password via authentication provider
+            // Scopes should be [serverName, username] per ObjectScript extension pattern
+            const username = smSpec.username || '';
+            const scopes = [serverName, username];
+
+            console.debug(`${LOG_PREFIX} Getting credentials via auth provider with scopes: ${scopes.join(', ')}`);
+
+            // Try to get account info if available
+            const account = api.getAccount ? api.getAccount(smSpec) : undefined;
+
+            // First try silent (use cached credentials)
+            let session = await vscode.authentication.getSession(
+                AUTHENTICATION_PROVIDER,
+                scopes,
+                { silent: true, account }
+            );
+
+            // If no cached session, prompt user
+            if (!session) {
+                console.debug(`${LOG_PREFIX} No cached session, prompting for credentials`);
+                session = await vscode.authentication.getSession(
+                    AUTHENTICATION_PROVIDER,
+                    scopes,
+                    { createIfNone: true, account }
+                );
+            }
+
+            if (!session) {
+                console.debug(`${LOG_PREFIX} Authentication cancelled or failed`);
+                return undefined;
+            }
+
+            console.debug(`${LOG_PREFIX} Got session - account.id: ${session.account.id}, scopes: ${session.scopes.join(', ')}`);
+
+            // session.accessToken is the password
+            // session.scopes[1] may contain the username if not specified
+            const finalUsername = username || session.scopes[1] || session.account.id;
+
             return {
-                name: spec.name,
-                host: spec.webServer.host || 'localhost',
-                port: spec.webServer.port || 52773,
-                pathPrefix: spec.webServer.pathPrefix || '/api/atelier/',
-                username: spec.username
+                spec: {
+                    ...spec,
+                    username: finalUsername
+                },
+                credentials: {
+                    username: finalUsername,
+                    password: session.accessToken
+                }
             };
         } catch (error) {
             console.error(`${LOG_PREFIX} Error getting server spec:`, error);
@@ -97,9 +187,9 @@ export class ServerConnectionManager {
     }> {
         console.debug(`${LOG_PREFIX} Attempting to connect to server: ${serverName}`);
 
-        // 1. Get server spec
-        const spec = await this.getServerSpec(serverName);
-        if (!spec) {
+        // 1. Get server spec with credentials from Server Manager
+        const result = await this._getServerSpecWithCredentials(serverName);
+        if (!result) {
             return {
                 success: false,
                 error: {
@@ -111,40 +201,39 @@ export class ServerConnectionManager {
             };
         }
 
-        // 2. Get credentials via VS Code auth API
+        const { spec, credentials } = result;
+
+        // 2. Validate we have credentials
+        if (!credentials.username || !credentials.password) {
+            console.debug(`${LOG_PREFIX} Missing credentials - username: ${!!credentials.username}, password: ${!!credentials.password}`);
+            return {
+                success: false,
+                error: {
+                    message: 'Missing credentials. Please configure username and password in Server Manager.',
+                    code: ErrorCodes.AUTH_FAILED,
+                    recoverable: true,
+                    context: 'connect'
+                }
+            };
+        }
+
         try {
-            const session = await vscode.authentication.getSession(
-                'intersystems-server-credentials',
-                [serverName],
-                { createIfNone: true }
-            );
-
-            if (!session) {
-                return {
-                    success: false,
-                    error: {
-                        message: 'Authentication cancelled',
-                        code: ErrorCodes.AUTH_FAILED,
-                        recoverable: true,
-                        context: 'connect'
-                    }
-                };
-            }
-
             // 3. Test connection with Atelier API
+            console.debug(`${LOG_PREFIX} Testing connection with username: ${credentials.username}`);
             const testResult = await this._atelierApiService.testConnection(
                 spec,
-                session.account.id,  // username
-                session.accessToken  // password
+                credentials.username,
+                credentials.password
             );
 
             if (!testResult.success) {
                 return { success: false, error: testResult.error };
             }
 
-            // 4. Store connection state
+            // 4. Store connection state (credentials stored in memory only)
             this._connectedServer = serverName;
             this._serverSpec = spec;
+            this._credentials = credentials;
 
             console.debug(`${LOG_PREFIX} Connected to server: ${serverName}`);
             return { success: true };
@@ -165,16 +254,18 @@ export class ServerConnectionManager {
 
     /**
      * Disconnect from current server
+     * SECURITY: Clears credentials from memory
      */
     public disconnect(): void {
         console.debug(`${LOG_PREFIX} Disconnecting from server: ${this._connectedServer}`);
         this._connectedServer = null;
         this._serverSpec = null;
+        this._credentials = null;
     }
 
     /**
      * Get list of available namespaces from connected server
-     * SECURITY: Gets fresh credentials each time - never stores password
+     * Uses cached credentials from connect()
      * @returns Result with success flag, namespaces array, and optional error
      */
     public async getNamespaces(): Promise<{
@@ -182,7 +273,10 @@ export class ServerConnectionManager {
         namespaces?: string[];
         error?: IUserError;
     }> {
-        if (!this._connectedServer || !this._serverSpec) {
+        console.debug(`${LOG_PREFIX} getNamespaces called - connected: ${!!this._connectedServer}, hasSpec: ${!!this._serverSpec}, hasCredentials: ${!!this._credentials}`);
+
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
+            console.debug(`${LOG_PREFIX} getNamespaces: Not connected, returning error`);
             return {
                 success: false,
                 error: {
@@ -194,31 +288,15 @@ export class ServerConnectionManager {
             };
         }
 
-        // Get FRESH credentials each time - NEVER store password
         try {
-            const session = await vscode.authentication.getSession(
-                'intersystems-server-credentials',
-                [this._connectedServer],
-                { createIfNone: false }
-            );
-
-            if (!session) {
-                return {
-                    success: false,
-                    error: {
-                        message: 'Session expired. Please reconnect.',
-                        code: ErrorCodes.AUTH_EXPIRED,
-                        recoverable: true,
-                        context: 'getNamespaces'
-                    }
-                };
-            }
-
-            return this._atelierApiService.getNamespaces(
+            console.debug(`${LOG_PREFIX} getNamespaces: Calling AtelierApiService.getNamespaces`);
+            const result = await this._atelierApiService.getNamespaces(
                 this._serverSpec,
-                session.account.id,
-                session.accessToken
+                this._credentials.username,
+                this._credentials.password
             );
+            console.debug(`${LOG_PREFIX} getNamespaces result: success=${result.success}, count=${result.namespaces?.length || 0}`);
+            return result;
 
         } catch (error) {
             console.error(`${LOG_PREFIX} Get namespaces error:`, error);
@@ -236,7 +314,7 @@ export class ServerConnectionManager {
 
     /**
      * Get list of tables in a namespace from connected server
-     * SECURITY: Gets fresh credentials each time - never stores password
+     * Uses cached credentials from connect()
      * @param namespace - Target namespace to get tables from
      * @returns Result with success flag, tables array, and optional error
      */
@@ -245,7 +323,7 @@ export class ServerConnectionManager {
         tables?: string[];
         error?: IUserError;
     }> {
-        if (!this._connectedServer || !this._serverSpec) {
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
             return {
                 success: false,
                 error: {
@@ -269,31 +347,12 @@ export class ServerConnectionManager {
             };
         }
 
-        // Get FRESH credentials each time - NEVER store password
         try {
-            const session = await vscode.authentication.getSession(
-                'intersystems-server-credentials',
-                [this._connectedServer],
-                { createIfNone: false }
-            );
-
-            if (!session) {
-                return {
-                    success: false,
-                    error: {
-                        message: 'Session expired. Please reconnect.',
-                        code: ErrorCodes.AUTH_EXPIRED,
-                        recoverable: true,
-                        context: 'getTables'
-                    }
-                };
-            }
-
             return this._atelierApiService.getTables(
                 this._serverSpec,
                 namespace,
-                session.account.id,
-                session.accessToken
+                this._credentials.username,
+                this._credentials.password
             );
 
         } catch (error) {
