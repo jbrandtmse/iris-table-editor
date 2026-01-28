@@ -14,6 +14,7 @@
     /**
      * Grid application state
      * Story 2.2: Added pagination state management with computed properties
+     * Story 3.1: Added cell selection state
      */
     class AppState {
         constructor() {
@@ -35,6 +36,8 @@
             this.paginationLoading = false;
             /** @type {string | null} */
             this.error = null;
+            /** @type {{ rowIndex: number | null, colIndex: number | null }} - Story 3.1: Selected cell tracking */
+            this.selectedCell = { rowIndex: null, colIndex: null };
         }
 
         /**
@@ -179,6 +182,207 @@
         return { display: String(value), cssClass: '', isNull: false };
     }
 
+    // ==========================================
+    // Story 3.1: Cell Selection Functions
+    // ==========================================
+
+    /**
+     * Get DOM element for a specific cell
+     * Story 3.1: Helper for cell selection
+     * @param {number} rowIndex - Row index (0-based, data rows only)
+     * @param {number} colIndex - Column index (0-based)
+     * @returns {HTMLElement | null}
+     */
+    function getCellElement(rowIndex, colIndex) {
+        const grid = document.getElementById('dataGrid');
+        if (!grid) return null;
+
+        // Row index + 1 because first row is header
+        const rows = grid.querySelectorAll('.ite-grid__row');
+        if (rowIndex < 0 || rowIndex >= rows.length) return null;
+
+        const cells = rows[rowIndex].querySelectorAll('.ite-grid__cell');
+        if (colIndex < 0 || colIndex >= cells.length) return null;
+
+        return /** @type {HTMLElement} */ (cells[colIndex]);
+    }
+
+    /**
+     * Get currently selected cell element
+     * Story 3.1: Helper for cell selection
+     * @returns {HTMLElement | null}
+     */
+    function getSelectedCellElement() {
+        if (state.selectedCell.rowIndex === null || state.selectedCell.colIndex === null) {
+            return null;
+        }
+        return getCellElement(state.selectedCell.rowIndex, state.selectedCell.colIndex);
+    }
+
+    /**
+     * Select a cell by row and column index
+     * Story 3.1: Core selection function
+     * @param {number} rowIndex - Row index (0-based, data rows only)
+     * @param {number} colIndex - Column index (0-based)
+     * @param {boolean} [focus=true] - Whether to focus the cell
+     */
+    function selectCell(rowIndex, colIndex, focus = true) {
+        // Validate bounds
+        if (rowIndex < 0 || rowIndex >= state.rows.length) return;
+        if (colIndex < 0 || colIndex >= state.columns.length) return;
+
+        // Remove selection from previous cell
+        const prevCell = getSelectedCellElement();
+        if (prevCell) {
+            prevCell.classList.remove('ite-grid__cell--selected');
+            prevCell.setAttribute('aria-selected', 'false');
+            prevCell.setAttribute('tabindex', '-1');
+        }
+
+        // Update state
+        state.selectedCell = { rowIndex, colIndex };
+
+        // Add selection to new cell
+        const newCell = getCellElement(rowIndex, colIndex);
+        if (newCell) {
+            newCell.classList.add('ite-grid__cell--selected');
+            newCell.setAttribute('aria-selected', 'true');
+            newCell.setAttribute('tabindex', '0');
+            if (focus) {
+                newCell.focus();
+            }
+        }
+
+        // Announce for screen readers
+        const colName = state.columns[colIndex]?.name || `Column ${colIndex + 1}`;
+        announce(`${colName}, row ${rowIndex + 1} of ${state.rows.length}`);
+
+        saveState();
+    }
+
+    /**
+     * Handle cell click for selection
+     * Story 3.1: Click selection
+     * @param {MouseEvent} event
+     */
+    function handleCellClick(event) {
+        const target = /** @type {HTMLElement} */ (event.target);
+        const cell = target.closest('.ite-grid__cell');
+        if (!cell) return;
+
+        // Don't select header cells
+        if (cell.closest('.ite-grid__header-row')) return;
+
+        // Find row and column index
+        const row = cell.closest('.ite-grid__row');
+        if (!row) return;
+
+        const grid = document.getElementById('dataGrid');
+        if (!grid) return;
+
+        const rows = Array.from(grid.querySelectorAll('.ite-grid__row'));
+        const rowIndex = rows.indexOf(row);
+        if (rowIndex < 0) return;
+
+        const cells = Array.from(row.querySelectorAll('.ite-grid__cell'));
+        const colIndex = cells.indexOf(cell);
+        if (colIndex < 0) return;
+
+        selectCell(rowIndex, colIndex);
+    }
+
+    /**
+     * Handle keyboard navigation for cell selection
+     * Story 3.1: Keyboard navigation (Arrow keys, Tab, Shift+Tab)
+     * @param {KeyboardEvent} event
+     */
+    function handleCellKeydown(event) {
+        // Only handle if a cell is selected
+        if (state.selectedCell.rowIndex === null || state.selectedCell.colIndex === null) {
+            return;
+        }
+
+        const { rowIndex, colIndex } = state.selectedCell;
+        const maxRow = state.rows.length - 1;
+        const maxCol = state.columns.length - 1;
+
+        switch (event.key) {
+            case 'ArrowUp':
+                event.preventDefault();
+                if (rowIndex > 0) {
+                    selectCell(rowIndex - 1, colIndex);
+                }
+                break;
+
+            case 'ArrowDown':
+                event.preventDefault();
+                if (rowIndex < maxRow) {
+                    selectCell(rowIndex + 1, colIndex);
+                }
+                break;
+
+            case 'ArrowLeft':
+                event.preventDefault();
+                if (colIndex > 0) {
+                    selectCell(rowIndex, colIndex - 1);
+                }
+                break;
+
+            case 'ArrowRight':
+                event.preventDefault();
+                if (colIndex < maxCol) {
+                    selectCell(rowIndex, colIndex + 1);
+                }
+                break;
+
+            case 'Tab':
+                if (event.shiftKey) {
+                    // Shift+Tab: Move left, wrap to previous row
+                    if (colIndex > 0) {
+                        event.preventDefault();
+                        selectCell(rowIndex, colIndex - 1);
+                    } else if (rowIndex > 0) {
+                        event.preventDefault();
+                        selectCell(rowIndex - 1, maxCol);
+                    }
+                    // If at first cell (0,0), allow Tab to exit grid naturally
+                } else {
+                    // Tab: Move right, wrap to next row
+                    if (colIndex < maxCol) {
+                        event.preventDefault();
+                        selectCell(rowIndex, colIndex + 1);
+                    } else if (rowIndex < maxRow) {
+                        event.preventDefault();
+                        selectCell(rowIndex + 1, 0);
+                    }
+                    // If at last cell, allow Tab to exit grid naturally
+                }
+                break;
+
+            case 'Home':
+                event.preventDefault();
+                if (event.ctrlKey) {
+                    // Ctrl+Home: Go to first cell
+                    selectCell(0, 0);
+                } else {
+                    // Home: Go to first cell in row
+                    selectCell(rowIndex, 0);
+                }
+                break;
+
+            case 'End':
+                event.preventDefault();
+                if (event.ctrlKey) {
+                    // Ctrl+End: Go to last cell
+                    selectCell(maxRow, maxCol);
+                } else {
+                    // End: Go to last cell in row
+                    selectCell(rowIndex, maxCol);
+                }
+                break;
+        }
+    }
+
     /**
      * Calculate column widths based on data types
      * @param {Array<{ name: string; dataType: string; maxLength?: number }>} columns
@@ -241,6 +445,7 @@
 
     /**
      * Render grid data rows
+     * Story 3.1: Added cell selection support with tabindex and aria-selected
      */
     function renderRows() {
         const grid = document.getElementById('dataGrid');
@@ -261,6 +466,24 @@
                 cell.className = `ite-grid__cell ${cssClass}`.trim();
                 cell.setAttribute('role', 'gridcell');
                 cell.setAttribute('aria-colindex', String(colIndex + 1));
+
+                // Story 3.1: Cell selection support
+                // Check if this cell should be selected (restored from state)
+                const isSelected = state.selectedCell.rowIndex === rowIndex &&
+                                   state.selectedCell.colIndex === colIndex;
+
+                if (isSelected) {
+                    cell.classList.add('ite-grid__cell--selected');
+                    cell.setAttribute('aria-selected', 'true');
+                    cell.setAttribute('tabindex', '0');
+                } else {
+                    cell.setAttribute('aria-selected', 'false');
+                    // First cell gets tabindex=0 if no selection, others get -1
+                    const isFirstCell = rowIndex === 0 && colIndex === 0;
+                    const hasSelection = state.selectedCell.rowIndex !== null;
+                    cell.setAttribute('tabindex', (!hasSelection && isFirstCell) ? '0' : '-1');
+                }
+
                 // SECURITY: Use textContent instead of innerHTML to prevent XSS
                 cell.textContent = display;
                 cell.title = String(row[col.name] ?? 'NULL');
@@ -452,6 +675,7 @@
     /**
      * Render the full grid
      * Story 2.2: Added pagination UI update and empty state handling
+     * Story 3.1: Added selection restoration after render
      */
     function renderGrid() {
         clearGrid();
@@ -465,8 +689,19 @@
         // Story 2.2: Handle empty table edge case
         if (state.rows.length === 0) {
             renderEmptyState();
+            // Story 3.1: Clear selection when no rows
+            state.selectedCell = { rowIndex: null, colIndex: null };
         } else {
             renderRows();
+
+            // Story 3.1: Validate and restore selection after render
+            // If selection is out of bounds (e.g., after refresh), clear it
+            if (state.selectedCell.rowIndex !== null && state.selectedCell.colIndex !== null) {
+                if (state.selectedCell.rowIndex >= state.rows.length ||
+                    state.selectedCell.colIndex >= state.columns.length) {
+                    state.selectedCell = { rowIndex: null, colIndex: null };
+                }
+            }
         }
 
         updateStatusBar();
@@ -496,6 +731,7 @@
     /**
      * Handle tableData event
      * Story 2.2: Updated to use 1-indexed currentPage and clear pagination loading
+     * Story 3.1: Clear selection on page change to avoid stale indices
      * @param {{ rows: Array<Record<string, unknown>>; totalRows: number; page: number; pageSize: number }} payload
      */
     function handleTableData(payload) {
@@ -507,6 +743,9 @@
         state.pageSize = payload.pageSize;
         state.error = null;
         state.paginationLoading = false;
+
+        // Story 3.1: Clear selection on page change - indices are page-relative
+        state.selectedCell = { rowIndex: null, colIndex: null };
 
         renderGrid();
         updatePaginationUI();
@@ -606,6 +845,7 @@
     /**
      * Initialize grid
      * Story 2.2: Added pagination button event listeners and keyboard shortcuts
+     * Story 3.1: Added cell selection click and keyboard handlers
      */
     function init() {
         console.debug(`${LOG_PREFIX} Initializing grid`);
@@ -614,6 +854,10 @@
         const previousState = vscode.getState();
         if (previousState) {
             state = Object.assign(new AppState(), previousState);
+            // Story 3.1: Ensure selectedCell is properly initialized
+            if (!state.selectedCell) {
+                state.selectedCell = { rowIndex: null, colIndex: null };
+            }
             if (state.columns.length > 0) {
                 renderGrid();
             }
@@ -639,7 +883,19 @@
             nextPageBtn.addEventListener('click', handlePaginateNext);
         }
 
+        // Story 3.1: Setup cell selection click handler (delegated on grid)
+        // Note: Using named functions allows removeEventListener if needed
+        // Event listeners are safe here because init() only runs once per webview load
+        const grid = document.getElementById('dataGrid');
+        if (grid && !grid.dataset.listenersAttached) {
+            grid.addEventListener('click', handleCellClick);
+            grid.addEventListener('keydown', handleCellKeydown);
+            grid.dataset.listenersAttached = 'true';
+        }
+
         // Story 2.2: Setup keyboard shortcuts for pagination
+        // Note: handleKeyboardNavigation handles Ctrl+PageUp/Down for pagination
+        // Story 3.1: handleCellKeydown handles arrow keys and Tab for cell navigation
         document.addEventListener('keydown', handleKeyboardNavigation);
 
         // State is now saved immediately on each data change (event-driven)

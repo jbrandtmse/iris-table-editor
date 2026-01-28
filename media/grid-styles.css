@@ -218,6 +218,12 @@ body {
     color: var(--vscode-list-activeSelectionForeground);
 }
 
+/* Story 3.1: Ensure selected cell keeps its styling even on row hover */
+.ite-grid__row:hover .ite-grid__cell--selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
 /* Grid Cell */
 .ite-grid__cell {
     display: table-cell;
@@ -233,6 +239,28 @@ body {
 
 .ite-grid__cell:last-child {
     border-right: none;
+}
+
+/* Story 3.1: Cell Selection Styling */
+.ite-grid__cell--selected {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: -2px;
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+    /* Ensure selected cell is above adjacent cells for outline visibility */
+    position: relative;
+    z-index: 1;
+}
+
+/* Story 3.1: Focus visible state for keyboard users */
+.ite-grid__cell:focus {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: -2px;
+}
+
+.ite-grid__cell:focus:not(.ite-grid__cell--selected) {
+    /* Cell has focus but isn't selected (edge case) */
+    background-color: var(--vscode-list-hoverBackground);
 }
 
 /* Cell Data Type Styling */
@@ -463,6 +491,12 @@ body {
     outline-offset: 1px;
 }
 
+/* Story 3.1: High contrast cell selection */
+.ite-grid__cell--selected:focus-visible {
+    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline-offset: -2px;
+}
+
 /* Windows High Contrast Mode (forced-colors)
    This media query targets Windows High Contrast mode specifically,
    ensuring system colors are properly applied for accessibility. */
@@ -496,6 +530,17 @@ body {
 
     .ite-grid__row:hover .ite-grid__cell {
         color: HighlightText;
+    }
+
+    /* Story 3.1: Cell selection in forced colors mode */
+    .ite-grid__cell--selected {
+        outline: 2px solid Highlight;
+        background-color: Highlight;
+        color: HighlightText;
+    }
+
+    .ite-grid__cell:focus {
+        outline: 2px solid Highlight;
     }
 
     /* Loading spinner visibility */
