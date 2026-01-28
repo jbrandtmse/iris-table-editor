@@ -216,4 +216,48 @@ suite('ServerConnectionManager Test Suite', () => {
             assert.ok(Array.isArray(result.namespaces), 'Success should have namespaces array');
         }
     });
+
+    // Story 1.6 - getTables tests
+    test('getTables method exists', () => {
+        assert.ok(typeof manager.getTables === 'function', 'getTables should be a function');
+    });
+
+    test('getTables returns error when not connected', async () => {
+        // Fresh manager - not connected
+        const result = await manager.getTables('USER');
+
+        assert.strictEqual(result.success, false, 'Should fail when not connected');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(result.error!.message.includes('Not connected'), 'Error should indicate not connected');
+    });
+
+    test('getTables returns error when namespace is empty', async () => {
+        // Fresh manager - not connected, but check namespace validation
+        const result = await manager.getTables('');
+
+        assert.strictEqual(result.success, false, 'Should fail with empty namespace');
+        assert.ok(result.error, 'Should have an error');
+    });
+
+    test('getTables returns proper result structure', async () => {
+        const result = await manager.getTables('USER');
+
+        // Result should always have success property
+        assert.ok('success' in result, 'Result should have success property');
+        assert.strictEqual(typeof result.success, 'boolean', 'success should be boolean');
+
+        // If failed, should have error with proper structure
+        if (!result.success) {
+            assert.ok(result.error, 'Failed result should have error');
+            assert.ok('message' in result.error!, 'Error should have message');
+            assert.ok('code' in result.error!, 'Error should have code');
+            assert.ok('recoverable' in result.error!, 'Error should have recoverable');
+            assert.ok('context' in result.error!, 'Error should have context');
+        }
+
+        // If successful, should have tables array
+        if (result.success) {
+            assert.ok(Array.isArray(result.tables), 'Success should have tables array');
+        }
+    });
 });

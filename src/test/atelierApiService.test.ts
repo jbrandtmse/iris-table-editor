@@ -229,4 +229,81 @@ suite('AtelierApiService Test Suite', () => {
             }
         }
     });
+
+    // Story 1.6: getTables tests
+    test('AtelierApiService has getTables method', () => {
+        assert.ok(typeof service.getTables === 'function', 'getTables should be a function');
+    });
+
+    test('getTables returns proper error structure on network failure', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-that-does-not-exist-12345.local'
+        };
+
+        service.setTimeout(1000);
+
+        const result = await service.getTables(invalidSpec, 'USER', 'test', 'test');
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(
+            [ErrorCodes.SERVER_UNREACHABLE, ErrorCodes.CONNECTION_TIMEOUT].includes(result.error!.code as typeof ErrorCodes.SERVER_UNREACHABLE),
+            'Should be network-related error'
+        );
+        assert.ok(result.error!.recoverable, 'Should be recoverable');
+    });
+
+    test('getTables context is set correctly', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid.local'
+        };
+
+        service.setTimeout(500);
+
+        const result = await service.getTables(invalidSpec, 'USER', 'user', 'pass');
+
+        if (result.error) {
+            assert.strictEqual(result.error.context, 'getTables', 'Context should be getTables');
+        }
+    });
+
+    test('getTables returns consistent error format', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-test.local'
+        };
+
+        service.setTimeout(500);
+
+        const result = await service.getTables(invalidSpec, 'USER', 'user', 'pass');
+
+        if (result.error) {
+            assert.ok('message' in result.error, 'Should have message');
+            assert.ok('code' in result.error, 'Should have code');
+            assert.ok('recoverable' in result.error, 'Should have recoverable');
+            assert.ok('context' in result.error, 'Should have context');
+        }
+    });
+
+    // Story 1.6 AC#2: Verify system namespace encoding for table queries
+    test('System namespaces are properly encoded for getTables API calls', () => {
+        const { UrlBuilder } = require('../utils/UrlBuilder');
+
+        // Test namespaces that might be used for table queries
+        const testNamespaces = ['%SYS', 'USER', 'HSCUSTOM', '%CACHELIB'];
+
+        for (const ns of testNamespaces) {
+            const queryUrl = UrlBuilder.buildQueryUrl('http://localhost:52773/api/atelier/', ns);
+
+            // Verify %SYS is encoded correctly
+            if (ns === '%SYS') {
+                assert.ok(queryUrl.includes('%25SYS'), '%SYS should be encoded as %25SYS in URL');
+            }
+
+            // Verify URL doesn't contain unencoded %
+            assert.ok(!queryUrl.includes('/%S'), 'URL should not contain unencoded %S');
+        }
+    });
 });

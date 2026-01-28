@@ -235,6 +235,82 @@ export class ServerConnectionManager {
     }
 
     /**
+     * Get list of tables in a namespace from connected server
+     * SECURITY: Gets fresh credentials each time - never stores password
+     * @param namespace - Target namespace to get tables from
+     * @returns Result with success flag, tables array, and optional error
+     */
+    public async getTables(namespace: string): Promise<{
+        success: boolean;
+        tables?: string[];
+        error?: IUserError;
+    }> {
+        if (!this._connectedServer || !this._serverSpec) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'getTables'
+                }
+            };
+        }
+
+        if (!namespace) {
+            return {
+                success: false,
+                error: {
+                    message: 'Namespace is required',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTables'
+                }
+            };
+        }
+
+        // Get FRESH credentials each time - NEVER store password
+        try {
+            const session = await vscode.authentication.getSession(
+                'intersystems-server-credentials',
+                [this._connectedServer],
+                { createIfNone: false }
+            );
+
+            if (!session) {
+                return {
+                    success: false,
+                    error: {
+                        message: 'Session expired. Please reconnect.',
+                        code: ErrorCodes.AUTH_EXPIRED,
+                        recoverable: true,
+                        context: 'getTables'
+                    }
+                };
+            }
+
+            return this._atelierApiService.getTables(
+                this._serverSpec,
+                namespace,
+                session.account.id,
+                session.accessToken
+            );
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Get tables error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'getTables') || {
+                    message: 'Failed to get tables',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getTables'
+                }
+            };
+        }
+    }
+
+    /**
      * Check if currently connected
      */
     public isConnected(): boolean {

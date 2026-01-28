@@ -102,6 +102,37 @@ export interface INamespaceSelectedPayload {
 }
 
 /**
+ * Payload for getTables command
+ */
+export interface IGetTablesPayload {
+    namespace: string;
+}
+
+/**
+ * Payload for selectTable command
+ */
+export interface ISelectTablePayload {
+    namespace: string;
+    tableName: string;
+}
+
+/**
+ * Payload for tableList event
+ */
+export interface ITableListPayload {
+    tables: string[];
+    namespace: string;
+}
+
+/**
+ * Payload for tableSelected event
+ */
+export interface ITableSelectedPayload {
+    tableName: string;
+    namespace: string;
+}
+
+/**
  * Server-related commands sent from webview to extension
  */
 export type ServerCommand =
@@ -110,7 +141,9 @@ export type ServerCommand =
     | { command: 'disconnect'; payload: IDisconnectPayload }
     | { command: 'openServerManager'; payload: IEmptyPayload }
     | { command: 'getNamespaces'; payload: IGetNamespacesPayload }
-    | { command: 'selectNamespace'; payload: ISelectNamespacePayload };
+    | { command: 'selectNamespace'; payload: ISelectNamespacePayload }
+    | { command: 'getTables'; payload: IGetTablesPayload }
+    | { command: 'selectTable'; payload: ISelectTablePayload };
 
 /**
  * Server-related events sent from extension to webview
@@ -123,4 +156,6 @@ export type ServerEvent =
     | { event: 'connectionError'; payload: IConnectionErrorPayload }
     | { event: 'namespaceList'; payload: INamespaceListPayload }
     | { event: 'namespaceSelected'; payload: INamespaceSelectedPayload }
+    | { event: 'tableList'; payload: ITableListPayload }
+    | { event: 'tableSelected'; payload: ITableSelectedPayload }
     | { event: 'error'; payload: IErrorPayload };

@@ -68,7 +68,13 @@
                 namespaces: [],
                 selectedNamespace: initialState.selectedNamespace || null,
                 namespacesLoading: false,
-                namespaceError: null
+                namespaceError: null,
+
+                // Table state (Story 1.6)
+                tables: [],
+                selectedTable: initialState.selectedTable || null,
+                tablesLoading: false,
+                tableError: null
             };
             this._listeners = [];
         }
@@ -84,7 +90,8 @@
                 selectedServer: this._state.selectedServer,
                 connectionState: this._state.connectionState,
                 connectedServer: this._state.connectedServer,
-                selectedNamespace: this._state.selectedNamespace
+                selectedNamespace: this._state.selectedNamespace,
+                selectedTable: this._state.selectedTable
             });
             this._notifyListeners();
         }
@@ -159,6 +166,14 @@
                 handleNamespaceSelected(message.payload);
                 break;
 
+            case 'tableList':
+                handleTableList(message.payload);
+                break;
+
+            case 'tableSelected':
+                handleTableSelected(message.payload);
+                break;
+
             case 'error':
                 // Check if this is a namespace-related error (context-aware handling)
                 if (message.payload.context === 'getNamespaces' && appState.state.connectionState === 'connected') {
@@ -167,11 +182,18 @@
                         namespacesLoading: false,
                         namespaceError: message.payload
                     });
+                } else if (message.payload.context === 'getTables' && appState.state.connectionState === 'connected') {
+                    // Table error while connected - show inline, don't disconnect
+                    appState.update({
+                        tablesLoading: false,
+                        tableError: message.payload
+                    });
                 } else {
                     // General error - show full error state
                     appState.update({
                         isLoading: false,
                         namespacesLoading: false,
+                        tablesLoading: false,
                         error: message.payload
                     });
                 }
@@ -201,6 +223,9 @@
                 namespaces: [],
                 selectedNamespace: null,
                 namespacesLoading: false,
+                tables: [],
+                selectedTable: null,
+                tablesLoading: false,
                 isLoading: false
             });
             announce('Disconnected from server');
@@ -212,12 +237,30 @@
      * @param {object} payload - Namespace list payload
      */
     function handleNamespaceList(payload) {
+        const previousSelectedNamespace = appState.state.selectedNamespace;
+
         appState.update({
             namespaces: payload.namespaces,
             namespacesLoading: false,
             error: null
         });
         announce(`${payload.namespaces.length} namespaces available`);
+
+        // If we had a previously selected namespace (from state restoration),
+        // and it still exists in the new namespace list, re-fetch tables for it
+        if (previousSelectedNamespace && payload.namespaces.includes(previousSelectedNamespace)) {
+            appState.update({
+                tablesLoading: true,
+                tableError: null
+            });
+            postCommand('getTables', { namespace: previousSelectedNamespace });
+        } else if (previousSelectedNamespace && !payload.namespaces.includes(previousSelectedNamespace)) {
+            // Previous namespace no longer exists - clear selection
+            appState.update({
+                selectedNamespace: null,
+                selectedTable: null
+            });
+        }
     }
 
     /**
@@ -226,9 +269,37 @@
      */
     function handleNamespaceSelected(payload) {
         appState.update({
-            selectedNamespace: payload.namespace
+            selectedNamespace: payload.namespace,
+            tables: [],
+            selectedTable: null,
+            tablesLoading: true,  // Tables will be fetched automatically
+            tableError: null
         });
         announce(`Selected namespace ${payload.namespace}`);
+    }
+
+    /**
+     * Handle table list event
+     * @param {object} payload - Table list payload
+     */
+    function handleTableList(payload) {
+        appState.update({
+            tables: payload.tables,
+            tablesLoading: false,
+            tableError: null
+        });
+        announce(`${payload.tables.length} table${payload.tables.length !== 1 ? 's' : ''} available`);
+    }
+
+    /**
+     * Handle table selected event
+     * @param {object} payload - Table selected payload
+     */
+    function handleTableSelected(payload) {
+        appState.update({
+            selectedTable: payload.tableName
+        });
+        announce(`Selected table ${payload.tableName}`);
     }
 
     /**
@@ -308,7 +379,11 @@
                 state.namespaces,
                 state.selectedNamespace,
                 state.namespacesLoading,
-                state.namespaceError
+                state.namespaceError,
+                state.tables,
+                state.selectedTable,
+                state.tablesLoading,
+                state.tableError
             );
             attachConnectedEvents();
             return;
@@ -371,9 +446,13 @@
      * @param {string|null} selectedNamespace - Currently selected namespace
      * @param {boolean} namespacesLoading - Whether namespaces are being loaded
      * @param {object|null} namespaceError - Namespace-specific error (if any)
+     * @param {string[]} tables - Array of table names
+     * @param {string|null} selectedTable - Currently selected table
+     * @param {boolean} tablesLoading - Whether tables are being loaded
+     * @param {object|null} tableError - Table-specific error (if any)
      * @returns {string} HTML string
      */
-    function renderConnected(serverName, namespaces, selectedNamespace, namespacesLoading, namespaceError) {
+    function renderConnected(serverName, namespaces, selectedNamespace, namespacesLoading, namespaceError, tables, selectedTable, tablesLoading, tableError) {
         const safeName = escapeHtml(serverName);
         const connectionHeader = `
             <div class="ite-connection-header">
@@ -427,7 +506,105 @@
         }
 
         // Render namespace list
-        return connectionHeader + renderNamespaceList(namespaces, selectedNamespace);
+        let html = connectionHeader + renderNamespaceList(namespaces, selectedNamespace);
+
+        // If namespace is selected, show table section
+        if (selectedNamespace) {
+            html += renderTableSection(selectedNamespace, tables, selectedTable, tablesLoading, tableError);
+        }
+
+        return html;
+    }
+
+    /**
+     * Render table section (loading, error, empty, or list)
+     * @param {string} namespace - Selected namespace
+     * @param {string[]} tables - Array of table names
+     * @param {string|null} selectedTable - Currently selected table
+     * @param {boolean} tablesLoading - Whether tables are being loaded
+     * @param {object|null} tableError - Table-specific error (if any)
+     * @returns {string} HTML string
+     */
+    function renderTableSection(namespace, tables, selectedTable, tablesLoading, tableError) {
+        // Show loading spinner while fetching tables
+        if (tablesLoading) {
+            return `
+                <div class="ite-loading">
+                    <div class="ite-loading__spinner"></div>
+                    <p class="ite-loading__text">Loading tables...</p>
+                </div>
+            `;
+        }
+
+        // Show table error inline (stays connected, can retry)
+        if (tableError) {
+            const safeMessage = escapeHtml(tableError.message);
+            return `
+                <div class="ite-message ite-message--error">
+                    <h3 class="ite-message__title">Failed to Load Tables</h3>
+                    <p class="ite-message__text">${safeMessage}</p>
+                    <button class="ite-button ite-button--secondary" id="retryTablesBtn">
+                        <span class="codicon codicon-refresh"></span>
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // Show message if no tables available
+        if (tables.length === 0) {
+            return `
+                <div class="ite-message">
+                    <h3 class="ite-message__title">No Tables Found</h3>
+                    <p class="ite-message__text">No tables found in namespace "${escapeHtml(namespace)}".</p>
+                </div>
+            `;
+        }
+
+        // Render table list
+        return renderTableList(tables, selectedTable, namespace);
+    }
+
+    /**
+     * Render table list
+     * @param {string[]} tables - Array of table names
+     * @param {string|null} selectedTable - Currently selected table
+     * @param {string} namespace - Current namespace
+     * @returns {string} HTML string
+     */
+    function renderTableList(tables, selectedTable, namespace) {
+        const tableItems = tables.map((table, index) => {
+            const isSelected = table === selectedTable;
+            const selectedClass = isSelected ? 'ite-table-list__item--selected' : '';
+            const safeAttr = escapeAttr(table);
+            const safeName = escapeHtml(table);
+            return `
+                <div class="ite-table-list__item ${selectedClass}"
+                     data-table="${safeAttr}"
+                     data-namespace="${escapeAttr(namespace)}"
+                     data-index="${index}"
+                     tabindex="0"
+                     role="option"
+                     aria-selected="${isSelected}">
+                    <span class="ite-table-list__icon codicon codicon-table"></span>
+                    <span class="ite-table-list__name">${safeName}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="ite-table-list__header-row">
+                <h3 class="ite-table-list__header">Select a Table</h3>
+                <span class="ite-table-list__count">${tables.length} table${tables.length !== 1 ? 's' : ''}</span>
+                <button class="ite-button ite-button--icon" id="refreshTablesBtn"
+                        title="Refresh table list" aria-label="Refresh table list">
+                    <span class="codicon codicon-refresh"></span>
+                </button>
+            </div>
+            <div class="ite-table-list" role="listbox" aria-label="Available tables in ${escapeAttr(namespace)}">
+                ${tableItems}
+            </div>
+        `;
     }
 
     /**
@@ -589,6 +766,9 @@
 
         // Attach namespace list events if namespace list is rendered
         attachNamespaceListEvents();
+
+        // Attach table list events if table list is rendered
+        attachTableListEvents();
     }
 
     /**
@@ -609,15 +789,66 @@
     }
 
     /**
+     * Attach event listeners for table list
+     * Note: Uses focus management only.
+     * Click/keyboard events are handled via container delegation.
+     */
+    function attachTableListEvents() {
+        const tableList = document.querySelector('.ite-table-list');
+        if (!tableList) {
+            return;
+        }
+
+        // Focus first or selected item after render
+        const selectedItem = tableList.querySelector('.ite-table-list__item--selected');
+        const firstItem = tableList.querySelector('.ite-table-list__item');
+        (selectedItem || firstItem)?.focus();
+    }
+
+    /**
      * Handle namespace selection
      * @param {string} namespace - Selected namespace
      */
     function selectNamespace(namespace) {
         appState.update({
-            selectedNamespace: namespace
+            selectedNamespace: namespace,
+            tables: [],
+            selectedTable: null,
+            tablesLoading: true,
+            tableError: null
         });
         announce(`Selected namespace ${namespace}`);
         postCommand('selectNamespace', { namespace });
+    }
+
+    /**
+     * Handle table selection
+     * @param {string} tableName - Selected table name
+     * @param {string} namespace - Current namespace
+     */
+    function selectTable(tableName, namespace) {
+        appState.update({
+            selectedTable: tableName
+        });
+        announce(`Selected table ${tableName}`);
+        postCommand('selectTable', { tableName, namespace });
+    }
+
+    /**
+     * Refresh the table list
+     */
+    function refreshTables() {
+        const namespace = appState.state.selectedNamespace;
+        if (!namespace) return;
+
+        appState.update({
+            tablesLoading: true,
+            tables: [],
+            selectedTable: null,
+            tableError: null
+        });
+        announce('Loading tables');
+        postCommand('getTables', { namespace });
     }
 
     /**
@@ -690,6 +921,13 @@
                 return;
             }
 
+            // Table list item click
+            const tableItem = target.closest('.ite-table-list__item');
+            if (tableItem) {
+                selectTable(tableItem.dataset.table, tableItem.dataset.namespace);
+                return;
+            }
+
             // Button clicks
             if (target.closest('#disconnectBtn')) {
                 disconnect();
@@ -707,6 +945,16 @@
                 // Clear namespace error and retry
                 appState.update({ namespaceError: null });
                 refreshNamespaces();
+                return;
+            }
+            if (target.closest('#refreshTablesBtn')) {
+                refreshTables();
+                return;
+            }
+            if (target.closest('#retryTablesBtn')) {
+                // Clear table error and retry
+                appState.update({ tableError: null });
+                refreshTables();
                 return;
             }
             if (target.closest('#retryBtn')) {
@@ -736,6 +984,15 @@
             if (namespaceItem) {
                 handleListKeydown(e, namespaceItem, '.ite-namespace-list', '.ite-namespace-list__item', (item) => {
                     selectNamespace(item.dataset.namespace);
+                });
+                return;
+            }
+
+            // Table list keyboard navigation
+            const tableItem = e.target.closest('.ite-table-list__item');
+            if (tableItem) {
+                handleListKeydown(e, tableItem, '.ite-table-list', '.ite-table-list__item', (item) => {
+                    selectTable(item.dataset.table, item.dataset.namespace);
                 });
                 return;
             }
@@ -798,9 +1055,11 @@
             connectionState: previousState.connectionState,
             connectedServer: previousState.connectedServer,
             selectedNamespace: previousState.selectedNamespace,
+            selectedTable: previousState.selectedTable,
             namespacesLoading: true  // Trigger namespace re-fetch
         });
         // Re-fetch namespaces since they aren't persisted in state
+        // Tables will be re-fetched after namespace selection is restored
         postCommand('getNamespaces');
     }
 })();

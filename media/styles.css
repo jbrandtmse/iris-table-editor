@@ -363,6 +363,87 @@ body {
     white-space: nowrap;
 }
 
+/* Table List - Story 1.6 */
+.ite-table-list__header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    padding: 8px 4px;
+    border-top: 1px solid var(--vscode-sideBarSectionHeader-border);
+}
+
+.ite-table-list__header {
+    margin: 0;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--vscode-sideBarSectionHeader-foreground);
+    letter-spacing: 0.05em;
+}
+
+.ite-table-list__count {
+    flex: 1;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+}
+
+.ite-table-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.ite-table-list__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ite-table-list__item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-table-list__item:focus {
+    outline: none;
+    background-color: var(--vscode-list-focusBackground);
+    box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.ite-table-list__item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+
+.ite-table-list__item--selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.ite-table-list__item--selected:focus {
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.ite-table-list__icon {
+    font-size: 16px;
+    opacity: 0.8;
+    flex-shrink: 0;
+    color: var(--vscode-symbolIcon-classForeground, var(--vscode-foreground));
+}
+
+.ite-table-list__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
@@ -379,6 +460,10 @@ body {
     }
 
     .ite-namespace-list__item {
+        transition: none;
+    }
+
+    .ite-table-list__item {
         transition: none;
     }
 }

@@ -11,6 +11,10 @@ import {
     ISelectNamespacePayload,
     INamespaceListPayload,
     INamespaceSelectedPayload,
+    IGetTablesPayload,
+    ISelectTablePayload,
+    ITableListPayload,
+    ITableSelectedPayload,
     IErrorPayload
 } from '../models/IMessages';
 
@@ -25,6 +29,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     private _isConnected = false;
     private _connectedServer: string | null = null;
     private _selectedNamespace: string | null = null;
+    private _selectedTable: string | null = null;
 
     constructor(
         private readonly _extensionUri: vscode.Uri
@@ -98,7 +103,13 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
                 await this._handleGetNamespaces();
                 break;
             case 'selectNamespace':
-                this._handleSelectNamespace(message.payload as ISelectNamespacePayload);
+                await this._handleSelectNamespace(message.payload as ISelectNamespacePayload);
+                break;
+            case 'getTables':
+                await this._handleGetTables(message.payload as IGetTablesPayload);
+                break;
+            case 'selectTable':
+                this._handleSelectTable(message.payload as ISelectTablePayload);
                 break;
         }
     }
@@ -152,6 +163,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         this._isConnected = false;
         this._connectedServer = null;
         this._selectedNamespace = null;
+        this._selectedTable = null;
 
         this._postMessage({
             event: 'connectionStatus',
@@ -197,13 +209,66 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
      * Handle namespace selection
      * @param payload - Namespace selection payload
      */
-    private _handleSelectNamespace(payload: ISelectNamespacePayload): void {
+    private async _handleSelectNamespace(payload: ISelectNamespacePayload): Promise<void> {
         this._selectedNamespace = payload.namespace;
+        this._selectedTable = null;  // Clear table selection when namespace changes
         console.debug(`${LOG_PREFIX} Selected namespace: ${payload.namespace}`);
 
         this._postMessage({
             event: 'namespaceSelected',
             payload: { namespace: payload.namespace } as INamespaceSelectedPayload
+        });
+
+        // Auto-fetch tables for selected namespace
+        await this._handleGetTables({ namespace: payload.namespace });
+    }
+
+    /**
+     * Handle get tables request
+     * @param payload - Get tables payload with namespace
+     */
+    private async _handleGetTables(payload: IGetTablesPayload): Promise<void> {
+        console.debug(`${LOG_PREFIX} Fetching tables for namespace: ${payload.namespace}`);
+
+        const result = await this._serverConnectionManager.getTables(payload.namespace);
+
+        if (!result.success) {
+            this._postMessage({
+                event: 'error',
+                payload: {
+                    message: result.error?.message || 'Failed to get tables',
+                    code: result.error?.code || 'UNKNOWN_ERROR',
+                    recoverable: result.error?.recoverable ?? true,
+                    context: result.error?.context || 'getTables'
+                } as IErrorPayload
+            });
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Sending table list: ${result.tables?.length || 0} tables`);
+        this._postMessage({
+            event: 'tableList',
+            payload: {
+                tables: result.tables || [],
+                namespace: payload.namespace
+            } as ITableListPayload
+        });
+    }
+
+    /**
+     * Handle table selection
+     * @param payload - Table selection payload
+     */
+    private _handleSelectTable(payload: ISelectTablePayload): void {
+        this._selectedTable = payload.tableName;
+        console.debug(`${LOG_PREFIX} Selected table: ${payload.tableName} in ${payload.namespace}`);
+
+        this._postMessage({
+            event: 'tableSelected',
+            payload: {
+                tableName: payload.tableName,
+                namespace: payload.namespace
+            } as ITableSelectedPayload
         });
     }
 
