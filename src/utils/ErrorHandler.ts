@@ -18,7 +18,11 @@ export const ErrorCodes = {
 
     // API errors
     INVALID_RESPONSE: 'INVALID_RESPONSE',
-    UNKNOWN_ERROR: 'UNKNOWN_ERROR'
+    UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+
+    // Data errors
+    INVALID_INPUT: 'INVALID_INPUT',
+    TABLE_NOT_FOUND: 'TABLE_NOT_FOUND'
 } as const;
 
 export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
@@ -43,7 +47,9 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
     [ErrorCodes.SERVER_UNREACHABLE]: 'Cannot reach server. Please verify the server address and that IRIS is running.',
     [ErrorCodes.CONNECTION_FAILED]: 'Connection failed. Please check your network and server settings.',
     [ErrorCodes.INVALID_RESPONSE]: 'Received unexpected response from server. Please try again.',
-    [ErrorCodes.UNKNOWN_ERROR]: 'An unexpected error occurred.'
+    [ErrorCodes.UNKNOWN_ERROR]: 'An unexpected error occurred.',
+    [ErrorCodes.INVALID_INPUT]: 'Invalid input provided. Please check your data and try again.',
+    [ErrorCodes.TABLE_NOT_FOUND]: 'The specified table was not found in the database.'
 };
 
 /**

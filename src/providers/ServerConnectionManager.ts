@@ -586,6 +586,31 @@ export class ServerConnectionManager {
     }
 
     /**
+     * Invalidate cached schema for a table or all tables
+     * Call this on refresh operations to ensure fresh schema data
+     * @param namespace - Target namespace (optional, clears all if omitted)
+     * @param tableName - Table name (optional, clears all in namespace if omitted)
+     */
+    public invalidateSchemaCache(namespace?: string, tableName?: string): void {
+        if (namespace && tableName) {
+            const cacheKey = `${namespace}.${tableName}`;
+            this._schemaCache.delete(cacheKey);
+            console.debug(`${LOG_PREFIX} Schema cache invalidated for ${cacheKey}`);
+        } else if (namespace) {
+            // Clear all entries for the namespace
+            for (const key of this._schemaCache.keys()) {
+                if (key.startsWith(`${namespace}.`)) {
+                    this._schemaCache.delete(key);
+                }
+            }
+            console.debug(`${LOG_PREFIX} Schema cache invalidated for namespace ${namespace}`);
+        } else {
+            this._schemaCache.clear();
+            console.debug(`${LOG_PREFIX} Schema cache cleared`);
+        }
+    }
+
+    /**
      * Get the Server Manager extension API
      * Activates the extension if not already active
      */

@@ -726,7 +726,7 @@ export class AtelierApiService {
                 success: false,
                 error: {
                     message: validationError instanceof Error ? validationError.message : 'Invalid query parameters',
-                    code: ErrorCodes.UNKNOWN_ERROR,
+                    code: ErrorCodes.INVALID_INPUT,
                     recoverable: false,
                     context: 'getTableData'
                 }

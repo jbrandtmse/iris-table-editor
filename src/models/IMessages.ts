@@ -3,6 +3,8 @@
  * Per architecture.md Command/Event Message Format
  */
 
+import type { IColumnInfo } from './ITableSchema';
+
 /**
  * Command message sent from webview to extension
  */
@@ -151,14 +153,7 @@ export interface ITableSchemaPayload {
     tableName: string;
     namespace: string;
     serverName: string;
-    columns: Array<{
-        name: string;
-        dataType: string;
-        nullable: boolean;
-        maxLength?: number;
-        precision?: number;
-        scale?: number;
-    }>;
+    columns: IColumnInfo[];
 }
 
 /**

@@ -375,12 +375,12 @@ export class GridPanelManager {
     </div>
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
     <script nonce="${nonce}">
-        // Pass initial context to webview
-        window.iteContext = {
-            serverName: "${escapeHtml(serverName)}",
-            namespace: "${escapeHtml(namespace)}",
-            tableName: "${escapeHtml(tableName)}"
-        };
+        // Pass initial context to webview - JSON-escaped for security
+        window.iteContext = ${JSON.stringify({
+            serverName: serverName,
+            namespace: namespace,
+            tableName: tableName
+        })};
     </script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
