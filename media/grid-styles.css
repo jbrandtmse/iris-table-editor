@@ -229,6 +229,12 @@ body {
 
 .ite-grid__cell--date {
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Story 2.3: Boolean cell styling */
+.ite-grid__cell--boolean {
+    text-align: center;
 }
 
 /* Status Bar */

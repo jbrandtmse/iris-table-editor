@@ -111,7 +111,41 @@
     }
 
     /**
+     * Format date/time value to locale-appropriate string
+     * Story 2.3: Enhanced date formatting for readability
+     * @param {unknown} value - Raw date value from database
+     * @param {string} upperType - Uppercase data type
+     * @returns {string} Formatted date string or raw value if parsing fails
+     */
+    function formatDateTimeValue(value, upperType) {
+        if (!value) return String(value);
+
+        try {
+            const date = new Date(value);
+            // Check for invalid date
+            if (isNaN(date.getTime())) {
+                return String(value);
+            }
+
+            // TIME only - show time portion
+            if (upperType.includes('TIME') && !upperType.includes('TIMESTAMP') && !upperType.includes('DATETIME')) {
+                return date.toLocaleTimeString();
+            }
+            // DATE only - show date portion
+            if (upperType === 'DATE') {
+                return date.toLocaleDateString();
+            }
+            // TIMESTAMP/DATETIME - show both date and time
+            return date.toLocaleString();
+        } catch {
+            // Parsing failed - return raw value
+            return String(value);
+        }
+    }
+
+    /**
      * Format cell value based on data type
+     * Story 2.3: Enhanced with proper date formatting and boolean support
      * @param {unknown} value - Cell value
      * @param {string} dataType - Column data type
      * @returns {{ display: string; cssClass: string; isNull: boolean }}
@@ -124,14 +158,21 @@
 
         const upperType = dataType.toUpperCase();
 
+        // Boolean types - display as Yes/No
+        if (upperType === 'BIT' || upperType === 'BOOLEAN') {
+            const boolValue = value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
+            return { display: boolValue ? 'Yes' : 'No', cssClass: 'ite-grid__cell--boolean', isNull: false };
+        }
+
         // Number types - return raw value (will be set via textContent, not innerHTML)
-        if (['INTEGER', 'SMALLINT', 'BIGINT', 'TINYINT', 'NUMERIC', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL'].some(t => upperType.includes(t))) {
+        if (['INTEGER', 'SMALLINT', 'BIGINT', 'TINYINT', 'NUMERIC', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL', 'MONEY'].some(t => upperType.includes(t))) {
             return { display: String(value), cssClass: 'ite-grid__cell--number', isNull: false };
         }
 
-        // Date/time types
+        // Date/time types - format for readability
         if (['DATE', 'TIME', 'TIMESTAMP', 'DATETIME'].some(t => upperType.includes(t))) {
-            return { display: String(value), cssClass: 'ite-grid__cell--date', isNull: false };
+            const formatted = formatDateTimeValue(value, upperType);
+            return { display: formatted, cssClass: 'ite-grid__cell--date', isNull: false };
         }
 
         // Default - text (no escaping needed as we use textContent)
