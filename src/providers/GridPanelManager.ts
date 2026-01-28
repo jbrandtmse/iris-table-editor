@@ -7,7 +7,8 @@ import {
     ITableDataPayload,
     ITableLoadingPayload,
     IErrorPayload,
-    IRequestDataPayload
+    IRequestDataPayload,
+    IPaginatePayload
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -70,12 +71,13 @@ export class GridPanelManager {
         );
 
         // Store panel and context
+        // Story 2.2: Default pageSize is 50 per architecture spec
         this._panels.set(panelKey, panel);
         this._panelContexts.set(panelKey, {
             serverName,
             namespace,
             tableName,
-            pageSize: 100,
+            pageSize: 50,
             currentPage: 0
         });
 
@@ -122,6 +124,7 @@ export class GridPanelManager {
 
     /**
      * Handle messages from grid webview
+     * Story 2.2: Added pagination command handlers
      */
     private async _handleGridMessage(panelKey: string, message: ICommand): Promise<void> {
         console.debug(`${LOG_PREFIX} Grid command: ${message.command}`);
@@ -141,15 +144,32 @@ export class GridPanelManager {
                 break;
             }
             case 'refresh':
-                await this._loadTableData(panelKey);
+                await this._loadTableData(panelKey, context.currentPage, context.pageSize);
                 break;
+            case 'paginateNext': {
+                const payload = message.payload as IPaginatePayload;
+                // currentPage from webview is 1-indexed, convert to 0-indexed for API
+                const newPage = payload.currentPage; // Already next page in 0-indexed terms
+                context.currentPage = newPage;
+                await this._loadTableData(panelKey, newPage, payload.pageSize);
+                break;
+            }
+            case 'paginatePrev': {
+                const payload = message.payload as IPaginatePayload;
+                // currentPage from webview is 1-indexed, convert to 0-indexed for API
+                const newPage = payload.currentPage - 2; // -1 for prev, -1 for 0-index conversion
+                context.currentPage = newPage;
+                await this._loadTableData(panelKey, newPage, payload.pageSize);
+                break;
+            }
         }
     }
 
     /**
      * Load table schema and data for a panel
+     * Story 2.2: Default pageSize changed to 50
      */
-    private async _loadTableData(panelKey: string, page = 0, pageSize = 100): Promise<void> {
+    private async _loadTableData(panelKey: string, page = 0, pageSize = 50): Promise<void> {
         const panel = this._panels.get(panelKey);
         const context = this._panelContexts.get(panelKey);
 
@@ -326,6 +346,26 @@ export class GridPanelManager {
         <div class="ite-grid-wrapper" id="gridWrapper" style="display: none;">
             <div class="ite-grid" id="dataGrid" role="grid" aria-label="Table data">
                 <!-- Grid content will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Story 2.2: Pagination Controls -->
+        <div class="ite-pagination" id="paginationContainer" role="navigation" aria-label="Table pagination" style="display: none;">
+            <span class="ite-pagination__info" id="paginationInfo" aria-live="polite">
+                Rows 1-50 of 0
+            </span>
+            <div class="ite-pagination__controls">
+                <button class="ite-pagination__button"
+                        id="prevPageBtn"
+                        aria-label="Previous page"
+                        disabled>
+                    ◀ Prev
+                </button>
+                <button class="ite-pagination__button"
+                        id="nextPageBtn"
+                        aria-label="Next page">
+                    Next ▶
+                </button>
             </div>
         </div>
 

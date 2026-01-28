@@ -249,6 +249,8 @@ type,name,module,path,hash
 "yaml","workflow","bmm","bmm/workflows/testarch/test-design/workflow.yaml","cd69bbf4a66a0521d131abda18dd4d6226cba0f0d917f0291d542e2c14944eee"
 "yaml","workflow","bmm","bmm/workflows/testarch/test-review/workflow.yaml","d64517e211eceb8e5523da19473387e642c5178d5850f92b1aa5dc3fea6a6685"
 "yaml","workflow","bmm","bmm/workflows/testarch/trace/workflow.yaml","0ba5d014b6209cc949391de9f495465b7d64d3496e1972be48b2961c8490e6f5"
+"yaml","workflow","bmm","bmm/workflows/4-implementation/epic-cycle/workflow.yaml","new"
+"xml","instructions","bmm","bmm/workflows/4-implementation/epic-cycle/instructions.xml","new"
 "csv","brain-methods","core","core/workflows/brainstorming/brain-methods.csv","0ab5878b1dbc9e3fa98cb72abfc3920a586b9e2b42609211bb0516eefd542039"
 "csv","methods","core","core/workflows/advanced-elicitation/methods.csv","e08b2e22fec700274982e37be608d6c3d1d4d0c04fa0bae05aa9dba2454e6141"
 "csv","module-help","core","core/module-help.csv","2e2971e70f5d0a27af6628bf1864058c532dc297999250ef05f5b71abb917ad9"

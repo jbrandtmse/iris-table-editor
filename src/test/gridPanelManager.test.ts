@@ -236,4 +236,196 @@ suite('GridPanelManager Test Suite', () => {
         assert.ok('recoverable' in errorPayload, 'Error should have recoverable');
         assert.ok('context' in errorPayload, 'Error should have context');
     });
+
+    // ===== Story 2.2: Pagination Tests =====
+
+    // Test offset calculation
+    test('Pagination offset calculation: page 1 = offset 0', () => {
+        const page = 1;
+        const pageSize = 50;
+        const offset = (page - 1) * pageSize;
+        assert.strictEqual(offset, 0, 'Page 1 should have offset 0');
+    });
+
+    test('Pagination offset calculation: page 2 = offset 50', () => {
+        const page = 2;
+        const pageSize = 50;
+        const offset = (page - 1) * pageSize;
+        assert.strictEqual(offset, 50, 'Page 2 should have offset 50');
+    });
+
+    test('Pagination offset calculation: page 3 with pageSize 100 = offset 200', () => {
+        const page = 3;
+        const pageSize = 100;
+        const offset = (page - 1) * pageSize;
+        assert.strictEqual(offset, 200, 'Page 3 with pageSize 100 should have offset 200');
+    });
+
+    // Test totalPages calculation
+    test('totalPages calculation: 127 rows / 50 pageSize = 3 pages', () => {
+        const totalRows = 127;
+        const pageSize = 50;
+        const totalPages = Math.ceil(totalRows / pageSize);
+        assert.strictEqual(totalPages, 3, '127 rows with pageSize 50 should be 3 pages');
+    });
+
+    test('totalPages calculation: 100 rows / 50 pageSize = 2 pages (exact division)', () => {
+        const totalRows = 100;
+        const pageSize = 50;
+        const totalPages = Math.ceil(totalRows / pageSize);
+        assert.strictEqual(totalPages, 2, '100 rows with pageSize 50 should be 2 pages');
+    });
+
+    test('totalPages calculation: 0 rows = 0 pages', () => {
+        const totalRows = 0;
+        const pageSize = 50;
+        const totalPages = Math.ceil(totalRows / pageSize);
+        assert.strictEqual(totalPages, 0, '0 rows should be 0 pages');
+    });
+
+    test('totalPages calculation: 25 rows / 50 pageSize = 1 page', () => {
+        const totalRows = 25;
+        const pageSize = 50;
+        const totalPages = Math.ceil(totalRows / pageSize);
+        assert.strictEqual(totalPages, 1, '25 rows with pageSize 50 should be 1 page');
+    });
+
+    // Test canGoNext logic
+    test('canGoNext: true on page 1 of 3', () => {
+        const currentPage = 1;
+        const totalPages = 3;
+        const canGoNext = currentPage < totalPages;
+        assert.strictEqual(canGoNext, true, 'Should be able to go next on page 1 of 3');
+    });
+
+    test('canGoNext: true on page 2 of 3', () => {
+        const currentPage = 2;
+        const totalPages = 3;
+        const canGoNext = currentPage < totalPages;
+        assert.strictEqual(canGoNext, true, 'Should be able to go next on page 2 of 3');
+    });
+
+    test('canGoNext: false on page 3 of 3 (last page)', () => {
+        const currentPage = 3;
+        const totalPages = 3;
+        const canGoNext = currentPage < totalPages;
+        assert.strictEqual(canGoNext, false, 'Should NOT be able to go next on last page');
+    });
+
+    test('canGoNext: false when totalPages is 1', () => {
+        const currentPage = 1;
+        const totalPages = 1;
+        const canGoNext = currentPage < totalPages;
+        assert.strictEqual(canGoNext, false, 'Should NOT be able to go next when only 1 page');
+    });
+
+    // Test canGoPrev logic
+    test('canGoPrev: false on page 1', () => {
+        const currentPage = 1;
+        const canGoPrev = currentPage > 1;
+        assert.strictEqual(canGoPrev, false, 'Should NOT be able to go prev on page 1');
+    });
+
+    test('canGoPrev: true on page 2', () => {
+        const currentPage = 2;
+        const canGoPrev = currentPage > 1;
+        assert.strictEqual(canGoPrev, true, 'Should be able to go prev on page 2');
+    });
+
+    test('canGoPrev: true on page 3', () => {
+        const currentPage = 3;
+        const canGoPrev = currentPage > 1;
+        assert.strictEqual(canGoPrev, true, 'Should be able to go prev on page 3');
+    });
+
+    // Test pagination indicator text formatting
+    test('Pagination indicator: page 1, pageSize 50, totalRows 127 = "Rows 1-50 of 127"', () => {
+        const currentPage = 1;
+        const pageSize = 50;
+        const totalRows = 127;
+        const rowCount = 50; // rows on current page
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(start + rowCount - 1, totalRows);
+        const indicator = `Rows ${start}-${end} of ${totalRows}`;
+
+        assert.strictEqual(indicator, 'Rows 1-50 of 127');
+    });
+
+    test('Pagination indicator: page 2, pageSize 50, totalRows 127 = "Rows 51-100 of 127"', () => {
+        const currentPage = 2;
+        const pageSize = 50;
+        const totalRows = 127;
+        const rowCount = 50;
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(start + rowCount - 1, totalRows);
+        const indicator = `Rows ${start}-${end} of ${totalRows}`;
+
+        assert.strictEqual(indicator, 'Rows 51-100 of 127');
+    });
+
+    test('Pagination indicator: page 3 (last/partial), pageSize 50, totalRows 127 = "Rows 101-127 of 127"', () => {
+        const currentPage = 3;
+        const pageSize = 50;
+        const totalRows = 127;
+        const rowCount = 27; // partial last page
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(start + rowCount - 1, totalRows);
+        const indicator = `Rows ${start}-${end} of ${totalRows}`;
+
+        assert.strictEqual(indicator, 'Rows 101-127 of 127');
+    });
+
+    // Test pagination visibility logic
+    test('Pagination should be hidden when totalRows <= pageSize', () => {
+        const totalRows = 45;
+        const pageSize = 50;
+        const shouldShow = totalRows > pageSize;
+        assert.strictEqual(shouldShow, false, 'Pagination should be hidden for 45 rows');
+    });
+
+    test('Pagination should be hidden when totalRows equals pageSize exactly', () => {
+        const totalRows = 50;
+        const pageSize = 50;
+        const shouldShow = totalRows > pageSize;
+        assert.strictEqual(shouldShow, false, 'Pagination should be hidden when exactly pageSize rows');
+    });
+
+    test('Pagination should be shown when totalRows > pageSize', () => {
+        const totalRows = 51;
+        const pageSize = 50;
+        const shouldShow = totalRows > pageSize;
+        assert.strictEqual(shouldShow, true, 'Pagination should be shown for 51 rows');
+    });
+
+    // Test paginate command payload types
+    test('Paginate command payload has required properties', () => {
+        const paginatePayload = {
+            direction: 'next' as const,
+            currentPage: 1,
+            pageSize: 50
+        };
+
+        assert.ok('direction' in paginatePayload, 'Should have direction');
+        assert.ok('currentPage' in paginatePayload, 'Should have currentPage');
+        assert.ok('pageSize' in paginatePayload, 'Should have pageSize');
+        assert.ok(
+            paginatePayload.direction === 'next' || paginatePayload.direction === 'prev',
+            'Direction should be next or prev'
+        );
+    });
+
+    test('Paginate prev command payload', () => {
+        const paginatePayload = {
+            direction: 'prev' as const,
+            currentPage: 2,
+            pageSize: 50
+        };
+
+        assert.strictEqual(paginatePayload.direction, 'prev');
+        assert.strictEqual(paginatePayload.currentPage, 2);
+        assert.strictEqual(paginatePayload.pageSize, 50);
+    });
 });

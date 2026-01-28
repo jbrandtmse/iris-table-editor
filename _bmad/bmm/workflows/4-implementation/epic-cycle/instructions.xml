@@ -1,0 +1,298 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language}</critical>
+
+  <critical>EPIC CYCLE ORCHESTRATOR - Autonomous Development Pipeline</critical>
+  <critical>Execute full development cycle for ALL stories in an Epic with minimal human intervention</critical>
+
+  <pause-conditions>
+    <condition id="ambiguous_requirements">Acceptance criteria or requirements are unclear or contradictory</condition>
+    <condition id="design_choice_needed">Multiple reasonable design options exist and user preference matters</condition>
+    <condition id="constraint_risk">Proceeding would risk breaking: security, compliance, performance, or interoperability constraints</condition>
+  </pause-conditions>
+
+  <auto-resolve-rules>
+    <rule>Auto-resolve ALL high and medium severity code review issues using best judgment and BMAD guidance</rule>
+    <rule>Low severity issues: fix if straightforward, otherwise document for later</rule>
+    <rule>When auto-resolving, document the decision in the story's Dev Agent Record</rule>
+  </auto-resolve-rules>
+
+  <step n="1" goal="Initialize Epic Cycle">
+    <action>Load {{sprint_status}} file completely</action>
+    <action>Parse development_status section</action>
+
+    <check if="{{epic_num}} is not provided">
+      <ask>Which epic number would you like to process? (e.g., 1, 2, 3)</ask>
+      <action>Store user response as {{epic_num}}</action>
+    </check>
+
+    <action>Find all stories matching pattern: {{epic_num}}-*-* in sprint_status</action>
+    <action>Filter to stories with status: backlog, ready-for-dev, in-progress, or review</action>
+    <action>Sort stories by story number (second number in key)</action>
+    <action>Store as {{stories_to_process}} list</action>
+
+    <check if="{{stories_to_process}} is empty">
+      <output>No stories to process in Epic {{epic_num}}. All stories may be complete or epic doesn't exist.</output>
+      <action>HALT</action>
+    </check>
+
+    <action>Initialize {{cycle_log}} file with header</action>
+    <output>
+      # Epic {{epic_num}} Development Cycle Log
+      Started: {{date}}
+      Stories to process: {{stories_to_process|length}}
+
+      ---
+    </output>
+
+    <output>
+      **EPIC CYCLE INITIATED**
+
+      Epic: {{epic_num}}
+      Stories to process: {{stories_to_process|length}}
+
+      Will execute for each story:
+      1. create-story (prepare developer context)
+      2. dev-story (implement)
+      3. code-review (with auto-fix for high/medium issues)
+      4. git commit and push
+      5. testarch-automate (generate tests)
+      6. git commit and push
+
+      **Pause conditions:**
+      - Ambiguous requirements
+      - Design decisions requiring your input
+      - Security/compliance/performance/interop risks
+
+      Beginning autonomous processing...
+    </output>
+  </step>
+
+  <step n="2" goal="Process Each Story" for-each="story in {{stories_to_process}}">
+    <action>Extract story_key, epic_num, story_num, story_title from {{story}}</action>
+    <action>Set {{current_story}} = {{story}}</action>
+    <action>Log: "Processing Story {{epic_num}}.{{story_num}}: {{story_title}}"</action>
+
+    <!-- Phase 2a: Create Story Context -->
+    <substep n="2a" goal="Create Story Context">
+      <check if="story status is 'backlog'">
+        <action>Execute create-story workflow as subagent</action>
+        <invoke-workflow
+          path="{project-root}/_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml"
+          inputs="story_key={{story_key}}"
+          mode="autonomous"
+          pause_on="{{pause-conditions}}" />
+
+        <check if="subagent paused with question">
+          <action>Surface question to user with context</action>
+          <output>
+            **QUESTION REQUIRED - Story {{epic_num}}.{{story_num}}**
+
+            Context: Creating story context for {{story_title}}
+            Phase: create-story
+
+            {{subagent_question}}
+
+            Please respond to continue.
+          </output>
+          <ask>Your answer:</ask>
+          <action>Pass answer to subagent as constraint</action>
+          <action>Resume subagent</action>
+        </check>
+
+        <action>Update sprint_status: {{story_key}} = ready-for-dev</action>
+      </check>
+    </substep>
+
+    <!-- Phase 2b: Develop Story -->
+    <substep n="2b" goal="Develop Story">
+      <check if="story status is 'backlog' OR 'ready-for-dev'">
+        <action>Execute dev-story workflow as subagent</action>
+        <invoke-workflow
+          path="{project-root}/_bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml"
+          inputs="story_file={{story_dir}}/{{story_key}}.md"
+          mode="autonomous"
+          pause_on="{{pause-conditions}}" />
+
+        <check if="subagent paused with question">
+          <action>Surface question to user with context</action>
+          <output>
+            **QUESTION REQUIRED - Story {{epic_num}}.{{story_num}}**
+
+            Context: Implementing {{story_title}}
+            Phase: dev-story
+            Files affected: {{subagent_files_touched}}
+
+            {{subagent_question}}
+
+            Key tradeoffs: {{subagent_tradeoffs}}
+
+            Please respond to continue.
+          </output>
+          <ask>Your answer:</ask>
+          <action>Pass answer to subagent as constraint</action>
+          <action>Resume subagent</action>
+        </check>
+
+        <action>Update sprint_status: {{story_key}} = review</action>
+        <action>Record files_touched from subagent</action>
+      </check>
+    </substep>
+
+    <!-- Phase 2c: Code Review with Auto-Fix -->
+    <substep n="2c" goal="Code Review">
+      <action>Execute code-review workflow as subagent</action>
+      <invoke-workflow
+        path="{project-root}/_bmad/bmm/workflows/4-implementation/code-review/workflow.yaml"
+        inputs="story_file={{story_dir}}/{{story_key}}.md"
+        mode="autonomous"
+        auto_resolve_severity="high,medium" />
+
+      <action>Collect review findings</action>
+      <action>For each high/medium issue: auto-resolve using best judgment</action>
+      <action>Document auto-resolved issues in {{issues_auto_resolved}}</action>
+
+      <check if="review found constraint risks (security, compliance, performance, interop)">
+        <action>Surface to user</action>
+        <output>
+          **CONSTRAINT RISK - Story {{epic_num}}.{{story_num}}**
+
+          Context: Code review found potential constraint violations
+          Phase: code-review
+
+          {{constraint_risk_details}}
+
+          Affected files: {{affected_files}}
+
+          Options:
+          1. Proceed with suggested fix
+          2. Provide alternative approach
+          3. Accept risk and continue
+
+          Please advise.
+        </output>
+        <ask>Your choice (1/2/3) or alternative:</ask>
+        <action>Apply user decision</action>
+      </check>
+
+      <check if="any issues remain unresolved">
+        <action>Re-run dev-story to apply fixes</action>
+        <action>Re-run code-review to verify</action>
+      </check>
+
+      <action>Update sprint_status: {{story_key}} = done</action>
+    </substep>
+
+    <!-- Phase 2d: Git Commit Implementation -->
+    <substep n="2d" goal="Commit Implementation">
+      <action>Stage all modified files from dev-story</action>
+      <action>Create commit with message: "feat({{epic_num}}.{{story_num}}): {{story_title}} - implementation complete"</action>
+      <action>Push to remote</action>
+      <action>Record commit_hash_impl</action>
+    </substep>
+
+    <!-- Phase 2e: Test Automation (Optional) -->
+    <substep n="2e" goal="Generate Test Automation" optional="true">
+      <action>Execute testarch-automate workflow as subagent</action>
+      <invoke-workflow
+        path="{project-root}/_bmad/bmm/workflows/testarch/automate/workflow.yaml"
+        inputs="coverage_target=critical-paths"
+        mode="autonomous" />
+
+      <check if="tests generated">
+        <action>Stage test files</action>
+        <action>Create commit with message: "test({{epic_num}}.{{story_num}}): {{story_title}} - automation tests"</action>
+        <action>Push to remote</action>
+        <action>Record commit_hash_tests</action>
+      </check>
+    </substep>
+
+    <!-- Phase 2f: Log Story Completion -->
+    <substep n="2f" goal="Log Completion">
+      <action>Append to {{cycle_log}}:</action>
+      <output>
+        ## Story {{epic_num}}.{{story_num}}: {{story_title}}
+
+        **Status:** Complete
+        **Files touched:**
+        {{files_touched}}
+
+        **Key design decisions:**
+        {{design_decisions}}
+
+        **Issues auto-resolved:** {{issues_auto_resolved|length}}
+        {{#each issues_auto_resolved}}
+        - {{severity}}: {{description}} → {{resolution}}
+        {{/each}}
+
+        **User input required:** {{user_questions|length}}
+        {{#each user_questions}}
+        - Q: {{question}}
+          A: {{answer}}
+        {{/each}}
+
+        **Commits:**
+        - Implementation: {{commit_hash_impl}}
+        - Tests: {{commit_hash_tests}}
+
+        ---
+      </output>
+
+      <output>
+        **STORY COMPLETE: {{epic_num}}.{{story_num}} - {{story_title}}**
+
+        Files: {{files_touched|length}} touched
+        Auto-resolved: {{issues_auto_resolved|length}} issues
+        User input: {{user_questions|length}} questions
+
+        Proceeding to next story...
+      </output>
+    </substep>
+  </step>
+
+  <step n="3" goal="Epic Cycle Complete">
+    <action>Calculate summary statistics</action>
+    <action>Append final summary to {{cycle_log}}</action>
+
+    <output>
+      # Epic {{epic_num}} Cycle Summary
+
+      **Completed:** {{date}}
+      **Stories processed:** {{stories_processed}}
+      **Total files touched:** {{total_files}}
+      **Issues auto-resolved:** {{total_auto_resolved}}
+      **User inputs required:** {{total_user_inputs}}
+
+      **Commits created:** {{total_commits}}
+
+      ## Recommendations
+
+      {{#if epic_complete}}
+      - Epic {{epic_num}} is complete!
+      - Consider running `/bmad-bmm-retrospective` to capture learnings
+      - Ready to proceed to Epic {{next_epic_num}} if available
+      {{else}}
+      - Some stories may need additional work
+      - Check sprint-status.yaml for remaining items
+      {{/if}}
+    </output>
+
+    <action>Check if all stories in epic are now 'done'</action>
+    <check if="all epic stories done">
+      <action>Update sprint_status: epic-{{epic_num}} = done</action>
+      <output>Epic {{epic_num}} marked as COMPLETE in sprint-status.yaml</output>
+    </check>
+
+    <output>
+      **EPIC CYCLE COMPLETE**
+
+      Full log available at: {{cycle_log}}
+
+      Next steps:
+      - Review cycle log for any items needing attention
+      - Run retrospective if epic is complete
+      - Start next epic with `/bmad-bmm-epic-cycle epic_num={{next_epic_num}}`
+    </output>
+  </step>
+</workflow>

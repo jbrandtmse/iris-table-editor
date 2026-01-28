@@ -313,6 +313,74 @@ body {
     color: var(--vscode-descriptionForeground);
 }
 
+/* Story 2.2: Empty Row State (for tables with schema but no data) */
+.ite-grid__empty-row {
+    display: table-row;
+}
+
+.ite-grid__empty-cell {
+    display: table-cell;
+    padding: 24px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+/* Story 2.2: Pagination Controls */
+.ite-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--vscode-editorWidget-background);
+    border-top: 1px solid var(--vscode-widget-border);
+    flex-shrink: 0;
+}
+
+.ite-pagination__info {
+    font-size: 0.9em;
+    color: var(--vscode-foreground);
+}
+
+.ite-pagination__controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ite-pagination__button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 4px;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ite-pagination__button:hover:not(:disabled) {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.ite-pagination__button:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
+.ite-pagination__button:disabled,
+.ite-pagination__button--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ite-pagination__button--loading {
+    cursor: wait;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
@@ -325,6 +393,10 @@ body {
     }
 
     .ite-toolbar__button {
+        transition: none;
+    }
+
+    .ite-pagination__button {
         transition: none;
     }
 }

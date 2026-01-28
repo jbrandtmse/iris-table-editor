@@ -188,6 +188,16 @@ export interface IRequestDataPayload {
 }
 
 /**
+ * Payload for paginate command (grid webview to extension)
+ * Story 2.2: Pagination support
+ */
+export interface IPaginatePayload {
+    direction: 'next' | 'prev';
+    currentPage: number;
+    pageSize: number;
+}
+
+/**
  * Server-related commands sent from webview to extension
  */
 export type ServerCommand =
@@ -206,7 +216,9 @@ export type ServerCommand =
  */
 export type GridCommand =
     | { command: 'requestData'; payload: IRequestDataPayload }
-    | { command: 'refresh'; payload: IEmptyPayload };
+    | { command: 'refresh'; payload: IEmptyPayload }
+    | { command: 'paginateNext'; payload: IPaginatePayload }
+    | { command: 'paginatePrev'; payload: IPaginatePayload };
 
 /**
  * Server-related events sent from extension to webview

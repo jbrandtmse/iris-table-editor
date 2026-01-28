@@ -30,3 +30,4 @@ name,description,module,path
 "testarch-test-design","Dual-mode workflow: (1) System-level testability review in Solutioning phase, or (2) Epic-level test planning in Implementation phase. Auto-detects mode based on project phase.","bmm","_bmad/bmm/workflows/testarch/test-design/workflow.yaml"
 "testarch-test-review","Review test quality using comprehensive knowledge base and best practices validation","bmm","_bmad/bmm/workflows/testarch/test-review/workflow.yaml"
 "testarch-trace","Generate requirements-to-tests traceability matrix, analyze coverage, and make quality gate decision (PASS/CONCERNS/FAIL/WAIVED)","bmm","_bmad/bmm/workflows/testarch/trace/workflow.yaml"
+"epic-cycle","Execute full BMAD development cycle for all stories in an Epic: create-story → dev-story → code-review → git commit → testarch-automate → git commit. Runs autonomously with minimal interruption.","bmm","_bmad/bmm/workflows/4-implementation/epic-cycle/workflow.yaml"

@@ -13,6 +13,7 @@
 
     /**
      * Grid application state
+     * Story 2.2: Added pagination state management with computed properties
      */
     class AppState {
         constructor() {
@@ -24,14 +25,49 @@
             this.rows = [];
             /** @type {number} */
             this.totalRows = 0;
+            /** @type {number} - 1-indexed page number for user display */
+            this.currentPage = 1;
             /** @type {number} */
-            this.page = 0;
-            /** @type {number} */
-            this.pageSize = 100;
+            this.pageSize = 50;
             /** @type {boolean} */
             this.loading = false;
+            /** @type {boolean} - separate loading state for pagination */
+            this.paginationLoading = false;
             /** @type {string | null} */
             this.error = null;
+        }
+
+        /**
+         * Calculate total number of pages
+         * @returns {number}
+         */
+        get totalPages() {
+            if (this.totalRows === 0) return 0;
+            return Math.ceil(this.totalRows / this.pageSize);
+        }
+
+        /**
+         * Check if user can navigate to next page
+         * @returns {boolean}
+         */
+        get canGoNext() {
+            return this.currentPage < this.totalPages;
+        }
+
+        /**
+         * Check if user can navigate to previous page
+         * @returns {boolean}
+         */
+        get canGoPrev() {
+            return this.currentPage > 1;
+        }
+
+        /**
+         * Check if pagination controls should be shown
+         * @returns {boolean}
+         */
+        get shouldShowPagination() {
+            return this.totalRows > this.pageSize;
         }
     }
 
@@ -197,6 +233,7 @@
 
     /**
      * Update status bar
+     * Story 2.2: Updated to use 1-indexed currentPage
      */
     function updateStatusBar() {
         const statusText = document.getElementById('statusText');
@@ -206,13 +243,108 @@
             } else if (state.error) {
                 statusText.textContent = `Error: ${state.error}`;
             } else {
-                const start = state.page * state.pageSize + 1;
+                const start = (state.currentPage - 1) * state.pageSize + 1;
                 const end = Math.min(start + state.rows.length - 1, state.totalRows);
                 statusText.textContent = state.totalRows > 0
                     ? `Showing ${start}-${end} of ${state.totalRows} rows`
                     : 'No data';
             }
         }
+    }
+
+    /**
+     * Create pagination indicator text
+     * Story 2.2: Pagination UI
+     * @returns {string}
+     */
+    function getPaginationIndicator() {
+        if (state.totalRows === 0) return 'No data';
+        const start = (state.currentPage - 1) * state.pageSize + 1;
+        const end = Math.min(start + state.rows.length - 1, state.totalRows);
+        return `Rows ${start}-${end} of ${state.totalRows}`;
+    }
+
+    /**
+     * Update pagination UI
+     * Story 2.2: Pagination controls and indicator with loading state
+     */
+    function updatePaginationUI() {
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (!paginationContainer) return;
+
+        // Show/hide pagination based on total rows
+        if (!state.shouldShowPagination) {
+            paginationContainer.style.display = 'none';
+            return;
+        }
+
+        paginationContainer.style.display = 'flex';
+
+        // Update indicator text (show loading state)
+        const paginationInfo = document.getElementById('paginationInfo');
+        if (paginationInfo) {
+            if (state.paginationLoading) {
+                paginationInfo.textContent = 'Loading...';
+            } else {
+                paginationInfo.textContent = getPaginationIndicator();
+            }
+        }
+
+        // Update button states
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+
+        if (prevBtn) {
+            prevBtn.disabled = !state.canGoPrev || state.paginationLoading;
+            prevBtn.setAttribute('aria-disabled', String(!state.canGoPrev || state.paginationLoading));
+            prevBtn.classList.toggle('ite-pagination__button--loading', state.paginationLoading);
+        }
+
+        if (nextBtn) {
+            nextBtn.disabled = !state.canGoNext || state.paginationLoading;
+            nextBtn.setAttribute('aria-disabled', String(!state.canGoNext || state.paginationLoading));
+            nextBtn.classList.toggle('ite-pagination__button--loading', state.paginationLoading);
+        }
+    }
+
+    /**
+     * Handle paginate next
+     * Story 2.2: Pagination navigation
+     */
+    function handlePaginateNext() {
+        if (!state.canGoNext || state.paginationLoading) return;
+
+        console.debug(`${LOG_PREFIX} Paginate next from page ${state.currentPage}`);
+        state.paginationLoading = true;
+        updatePaginationUI();
+
+        sendCommand('paginateNext', {
+            direction: 'next',
+            currentPage: state.currentPage,
+            pageSize: state.pageSize
+        });
+
+        announce(`Loading page ${state.currentPage + 1} of ${state.totalPages}`);
+    }
+
+    /**
+     * Handle paginate previous
+     * Story 2.2: Pagination navigation
+     */
+    function handlePaginatePrev() {
+        if (!state.canGoPrev || state.paginationLoading) return;
+
+        console.debug(`${LOG_PREFIX} Paginate prev from page ${state.currentPage}`);
+        state.paginationLoading = true;
+        updatePaginationUI();
+
+        sendCommand('paginatePrev', {
+            direction: 'prev',
+            currentPage: state.currentPage,
+            pageSize: state.pageSize
+        });
+
+        announce(`Loading page ${state.currentPage - 1} of ${state.totalPages}`);
     }
 
     /**
@@ -255,7 +387,30 @@
     }
 
     /**
+     * Render empty state message
+     * Story 2.2: Edge case handling for empty tables
+     */
+    function renderEmptyState() {
+        const grid = document.getElementById('dataGrid');
+        if (!grid) return;
+
+        const emptyRow = document.createElement('div');
+        emptyRow.className = 'ite-grid__empty-row';
+        emptyRow.setAttribute('role', 'row');
+
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'ite-grid__empty-cell';
+        emptyCell.setAttribute('role', 'gridcell');
+        emptyCell.setAttribute('colspan', String(state.columns.length));
+        emptyCell.textContent = 'No data in table';
+
+        emptyRow.appendChild(emptyCell);
+        grid.appendChild(emptyRow);
+    }
+
+    /**
      * Render the full grid
+     * Story 2.2: Added pagination UI update and empty state handling
      */
     function renderGrid() {
         clearGrid();
@@ -265,10 +420,21 @@
         }
 
         renderHeader();
-        renderRows();
-        updateStatusBar();
 
-        announce(`Table loaded with ${state.rows.length} rows`);
+        // Story 2.2: Handle empty table edge case
+        if (state.rows.length === 0) {
+            renderEmptyState();
+        } else {
+            renderRows();
+        }
+
+        updateStatusBar();
+        updatePaginationUI();
+
+        const message = state.rows.length === 0
+            ? 'Table is empty'
+            : `Table loaded with ${state.rows.length} rows`;
+        announce(message);
     }
 
     /**
@@ -288,17 +454,21 @@
 
     /**
      * Handle tableData event
+     * Story 2.2: Updated to use 1-indexed currentPage and clear pagination loading
      * @param {{ rows: Array<Record<string, unknown>>; totalRows: number; page: number; pageSize: number }} payload
      */
     function handleTableData(payload) {
         console.debug(`${LOG_PREFIX} Received data:`, payload.rows.length, 'rows');
         state.rows = payload.rows;
         state.totalRows = payload.totalRows;
-        state.page = payload.page;
+        // Convert from 0-indexed API page to 1-indexed display page
+        state.currentPage = payload.page + 1;
         state.pageSize = payload.pageSize;
         state.error = null;
+        state.paginationLoading = false;
 
         renderGrid();
+        updatePaginationUI();
         saveState(); // Persist immediately after data update
     }
 
@@ -312,6 +482,7 @@
 
     /**
      * Handle error event
+     * Story 2.2: Updated to preserve current view during pagination errors
      * @param {{ message: string; code: string }} payload
      */
     function handleError(payload) {
@@ -319,17 +490,31 @@
         state.error = payload.message;
         state.loading = false;
 
+        // Story 2.2: If we have data (pagination error), keep the current view
+        const wasPaginationError = state.paginationLoading;
+        state.paginationLoading = false;
+
         const loadingOverlay = document.getElementById('loadingOverlay');
         const gridWrapper = document.getElementById('gridWrapper');
 
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
-        if (gridWrapper) {
-            gridWrapper.style.display = 'none';
+
+        // Only hide grid if we don't have data to show
+        if (!wasPaginationError || state.rows.length === 0) {
+            if (gridWrapper) {
+                gridWrapper.style.display = 'none';
+            }
+        } else {
+            // Keep current view visible during pagination error
+            if (gridWrapper) {
+                gridWrapper.style.display = 'block';
+            }
         }
 
         updateStatusBar();
+        updatePaginationUI();
         announce(`Error: ${payload.message}`);
         saveState(); // Persist error state
     }
@@ -379,6 +564,7 @@
 
     /**
      * Initialize grid
+     * Story 2.2: Added pagination button event listeners and keyboard shortcuts
      */
     function init() {
         console.debug(`${LOG_PREFIX} Initializing grid`);
@@ -401,10 +587,45 @@
             refreshBtn.addEventListener('click', handleRefresh);
         }
 
+        // Story 2.2: Setup pagination buttons
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+
+        if (prevPageBtn) {
+            prevPageBtn.addEventListener('click', handlePaginatePrev);
+        }
+        if (nextPageBtn) {
+            nextPageBtn.addEventListener('click', handlePaginateNext);
+        }
+
+        // Story 2.2: Setup keyboard shortcuts for pagination
+        document.addEventListener('keydown', handleKeyboardNavigation);
+
         // State is now saved immediately on each data change (event-driven)
         // This replaces the previous interval-based approach for better reliability
 
         console.debug(`${LOG_PREFIX} Grid initialized`);
+    }
+
+    /**
+     * Handle keyboard navigation for pagination
+     * Story 2.2: Keyboard shortcuts (Ctrl+PageDown/PageUp or Alt+Right/Left)
+     * @param {KeyboardEvent} event
+     */
+    function handleKeyboardNavigation(event) {
+        // Ctrl+PageDown or Alt+Right for next page
+        if ((event.ctrlKey && event.key === 'PageDown') || (event.altKey && event.key === 'ArrowRight')) {
+            event.preventDefault();
+            handlePaginateNext();
+            return;
+        }
+
+        // Ctrl+PageUp or Alt+Left for previous page
+        if ((event.ctrlKey && event.key === 'PageUp') || (event.altKey && event.key === 'ArrowLeft')) {
+            event.preventDefault();
+            handlePaginatePrev();
+            return;
+        }
     }
 
     // Initialize when DOM is ready
