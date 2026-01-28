@@ -98,4 +98,86 @@ suite('ServerConnectionManager Test Suite', () => {
         assert.strictEqual(result1, result2, 'Results should be consistent');
         assert.strictEqual(result2, result3, 'Results should be consistent');
     });
+
+    // Story 1.4 - Connection tests
+    test('connect method exists', () => {
+        assert.ok(typeof manager.connect === 'function', 'connect should be a function');
+    });
+
+    test('disconnect method exists', () => {
+        assert.ok(typeof manager.disconnect === 'function', 'disconnect should be a function');
+    });
+
+    test('isConnected method exists and returns boolean', () => {
+        assert.ok(typeof manager.isConnected === 'function', 'isConnected should be a function');
+        assert.strictEqual(typeof manager.isConnected(), 'boolean', 'isConnected should return boolean');
+    });
+
+    test('getConnectedServer method exists', () => {
+        assert.ok(typeof manager.getConnectedServer === 'function', 'getConnectedServer should be a function');
+    });
+
+    test('getConnectedServerSpec method exists', () => {
+        assert.ok(typeof manager.getConnectedServerSpec === 'function', 'getConnectedServerSpec should be a function');
+    });
+
+    test('Initially not connected', () => {
+        assert.strictEqual(manager.isConnected(), false, 'Should not be connected initially');
+        assert.strictEqual(manager.getConnectedServer(), null, 'Should have no connected server initially');
+        assert.strictEqual(manager.getConnectedServerSpec(), null, 'Should have no server spec initially');
+    });
+
+    test('connect returns error for non-existent server', async () => {
+        const result = await manager.connect('__nonexistent_server_xyz_12345__');
+
+        assert.strictEqual(result.success, false, 'Should fail for non-existent server');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(result.error!.message, 'Error should have a message');
+    });
+
+    test('disconnect clears connection state', () => {
+        // Start with fresh manager
+        const testManager = new ServerConnectionManager();
+
+        // Disconnect should work even when not connected
+        assert.doesNotThrow(() => {
+            testManager.disconnect();
+        }, 'disconnect should not throw when not connected');
+
+        // Verify state after disconnect
+        assert.strictEqual(testManager.isConnected(), false);
+        assert.strictEqual(testManager.getConnectedServer(), null);
+        assert.strictEqual(testManager.getConnectedServerSpec(), null);
+    });
+
+    test('connect returns proper result structure', async () => {
+        const result = await manager.connect('any-server-name');
+
+        // Result should always have success property
+        assert.ok('success' in result, 'Result should have success property');
+        assert.strictEqual(typeof result.success, 'boolean', 'success should be boolean');
+
+        // If failed, should have error
+        if (!result.success) {
+            assert.ok(result.error, 'Failed result should have error');
+            assert.ok('message' in result.error!, 'Error should have message');
+            assert.ok('code' in result.error!, 'Error should have code');
+            assert.ok('recoverable' in result.error!, 'Error should have recoverable');
+            assert.ok('context' in result.error!, 'Error should have context');
+        }
+    });
+
+    test('Multiple connect attempts do not throw', async () => {
+        // Attempt multiple connects (all should fail gracefully since server doesn't exist)
+        const results = await Promise.all([
+            manager.connect('server1'),
+            manager.connect('server2'),
+            manager.connect('server3')
+        ]);
+
+        // All should return valid result objects
+        for (const result of results) {
+            assert.ok('success' in result, 'Each result should have success property');
+        }
+    });
 });

@@ -95,6 +95,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     padding: 6px 14px;
     border: none;
     border-radius: 2px;
@@ -210,6 +211,85 @@ body {
     white-space: nowrap;
 }
 
+/* Connection Header - Story 1.4 */
+.ite-connection-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--vscode-sideBar-background);
+    border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
+    margin: -8px -8px 8px -8px;
+}
+
+.ite-connection-header__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ite-connection-header__indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ite-connection-header__indicator--connected {
+    background-color: var(--vscode-testing-iconPassed, #73c991);
+    box-shadow: 0 0 4px var(--vscode-testing-iconPassed, #73c991);
+}
+
+.ite-connection-header__indicator--disconnected {
+    background-color: var(--vscode-descriptionForeground);
+    opacity: 0.5;
+}
+
+.ite-connection-header__label {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ite-connection-header__server {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ite-connection-header__disconnect {
+    align-self: flex-start;
+    margin-top: 4px;
+}
+
+/* Connected Content Area */
+.ite-connected-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 16px;
+    min-height: 120px;
+}
+
+.ite-connected-content__placeholder {
+    margin: 0 0 8px 0;
+    color: var(--vscode-foreground);
+    font-weight: 500;
+}
+
+.ite-connected-content__hint {
+    margin: 0;
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
+    font-style: italic;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
@@ -219,5 +299,9 @@ body {
 
     .ite-server-list__item {
         transition: none;
+    }
+
+    .ite-connection-header__indicator--connected {
+        box-shadow: none;
     }
 }

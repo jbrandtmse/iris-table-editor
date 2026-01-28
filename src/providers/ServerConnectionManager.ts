@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import type { ServerManagerAPI, IServerName, IServerSpec as ISMServerSpec } from '@intersystems-community/intersystems-servermanager';
 import { IServerSpec } from '../models/IServerSpec';
+import { IUserError } from '../models/IMessages';
+import { AtelierApiService } from '../services/AtelierApiService';
+import { ErrorHandler, ErrorCodes } from '../utils/ErrorHandler';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -9,6 +12,8 @@ const LOG_PREFIX = '[IRIS-TE]';
  */
 export class ServerConnectionManager {
     private _serverManagerApi: ServerManagerAPI | undefined;
+    private _connectedServer: string | null = null;
+    private _serverSpec: IServerSpec | null = null;
 
     constructor() {}
 
@@ -76,6 +81,114 @@ export class ServerConnectionManager {
             console.error(`${LOG_PREFIX} Error getting server spec:`, error);
             return undefined;
         }
+    }
+
+    /**
+     * Connect to a server using Server Manager credentials
+     * @param serverName - Name of the server to connect to
+     * @returns Connection result with success status and any error
+     */
+    public async connect(serverName: string): Promise<{
+        success: boolean;
+        error?: IUserError;
+    }> {
+        console.debug(`${LOG_PREFIX} Attempting to connect to server: ${serverName}`);
+
+        // 1. Get server spec
+        const spec = await this.getServerSpec(serverName);
+        if (!spec) {
+            return {
+                success: false,
+                error: {
+                    message: `Server '${serverName}' not found`,
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: false,
+                    context: 'connect'
+                }
+            };
+        }
+
+        // 2. Get credentials via VS Code auth API
+        try {
+            const session = await vscode.authentication.getSession(
+                'intersystems-server-credentials',
+                [serverName],
+                { createIfNone: true }
+            );
+
+            if (!session) {
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication cancelled',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'connect'
+                    }
+                };
+            }
+
+            // 3. Test connection with Atelier API
+            const apiService = new AtelierApiService();
+            const testResult = await apiService.testConnection(
+                spec,
+                session.account.id,  // username
+                session.accessToken  // password
+            );
+
+            if (!testResult.success) {
+                return { success: false, error: testResult.error };
+            }
+
+            // 4. Store connection state
+            this._connectedServer = serverName;
+            this._serverSpec = spec;
+
+            console.debug(`${LOG_PREFIX} Connected to server: ${serverName}`);
+            return { success: true };
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Connection error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'connect') || {
+                    message: 'Connection failed unexpectedly',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'connect'
+                }
+            };
+        }
+    }
+
+    /**
+     * Disconnect from current server
+     */
+    public disconnect(): void {
+        console.debug(`${LOG_PREFIX} Disconnecting from server: ${this._connectedServer}`);
+        this._connectedServer = null;
+        this._serverSpec = null;
+    }
+
+    /**
+     * Check if currently connected
+     */
+    public isConnected(): boolean {
+        return this._connectedServer !== null;
+    }
+
+    /**
+     * Get current connected server name
+     */
+    public getConnectedServer(): string | null {
+        return this._connectedServer;
+    }
+
+    /**
+     * Get current server spec (for API calls)
+     */
+    public getConnectedServerSpec(): IServerSpec | null {
+        return this._serverSpec;
     }
 
     /**

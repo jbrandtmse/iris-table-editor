@@ -51,13 +51,18 @@
     class AppState {
         constructor(initialState = {}) {
             this._state = {
+                // Server list state
                 servers: [],
                 selectedServer: initialState.selectedServer || null,
                 isLoading: true,
                 loadingContext: 'loadingServers',
                 error: null,
                 serverManagerInstalled: true,
-                serversConfigured: true
+                serversConfigured: true,
+
+                // Connection state (Story 1.4)
+                connectionState: initialState.connectionState || 'disconnected', // 'disconnected' | 'connecting' | 'connected'
+                connectedServer: initialState.connectedServer || null
             };
             this._listeners = [];
         }
@@ -69,7 +74,11 @@
         update(changes) {
             this._state = { ...this._state, ...changes };
             // Persist state for webview restoration
-            vscode.setState({ selectedServer: this._state.selectedServer });
+            vscode.setState({
+                selectedServer: this._state.selectedServer,
+                connectionState: this._state.connectionState,
+                connectedServer: this._state.connectedServer
+            });
             this._notifyListeners();
         }
 
@@ -127,6 +136,14 @@
                 announce('No servers configured');
                 break;
 
+            case 'connectionStatus':
+                handleConnectionStatus(message.payload);
+                break;
+
+            case 'connectionError':
+                handleConnectionError(message.payload);
+                break;
+
             case 'error':
                 appState.update({
                     isLoading: false,
@@ -135,6 +152,47 @@
                 announce(`Error: ${message.payload.message}`);
                 break;
         }
+    }
+
+    /**
+     * Handle connection status event
+     * @param {object} payload - Connection status payload
+     */
+    function handleConnectionStatus(payload) {
+        if (payload.connected) {
+            appState.update({
+                connectionState: 'connected',
+                connectedServer: payload.serverName,
+                isLoading: false,
+                error: null
+            });
+            announce(`Connected to ${payload.serverName}`);
+        } else {
+            appState.update({
+                connectionState: 'disconnected',
+                connectedServer: null,
+                isLoading: false
+            });
+            announce('Disconnected from server');
+        }
+    }
+
+    /**
+     * Handle connection error event
+     * @param {object} payload - Connection error payload
+     */
+    function handleConnectionError(payload) {
+        appState.update({
+            connectionState: 'disconnected',
+            isLoading: false,
+            error: {
+                message: payload.message,
+                code: payload.code,
+                recoverable: payload.recoverable,
+                context: payload.context
+            }
+        });
+        announce(`Connection error: ${payload.message}`);
     }
 
     /**
@@ -151,9 +209,23 @@
      * @param {string} serverName - Selected server name
      */
     function selectServer(serverName) {
-        appState.update({ selectedServer: serverName });
+        // Show connecting state
+        appState.update({
+            selectedServer: serverName,
+            connectionState: 'connecting',
+            isLoading: true,
+            loadingContext: 'connecting',
+            error: null
+        });
+        announce(`Connecting to ${serverName}...`);
         postCommand('selectServer', { serverName });
-        announce(`Selected server: ${serverName}`);
+    }
+
+    /**
+     * Handle disconnect button click
+     */
+    function disconnect() {
+        postCommand('disconnect');
     }
 
     /**
@@ -163,14 +235,29 @@
     function render(state) {
         const container = document.querySelector('.ite-container');
 
-        if (state.isLoading) {
-            container.innerHTML = renderLoading(state.loadingContext);
+        // Show connecting state
+        if (state.connectionState === 'connecting' || (state.isLoading && state.loadingContext === 'connecting')) {
+            container.innerHTML = renderConnecting(state.selectedServer);
+            return;
+        }
+
+        // Show loading (for servers)
+        if (state.isLoading && state.loadingContext === 'loadingServers') {
+            container.innerHTML = renderLoading();
+            return;
+        }
+
+        // Show connected state
+        if (state.connectionState === 'connected' && state.connectedServer) {
+            container.innerHTML = renderConnected(state.connectedServer);
+            attachConnectedEvents();
             return;
         }
 
         // Check error first so it's not masked by other states
         if (state.error) {
             container.innerHTML = renderError(state.error);
+            attachErrorEvents();
             return;
         }
 
@@ -181,6 +268,7 @@
 
         if (!state.serversConfigured || state.servers.length === 0) {
             container.innerHTML = renderNoServers();
+            attachNoServersEvents();
             return;
         }
 
@@ -197,6 +285,49 @@
             <div class="ite-loading">
                 <div class="ite-loading__spinner"></div>
                 <p class="ite-loading__text">Loading servers...</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Render connecting state
+     * @param {string} serverName - Server being connected to
+     * @returns {string} HTML string
+     */
+    function renderConnecting(serverName) {
+        const safeName = escapeHtml(serverName || 'server');
+        return `
+            <div class="ite-loading">
+                <div class="ite-loading__spinner"></div>
+                <p class="ite-loading__text">Connecting to ${safeName}...</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Render connected state
+     * @param {string} serverName - Connected server name
+     * @returns {string} HTML string
+     */
+    function renderConnected(serverName) {
+        const safeName = escapeHtml(serverName);
+        return `
+            <div class="ite-connection-header">
+                <div class="ite-connection-header__status">
+                    <span class="ite-connection-header__indicator ite-connection-header__indicator--connected"></span>
+                    <span class="ite-connection-header__label">Connected to</span>
+                </div>
+                <div class="ite-connection-header__server">${safeName}</div>
+                <button class="ite-button ite-button--secondary ite-connection-header__disconnect"
+                        id="disconnectBtn"
+                        aria-label="Disconnect from ${escapeAttr(serverName)}">
+                    <span class="codicon codicon-debug-disconnect"></span>
+                    Disconnect
+                </button>
+            </div>
+            <div class="ite-connected-content">
+                <p class="ite-connected-content__placeholder">Ready to browse namespaces</p>
+                <p class="ite-connected-content__hint">(Namespace browsing will be available in the next update)</p>
             </div>
         `;
     }
@@ -244,10 +375,10 @@
         const safeMessage = escapeHtml(error.message);
         return `
             <div class="ite-message ite-message--error">
-                <h3 class="ite-message__title">Error</h3>
+                <h3 class="ite-message__title">Connection Error</h3>
                 <p class="ite-message__text">${safeMessage}</p>
                 <button class="ite-button ite-button--secondary" id="retryBtn">
-                    Retry
+                    Try Again
                 </button>
             </div>
         `;
@@ -281,7 +412,7 @@
 
         return `
             <div class="ite-server-list__header-row">
-                <h3 class="ite-server-list__header">Servers</h3>
+                <h3 class="ite-server-list__header">Select a Server</h3>
                 <button class="ite-button ite-button--icon" id="refreshBtn"
                         title="Refresh server list" aria-label="Refresh server list">
                     <span class="codicon codicon-refresh"></span>
@@ -363,29 +494,51 @@
     }
 
     /**
-     * Attach global event handlers for buttons that appear in various states
+     * Attach event listeners for connected state
      */
-    function attachGlobalEventHandlers() {
-        document.addEventListener('click', (e) => {
-            const target = e.target;
+    function attachConnectedEvents() {
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', disconnect);
+        }
+    }
 
-            // Handle Open Server Manager button
-            if (target.id === 'openServerManagerBtn' || target.closest('#openServerManagerBtn')) {
-                postCommand('openServerManager');
-            }
-
-            // Handle Retry button
-            if (target.id === 'retryBtn' || target.closest('#retryBtn')) {
+    /**
+     * Attach event listeners for error state
+     */
+    function attachErrorEvents() {
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                appState.update({ error: null });
                 refreshServers();
-            }
-        });
+            });
+        }
+    }
+
+    /**
+     * Attach event listeners for no servers state
+     */
+    function attachNoServersEvents() {
+        const openBtn = document.getElementById('openServerManagerBtn');
+        if (openBtn) {
+            openBtn.addEventListener('click', () => {
+                postCommand('openServerManager');
+            });
+        }
     }
 
     /**
      * Refresh the server list
      */
     function refreshServers() {
-        appState.update({ isLoading: true, loadingContext: 'loadingServers', error: null });
+        appState.update({
+            isLoading: true,
+            loadingContext: 'loadingServers',
+            error: null,
+            connectionState: 'disconnected',
+            connectedServer: null
+        });
         announce('Loading servers');
         postCommand('getServerList');
     }
@@ -393,9 +546,18 @@
     // Initialize
     window.addEventListener('message', handleMessage);
     appState.subscribe(render);
-    attachGlobalEventHandlers();
 
-    // Request server list on load
-    console.debug(`${LOG_PREFIX} Webview initialized, requesting server list`);
-    postCommand('getServerList');
+    // Request server list on load (unless already connected)
+    if (previousState.connectionState !== 'connected') {
+        console.debug(`${LOG_PREFIX} Webview initialized, requesting server list`);
+        postCommand('getServerList');
+    } else {
+        // Re-render with previous state
+        console.debug(`${LOG_PREFIX} Webview initialized, restoring connected state`);
+        appState.update({
+            isLoading: false,
+            connectionState: previousState.connectionState,
+            connectedServer: previousState.connectedServer
+        });
+    }
 })();

@@ -1,6 +1,14 @@
 import * as vscode from 'vscode';
 import { ServerConnectionManager } from './ServerConnectionManager';
-import { ICommand, IEvent, IEmptyPayload, IServerListPayload } from '../models/IMessages';
+import {
+    ICommand,
+    IEvent,
+    IEmptyPayload,
+    IServerListPayload,
+    ISelectServerPayload,
+    IConnectionStatusPayload,
+    IConnectionErrorPayload
+} from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -10,6 +18,8 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _serverConnectionManager: ServerConnectionManager;
     private _disposables: vscode.Disposable[] = [];
+    private _isConnected = false;
+    private _connectedServer: string | null = null;
 
     constructor(
         private readonly _extensionUri: vscode.Uri
@@ -74,10 +84,69 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
                 await vscode.commands.executeCommand('workbench.view.extension.intersystems-community-servermanager');
                 break;
             case 'selectServer':
-                // Will be implemented in Story 1.4
-                console.debug(`${LOG_PREFIX} Server selected: ${(message.payload as { serverName: string }).serverName}`);
+                await this._handleSelectServer((message.payload as ISelectServerPayload).serverName);
+                break;
+            case 'disconnect':
+                this._handleDisconnect();
                 break;
         }
+    }
+
+    /**
+     * Handle server selection and connection
+     * @param serverName - Name of the server to connect to
+     */
+    private async _handleSelectServer(serverName: string): Promise<void> {
+        console.debug(`${LOG_PREFIX} Connecting to server: ${serverName}`);
+
+        const result = await this._serverConnectionManager.connect(serverName);
+
+        if (result.success) {
+            this._isConnected = true;
+            this._connectedServer = serverName;
+
+            this._postMessage({
+                event: 'connectionStatus',
+                payload: {
+                    connected: true,
+                    serverName: serverName
+                } as IConnectionStatusPayload
+            });
+        } else {
+            // Connection failed
+            this._postMessage({
+                event: 'connectionError',
+                payload: {
+                    serverName: serverName,
+                    message: result.error?.message || 'Connection failed',
+                    code: result.error?.code || 'UNKNOWN_ERROR',
+                    recoverable: result.error?.recoverable ?? true,
+                    context: result.error?.context || 'connect'
+                } as IConnectionErrorPayload
+            });
+        }
+    }
+
+    /**
+     * Handle disconnect from server
+     */
+    private _handleDisconnect(): void {
+        console.debug(`${LOG_PREFIX} Disconnecting from server: ${this._connectedServer}`);
+
+        this._serverConnectionManager.disconnect();
+        this._isConnected = false;
+        this._connectedServer = null;
+
+        this._postMessage({
+            event: 'connectionStatus',
+            payload: {
+                connected: false,
+                serverName: null
+            } as IConnectionStatusPayload
+        });
+
+        // Send the server list again so user can reconnect
+        this._sendServerList();
     }
 
     /**
