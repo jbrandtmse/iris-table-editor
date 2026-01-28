@@ -39,7 +39,7 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Extension Foundation & Server Connection
-  epic-1: in-progress
+  epic-1: done
   1-1-project-initialization: done
   1-2-extension-shell-with-sidebar-view: done
   1-3-server-manager-integration: done
@@ -49,7 +49,7 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Table Data Display
-  epic-2: in-progress
+  epic-2: done
   2-1-grid-component-table-schema: done
   2-2-table-data-loading-with-pagination: done
   2-3-data-type-formatting: done
