@@ -140,4 +140,93 @@ suite('AtelierApiService Test Suite', () => {
             assert.strictEqual(result.error.context, 'executeQuery', 'Context should be executeQuery');
         }
     });
+
+    // Story 1.5: getNamespaces tests
+    test('AtelierApiService has getNamespaces method', () => {
+        assert.ok(typeof service.getNamespaces === 'function', 'getNamespaces should be a function');
+    });
+
+    test('getNamespaces returns proper error structure on network failure', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-that-does-not-exist-12345.local'
+        };
+
+        service.setTimeout(1000);
+
+        const result = await service.getNamespaces(invalidSpec, 'test', 'test');
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        assert.ok(
+            [ErrorCodes.SERVER_UNREACHABLE, ErrorCodes.CONNECTION_TIMEOUT].includes(result.error!.code as typeof ErrorCodes.SERVER_UNREACHABLE),
+            'Should be network-related error'
+        );
+        assert.ok(result.error!.recoverable, 'Should be recoverable');
+    });
+
+    test('getNamespaces context is set correctly', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid.local'
+        };
+
+        service.setTimeout(500);
+
+        const result = await service.getNamespaces(invalidSpec, 'user', 'pass');
+
+        if (result.error) {
+            assert.strictEqual(result.error.context, 'getNamespaces', 'Context should be getNamespaces');
+        }
+    });
+
+    test('getNamespaces returns consistent error format', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-test.local'
+        };
+
+        service.setTimeout(500);
+
+        const result = await service.getNamespaces(invalidSpec, 'user', 'pass');
+
+        if (result.error) {
+            assert.ok('message' in result.error, 'Should have message');
+            assert.ok('code' in result.error, 'Should have code');
+            assert.ok('recoverable' in result.error, 'Should have recoverable');
+            assert.ok('context' in result.error, 'Should have context');
+        }
+    });
+
+    // Story 1.5 AC#3: Verify namespace encoding integration
+    // This test validates that system namespaces like %SYS returned from getNamespaces
+    // will be properly encoded when used in subsequent API calls
+    test('System namespaces from getNamespaces can be properly encoded for API calls', () => {
+        // Import UrlBuilder to verify encoding integration
+        const { UrlBuilder } = require('../utils/UrlBuilder');
+
+        // Simulate namespaces that would be returned from getNamespaces
+        const systemNamespaces = ['%SYS', '%APPTOOLS', 'USER', 'SAMPLES'];
+
+        for (const ns of systemNamespaces) {
+            // Verify each namespace can be encoded without error
+            const encoded = UrlBuilder.encodeNamespace(ns);
+
+            // System namespaces with % should be encoded
+            if (ns.includes('%')) {
+                assert.ok(encoded.includes('%25'), `${ns} should have % encoded as %25`);
+                assert.ok(!encoded.includes('%%'), `${ns} should not have double %`);
+            }
+
+            // Verify the encoded namespace produces a valid query URL
+            const queryUrl = UrlBuilder.buildQueryUrl('http://localhost:52773/api/atelier/', ns);
+            assert.ok(queryUrl.includes('/v1/'), 'URL should contain version path');
+            assert.ok(!queryUrl.includes('/%S'), 'URL should not contain unencoded %S');
+
+            // Specifically verify %SYS encoding
+            if (ns === '%SYS') {
+                assert.ok(queryUrl.includes('%25SYS'), '%SYS should be encoded as %25SYS in URL');
+            }
+        }
+    });
 });

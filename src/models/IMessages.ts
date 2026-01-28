@@ -76,13 +76,41 @@ export interface IConnectionErrorPayload extends IErrorPayload {
 }
 
 /**
+ * Payload for getNamespaces command (no payload needed)
+ */
+export type IGetNamespacesPayload = IEmptyPayload;
+
+/**
+ * Payload for selectNamespace command
+ */
+export interface ISelectNamespacePayload {
+    namespace: string;
+}
+
+/**
+ * Payload for namespaceList event
+ */
+export interface INamespaceListPayload {
+    namespaces: string[];
+}
+
+/**
+ * Payload for namespaceSelected event
+ */
+export interface INamespaceSelectedPayload {
+    namespace: string;
+}
+
+/**
  * Server-related commands sent from webview to extension
  */
 export type ServerCommand =
     | { command: 'getServerList'; payload: IEmptyPayload }
     | { command: 'selectServer'; payload: ISelectServerPayload }
     | { command: 'disconnect'; payload: IDisconnectPayload }
-    | { command: 'openServerManager'; payload: IEmptyPayload };
+    | { command: 'openServerManager'; payload: IEmptyPayload }
+    | { command: 'getNamespaces'; payload: IGetNamespacesPayload }
+    | { command: 'selectNamespace'; payload: ISelectNamespacePayload };
 
 /**
  * Server-related events sent from extension to webview
@@ -93,4 +121,6 @@ export type ServerEvent =
     | { event: 'noServersConfigured'; payload: IEmptyPayload }
     | { event: 'connectionStatus'; payload: IConnectionStatusPayload }
     | { event: 'connectionError'; payload: IConnectionErrorPayload }
+    | { event: 'namespaceList'; payload: INamespaceListPayload }
+    | { event: 'namespaceSelected'; payload: INamespaceSelectedPayload }
     | { event: 'error'; payload: IErrorPayload };

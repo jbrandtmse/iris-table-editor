@@ -14,8 +14,11 @@ export class ServerConnectionManager {
     private _serverManagerApi: ServerManagerAPI | undefined;
     private _connectedServer: string | null = null;
     private _serverSpec: IServerSpec | null = null;
+    private _atelierApiService: AtelierApiService;
 
-    constructor() {}
+    constructor() {
+        this._atelierApiService = new AtelierApiService();
+    }
 
     /**
      * Check if Server Manager extension is installed and active
@@ -129,8 +132,7 @@ export class ServerConnectionManager {
             }
 
             // 3. Test connection with Atelier API
-            const apiService = new AtelierApiService();
-            const testResult = await apiService.testConnection(
+            const testResult = await this._atelierApiService.testConnection(
                 spec,
                 session.account.id,  // username
                 session.accessToken  // password
@@ -168,6 +170,68 @@ export class ServerConnectionManager {
         console.debug(`${LOG_PREFIX} Disconnecting from server: ${this._connectedServer}`);
         this._connectedServer = null;
         this._serverSpec = null;
+    }
+
+    /**
+     * Get list of available namespaces from connected server
+     * SECURITY: Gets fresh credentials each time - never stores password
+     * @returns Result with success flag, namespaces array, and optional error
+     */
+    public async getNamespaces(): Promise<{
+        success: boolean;
+        namespaces?: string[];
+        error?: IUserError;
+    }> {
+        if (!this._connectedServer || !this._serverSpec) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'getNamespaces'
+                }
+            };
+        }
+
+        // Get FRESH credentials each time - NEVER store password
+        try {
+            const session = await vscode.authentication.getSession(
+                'intersystems-server-credentials',
+                [this._connectedServer],
+                { createIfNone: false }
+            );
+
+            if (!session) {
+                return {
+                    success: false,
+                    error: {
+                        message: 'Session expired. Please reconnect.',
+                        code: ErrorCodes.AUTH_EXPIRED,
+                        recoverable: true,
+                        context: 'getNamespaces'
+                    }
+                };
+            }
+
+            return this._atelierApiService.getNamespaces(
+                this._serverSpec,
+                session.account.id,
+                session.accessToken
+            );
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Get namespaces error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'getNamespaces') || {
+                    message: 'Failed to get namespaces',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'getNamespaces'
+                }
+            };
+        }
     }
 
     /**

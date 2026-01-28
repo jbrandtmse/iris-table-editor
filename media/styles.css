@@ -290,6 +290,79 @@ body {
     font-style: italic;
 }
 
+/* Namespace List - Story 1.5 */
+.ite-namespace-list__header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+.ite-namespace-list__header {
+    margin: 0;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--vscode-sideBarSectionHeader-foreground);
+    letter-spacing: 0.05em;
+}
+
+.ite-namespace-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+.ite-namespace-list__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ite-namespace-list__item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-namespace-list__item:focus {
+    outline: none;
+    background-color: var(--vscode-list-focusBackground);
+    box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.ite-namespace-list__item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+
+.ite-namespace-list__item--selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.ite-namespace-list__item--selected:focus {
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.ite-namespace-list__icon {
+    font-size: 16px;
+    opacity: 0.8;
+    flex-shrink: 0;
+    color: var(--vscode-symbolIcon-namespaceForeground, var(--vscode-foreground));
+}
+
+.ite-namespace-list__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
@@ -303,5 +376,9 @@ body {
 
     .ite-connection-header__indicator--connected {
         box-shadow: none;
+    }
+
+    .ite-namespace-list__item {
+        transition: none;
     }
 }

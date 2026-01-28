@@ -7,7 +7,11 @@ import {
     IServerListPayload,
     ISelectServerPayload,
     IConnectionStatusPayload,
-    IConnectionErrorPayload
+    IConnectionErrorPayload,
+    ISelectNamespacePayload,
+    INamespaceListPayload,
+    INamespaceSelectedPayload,
+    IErrorPayload
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -20,6 +24,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     private _disposables: vscode.Disposable[] = [];
     private _isConnected = false;
     private _connectedServer: string | null = null;
+    private _selectedNamespace: string | null = null;
 
     constructor(
         private readonly _extensionUri: vscode.Uri
@@ -89,6 +94,12 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
             case 'disconnect':
                 this._handleDisconnect();
                 break;
+            case 'getNamespaces':
+                await this._handleGetNamespaces();
+                break;
+            case 'selectNamespace':
+                this._handleSelectNamespace(message.payload as ISelectNamespacePayload);
+                break;
         }
     }
 
@@ -104,6 +115,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         if (result.success) {
             this._isConnected = true;
             this._connectedServer = serverName;
+            this._selectedNamespace = null; // Reset namespace selection on new connection
 
             this._postMessage({
                 event: 'connectionStatus',
@@ -112,6 +124,9 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
                     serverName: serverName
                 } as IConnectionStatusPayload
             });
+
+            // Auto-fetch namespaces after successful connection
+            await this._handleGetNamespaces();
         } else {
             // Connection failed
             this._postMessage({
@@ -136,6 +151,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         this._serverConnectionManager.disconnect();
         this._isConnected = false;
         this._connectedServer = null;
+        this._selectedNamespace = null;
 
         this._postMessage({
             event: 'connectionStatus',
@@ -147,6 +163,48 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
 
         // Send the server list again so user can reconnect
         this._sendServerList();
+    }
+
+    /**
+     * Handle get namespaces request
+     */
+    private async _handleGetNamespaces(): Promise<void> {
+        console.debug(`${LOG_PREFIX} Fetching namespaces`);
+
+        const result = await this._serverConnectionManager.getNamespaces();
+
+        if (!result.success) {
+            this._postMessage({
+                event: 'error',
+                payload: {
+                    message: result.error?.message || 'Failed to get namespaces',
+                    code: result.error?.code || 'UNKNOWN_ERROR',
+                    recoverable: result.error?.recoverable ?? true,
+                    context: result.error?.context || 'getNamespaces'
+                } as IErrorPayload
+            });
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Sending namespace list: ${result.namespaces?.length || 0} namespaces`);
+        this._postMessage({
+            event: 'namespaceList',
+            payload: { namespaces: result.namespaces || [] } as INamespaceListPayload
+        });
+    }
+
+    /**
+     * Handle namespace selection
+     * @param payload - Namespace selection payload
+     */
+    private _handleSelectNamespace(payload: ISelectNamespacePayload): void {
+        this._selectedNamespace = payload.namespace;
+        console.debug(`${LOG_PREFIX} Selected namespace: ${payload.namespace}`);
+
+        this._postMessage({
+            event: 'namespaceSelected',
+            payload: { namespace: payload.namespace } as INamespaceSelectedPayload
+        });
     }
 
     /**

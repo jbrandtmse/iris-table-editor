@@ -24,6 +24,14 @@ interface IAtelierQueryResponse {
 }
 
 /**
+ * Atelier API server descriptor response (root endpoint)
+ */
+interface IAtelierServerDescriptor {
+    api: number;
+    namespaces: string[];
+}
+
+/**
  * Service for communicating with InterSystems Atelier REST API
  */
 export class AtelierApiService {
@@ -220,6 +228,100 @@ export class AtelierApiService {
             return {
                 success: false,
                 error: parsedError || ErrorHandler.createError(ErrorCodes.UNKNOWN_ERROR, 'executeQuery')
+            };
+        }
+    }
+
+    /**
+     * Get list of available namespaces from server
+     * @param spec - Server specification
+     * @param username - Authentication username
+     * @param password - Authentication password
+     * @returns Result with success flag, namespaces array, and optional error
+     */
+    public async getNamespaces(
+        spec: IServerSpec,
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; namespaces?: string[]; error?: IUserError }> {
+        // Use root endpoint - returns server descriptor with namespaces array
+        const url = UrlBuilder.buildBaseUrl(spec);
+        const headers = this._buildAuthHeaders(username, password);
+
+        console.debug(`${LOG_PREFIX} Fetching namespaces from ${spec.host}:${spec.port}`);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Check HTTP status
+            if (response.status === 401) {
+                console.debug(`${LOG_PREFIX} Get namespaces failed: Authentication error`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication failed. Please check your credentials.',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'getNamespaces'
+                    }
+                };
+            }
+
+            if (!response.ok) {
+                console.debug(`${LOG_PREFIX} Get namespaces failed: HTTP ${response.status}`);
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned status ${response.status}`,
+                        code: ErrorCodes.CONNECTION_FAILED,
+                        recoverable: true,
+                        context: 'getNamespaces'
+                    }
+                };
+            }
+
+            // Parse response body
+            const body = await response.json() as IAtelierServerDescriptor;
+
+            console.debug(`${LOG_PREFIX} Retrieved ${body.namespaces?.length || 0} namespaces`);
+            return {
+                success: true,
+                namespaces: body.namespaces || []
+            };
+
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.debug(`${LOG_PREFIX} Get namespaces failed: Timeout`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Connection timed out. The server may be busy or unreachable.',
+                        code: ErrorCodes.CONNECTION_TIMEOUT,
+                        recoverable: true,
+                        context: 'getNamespaces'
+                    }
+                };
+            }
+
+            // Network error
+            console.debug(`${LOG_PREFIX} Get namespaces failed: Network error`, error);
+            return {
+                success: false,
+                error: {
+                    message: 'Cannot reach server. Please verify the server address and that IRIS is running.',
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: true,
+                    context: 'getNamespaces'
+                }
             };
         }
     }

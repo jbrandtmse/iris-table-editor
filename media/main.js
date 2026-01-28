@@ -62,7 +62,13 @@
 
                 // Connection state (Story 1.4)
                 connectionState: initialState.connectionState || 'disconnected', // 'disconnected' | 'connecting' | 'connected'
-                connectedServer: initialState.connectedServer || null
+                connectedServer: initialState.connectedServer || null,
+
+                // Namespace state (Story 1.5)
+                namespaces: [],
+                selectedNamespace: initialState.selectedNamespace || null,
+                namespacesLoading: false,
+                namespaceError: null
             };
             this._listeners = [];
         }
@@ -77,7 +83,8 @@
             vscode.setState({
                 selectedServer: this._state.selectedServer,
                 connectionState: this._state.connectionState,
-                connectedServer: this._state.connectedServer
+                connectedServer: this._state.connectedServer,
+                selectedNamespace: this._state.selectedNamespace
             });
             this._notifyListeners();
         }
@@ -144,11 +151,30 @@
                 handleConnectionError(message.payload);
                 break;
 
+            case 'namespaceList':
+                handleNamespaceList(message.payload);
+                break;
+
+            case 'namespaceSelected':
+                handleNamespaceSelected(message.payload);
+                break;
+
             case 'error':
-                appState.update({
-                    isLoading: false,
-                    error: message.payload
-                });
+                // Check if this is a namespace-related error (context-aware handling)
+                if (message.payload.context === 'getNamespaces' && appState.state.connectionState === 'connected') {
+                    // Namespace error while connected - show inline, don't disconnect
+                    appState.update({
+                        namespacesLoading: false,
+                        namespaceError: message.payload
+                    });
+                } else {
+                    // General error - show full error state
+                    appState.update({
+                        isLoading: false,
+                        namespacesLoading: false,
+                        error: message.payload
+                    });
+                }
                 announce(`Error: ${message.payload.message}`);
                 break;
         }
@@ -164,6 +190,7 @@
                 connectionState: 'connected',
                 connectedServer: payload.serverName,
                 isLoading: false,
+                namespacesLoading: true, // Namespaces will be fetched automatically
                 error: null
             });
             announce(`Connected to ${payload.serverName}`);
@@ -171,10 +198,37 @@
             appState.update({
                 connectionState: 'disconnected',
                 connectedServer: null,
+                namespaces: [],
+                selectedNamespace: null,
+                namespacesLoading: false,
                 isLoading: false
             });
             announce('Disconnected from server');
         }
+    }
+
+    /**
+     * Handle namespace list event
+     * @param {object} payload - Namespace list payload
+     */
+    function handleNamespaceList(payload) {
+        appState.update({
+            namespaces: payload.namespaces,
+            namespacesLoading: false,
+            error: null
+        });
+        announce(`${payload.namespaces.length} namespaces available`);
+    }
+
+    /**
+     * Handle namespace selected event
+     * @param {object} payload - Namespace selected payload
+     */
+    function handleNamespaceSelected(payload) {
+        appState.update({
+            selectedNamespace: payload.namespace
+        });
+        announce(`Selected namespace ${payload.namespace}`);
     }
 
     /**
@@ -249,7 +303,13 @@
 
         // Show connected state
         if (state.connectionState === 'connected' && state.connectedServer) {
-            container.innerHTML = renderConnected(state.connectedServer);
+            container.innerHTML = renderConnected(
+                state.connectedServer,
+                state.namespaces,
+                state.selectedNamespace,
+                state.namespacesLoading,
+                state.namespaceError
+            );
             attachConnectedEvents();
             return;
         }
@@ -307,11 +367,15 @@
     /**
      * Render connected state
      * @param {string} serverName - Connected server name
+     * @param {string[]} namespaces - Array of namespace names
+     * @param {string|null} selectedNamespace - Currently selected namespace
+     * @param {boolean} namespacesLoading - Whether namespaces are being loaded
+     * @param {object|null} namespaceError - Namespace-specific error (if any)
      * @returns {string} HTML string
      */
-    function renderConnected(serverName) {
+    function renderConnected(serverName, namespaces, selectedNamespace, namespacesLoading, namespaceError) {
         const safeName = escapeHtml(serverName);
-        return `
+        const connectionHeader = `
             <div class="ite-connection-header">
                 <div class="ite-connection-header__status">
                     <span class="ite-connection-header__indicator ite-connection-header__indicator--connected"></span>
@@ -325,9 +389,82 @@
                     Disconnect
                 </button>
             </div>
-            <div class="ite-connected-content">
-                <p class="ite-connected-content__placeholder">Ready to browse namespaces</p>
-                <p class="ite-connected-content__hint">(Namespace browsing will be available in the next update)</p>
+        `;
+
+        // Show loading spinner while fetching namespaces
+        if (namespacesLoading) {
+            return connectionHeader + `
+                <div class="ite-loading">
+                    <div class="ite-loading__spinner"></div>
+                    <p class="ite-loading__text">Loading namespaces...</p>
+                </div>
+            `;
+        }
+
+        // Show namespace error inline (stays connected, can retry)
+        if (namespaceError) {
+            const safeMessage = escapeHtml(namespaceError.message);
+            return connectionHeader + `
+                <div class="ite-message ite-message--error">
+                    <h3 class="ite-message__title">Failed to Load Namespaces</h3>
+                    <p class="ite-message__text">${safeMessage}</p>
+                    <button class="ite-button ite-button--secondary" id="retryNamespacesBtn">
+                        <span class="codicon codicon-refresh"></span>
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // Show message if no namespaces available
+        if (namespaces.length === 0) {
+            return connectionHeader + `
+                <div class="ite-message">
+                    <h3 class="ite-message__title">No Namespaces Available</h3>
+                    <p class="ite-message__text">No accessible namespaces found on this server.</p>
+                </div>
+            `;
+        }
+
+        // Render namespace list
+        return connectionHeader + renderNamespaceList(namespaces, selectedNamespace);
+    }
+
+    /**
+     * Render namespace list
+     * @param {string[]} namespaces - Array of namespace names
+     * @param {string|null} selectedNamespace - Currently selected namespace
+     * @returns {string} HTML string
+     */
+    function renderNamespaceList(namespaces, selectedNamespace) {
+        const namespaceItems = namespaces.map((ns, index) => {
+            const isSelected = ns === selectedNamespace;
+            const selectedClass = isSelected ? 'ite-namespace-list__item--selected' : '';
+            const safeAttr = escapeAttr(ns);
+            const safeName = escapeHtml(ns);
+            return `
+                <div class="ite-namespace-list__item ${selectedClass}"
+                     data-namespace="${safeAttr}"
+                     data-index="${index}"
+                     tabindex="0"
+                     role="option"
+                     aria-selected="${isSelected}">
+                    <span class="ite-namespace-list__icon codicon codicon-database"></span>
+                    <span class="ite-namespace-list__name">${safeName}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="ite-namespace-list__header-row">
+                <h3 class="ite-namespace-list__header">Select a Namespace</h3>
+                <button class="ite-button ite-button--icon" id="refreshNamespacesBtn"
+                        title="Refresh namespace list" aria-label="Refresh namespace list">
+                    <span class="codicon codicon-refresh"></span>
+                </button>
+            </div>
+            <div class="ite-namespace-list" role="listbox" aria-label="Available namespaces">
+                ${namespaceItems}
             </div>
         `;
     }
@@ -426,6 +563,8 @@
 
     /**
      * Attach event listeners for server list (called after render)
+     * Note: Uses focusServerListItem for initial focus only.
+     * Click/keyboard events are handled via container delegation.
      */
     function attachServerListEvents() {
         const serverList = document.querySelector('.ite-server-list');
@@ -433,64 +572,10 @@
             return;
         }
 
-        // Click handler for server selection
-        serverList.addEventListener('click', (e) => {
-            const item = e.target.closest('.ite-server-list__item');
-            if (item) {
-                const serverName = item.dataset.server;
-                selectServer(serverName);
-            }
-        });
-
-        // Keyboard navigation
-        serverList.addEventListener('keydown', (e) => {
-            const item = e.target.closest('.ite-server-list__item');
-            if (!item) {
-                return;
-            }
-
-            const items = Array.from(serverList.querySelectorAll('.ite-server-list__item'));
-            const currentIndex = parseInt(item.dataset.index, 10);
-
-            switch (e.key) {
-                case 'Enter':
-                case ' ':
-                    e.preventDefault();
-                    selectServer(item.dataset.server);
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    if (currentIndex < items.length - 1) {
-                        items[currentIndex + 1].focus();
-                    }
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    if (currentIndex > 0) {
-                        items[currentIndex - 1].focus();
-                    }
-                    break;
-                case 'Home':
-                    e.preventDefault();
-                    items[0]?.focus();
-                    break;
-                case 'End':
-                    e.preventDefault();
-                    items[items.length - 1]?.focus();
-                    break;
-            }
-        });
-
         // Focus first item or selected item after render
         const selectedItem = serverList.querySelector('.ite-server-list__item--selected');
         const firstItem = serverList.querySelector('.ite-server-list__item');
         (selectedItem || firstItem)?.focus();
-
-        // Attach refresh button handler
-        const refreshBtn = document.getElementById('refreshBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', refreshServers);
-        }
     }
 
     /**
@@ -501,31 +586,67 @@
         if (disconnectBtn) {
             disconnectBtn.addEventListener('click', disconnect);
         }
+
+        // Attach namespace list events if namespace list is rendered
+        attachNamespaceListEvents();
+    }
+
+    /**
+     * Attach event listeners for namespace list
+     * Note: Uses focus management only.
+     * Click/keyboard events are handled via container delegation.
+     */
+    function attachNamespaceListEvents() {
+        const namespaceList = document.querySelector('.ite-namespace-list');
+        if (!namespaceList) {
+            return;
+        }
+
+        // Focus first or selected item after render
+        const selectedItem = namespaceList.querySelector('.ite-namespace-list__item--selected');
+        const firstItem = namespaceList.querySelector('.ite-namespace-list__item');
+        (selectedItem || firstItem)?.focus();
+    }
+
+    /**
+     * Handle namespace selection
+     * @param {string} namespace - Selected namespace
+     */
+    function selectNamespace(namespace) {
+        appState.update({
+            selectedNamespace: namespace
+        });
+        announce(`Selected namespace ${namespace}`);
+        postCommand('selectNamespace', { namespace });
+    }
+
+    /**
+     * Refresh the namespace list
+     */
+    function refreshNamespaces() {
+        appState.update({
+            namespacesLoading: true,
+            namespaces: [],
+            selectedNamespace: null
+        });
+        announce('Loading namespaces');
+        postCommand('getNamespaces');
     }
 
     /**
      * Attach event listeners for error state
+     * Note: Click events handled via container delegation
      */
     function attachErrorEvents() {
-        const retryBtn = document.getElementById('retryBtn');
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => {
-                appState.update({ error: null });
-                refreshServers();
-            });
-        }
+        // Events handled via container delegation
     }
 
     /**
      * Attach event listeners for no servers state
+     * Note: Click events handled via container delegation
      */
     function attachNoServersEvents() {
-        const openBtn = document.getElementById('openServerManagerBtn');
-        if (openBtn) {
-            openBtn.addEventListener('click', () => {
-                postCommand('openServerManager');
-            });
-        }
+        // Events handled via container delegation
     }
 
     /**
@@ -547,17 +668,139 @@
     window.addEventListener('message', handleMessage);
     appState.subscribe(render);
 
+    // Event delegation on container - persists across renders
+    // This avoids listener stacking issues when innerHTML is replaced
+    const container = document.querySelector('.ite-container');
+    if (container) {
+        // Click delegation
+        container.addEventListener('click', (e) => {
+            const target = e.target;
+
+            // Server list item click
+            const serverItem = target.closest('.ite-server-list__item');
+            if (serverItem) {
+                selectServer(serverItem.dataset.server);
+                return;
+            }
+
+            // Namespace list item click
+            const namespaceItem = target.closest('.ite-namespace-list__item');
+            if (namespaceItem) {
+                selectNamespace(namespaceItem.dataset.namespace);
+                return;
+            }
+
+            // Button clicks
+            if (target.closest('#disconnectBtn')) {
+                disconnect();
+                return;
+            }
+            if (target.closest('#refreshBtn')) {
+                refreshServers();
+                return;
+            }
+            if (target.closest('#refreshNamespacesBtn')) {
+                refreshNamespaces();
+                return;
+            }
+            if (target.closest('#retryNamespacesBtn')) {
+                // Clear namespace error and retry
+                appState.update({ namespaceError: null });
+                refreshNamespaces();
+                return;
+            }
+            if (target.closest('#retryBtn')) {
+                appState.update({ error: null });
+                refreshServers();
+                return;
+            }
+            if (target.closest('#openServerManagerBtn')) {
+                postCommand('openServerManager');
+                return;
+            }
+        });
+
+        // Keyboard navigation delegation
+        container.addEventListener('keydown', (e) => {
+            // Server list keyboard navigation
+            const serverItem = e.target.closest('.ite-server-list__item');
+            if (serverItem) {
+                handleListKeydown(e, serverItem, '.ite-server-list', '.ite-server-list__item', (item) => {
+                    selectServer(item.dataset.server);
+                });
+                return;
+            }
+
+            // Namespace list keyboard navigation
+            const namespaceItem = e.target.closest('.ite-namespace-list__item');
+            if (namespaceItem) {
+                handleListKeydown(e, namespaceItem, '.ite-namespace-list', '.ite-namespace-list__item', (item) => {
+                    selectNamespace(item.dataset.namespace);
+                });
+                return;
+            }
+        });
+    }
+
+    /**
+     * Generic keyboard navigation handler for list items
+     * @param {KeyboardEvent} e - Keyboard event
+     * @param {HTMLElement} currentItem - Currently focused item
+     * @param {string} listSelector - Selector for the list container
+     * @param {string} itemSelector - Selector for list items
+     * @param {function} onSelect - Callback when item is selected
+     */
+    function handleListKeydown(e, currentItem, listSelector, itemSelector, onSelect) {
+        const list = document.querySelector(listSelector);
+        if (!list) return;
+
+        const items = Array.from(list.querySelectorAll(itemSelector));
+        const currentIndex = parseInt(currentItem.dataset.index, 10);
+
+        switch (e.key) {
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                onSelect(currentItem);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                if (currentIndex < items.length - 1) {
+                    items[currentIndex + 1].focus();
+                }
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                if (currentIndex > 0) {
+                    items[currentIndex - 1].focus();
+                }
+                break;
+            case 'Home':
+                e.preventDefault();
+                items[0]?.focus();
+                break;
+            case 'End':
+                e.preventDefault();
+                items[items.length - 1]?.focus();
+                break;
+        }
+    }
+
     // Request server list on load (unless already connected)
     if (previousState.connectionState !== 'connected') {
         console.debug(`${LOG_PREFIX} Webview initialized, requesting server list`);
         postCommand('getServerList');
     } else {
-        // Re-render with previous state
+        // Re-render with previous state and re-fetch namespaces
         console.debug(`${LOG_PREFIX} Webview initialized, restoring connected state`);
         appState.update({
             isLoading: false,
             connectionState: previousState.connectionState,
-            connectedServer: previousState.connectedServer
+            connectedServer: previousState.connectedServer,
+            selectedNamespace: previousState.selectedNamespace,
+            namespacesLoading: true  // Trigger namespace re-fetch
         });
+        // Re-fetch namespaces since they aren't persisted in state
+        postCommand('getNamespaces');
     }
 })();
