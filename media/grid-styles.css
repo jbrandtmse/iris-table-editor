@@ -224,6 +224,45 @@ body {
     color: var(--vscode-list-activeSelectionForeground);
 }
 
+/* Story 4.1: New Row (pending INSERT) */
+.ite-grid__row--new {
+    background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15));
+    position: relative;
+}
+
+/* New row indicator - dashed left border */
+.ite-grid__row--new::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--vscode-gitDecoration-addedResourceForeground, #73c991);
+}
+
+/* Override even row alternating background for new rows */
+.ite-grid__row--new:nth-child(even) {
+    background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15));
+}
+
+/* New row hover state - slightly more pronounced */
+.ite-grid__row--new:hover {
+    background-color: var(--vscode-diffEditor-insertedTextBackground, rgba(155, 185, 85, 0.25));
+}
+
+/* High contrast support for new rows */
+@media (forced-colors: active) {
+    .ite-grid__row--new {
+        outline: 2px dashed Highlight;
+        outline-offset: -2px;
+    }
+
+    .ite-grid__row--new::before {
+        background-color: Highlight;
+    }
+}
+
 /* Grid Cell */
 .ite-grid__cell {
     display: table-cell;

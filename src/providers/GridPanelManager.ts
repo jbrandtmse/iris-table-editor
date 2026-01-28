@@ -465,6 +465,9 @@ export class GridPanelManager {
             <button class="ite-toolbar__button" id="refreshBtn" title="Refresh data">
                 <i class="codicon codicon-refresh"></i>
             </button>
+            <button class="ite-toolbar__button" id="addRowBtn" title="Add new row (Ctrl+N)">
+                <i class="codicon codicon-add"></i>
+            </button>
         </div>
 
         <div class="ite-grid-loading" id="loadingOverlay" style="display: flex;">

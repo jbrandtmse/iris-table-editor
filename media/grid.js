@@ -45,6 +45,8 @@
             this.editOriginalValue = null;
             /** @type {Map<string, { rowIndex: number; colIndex: number; oldValue: unknown; pkValue: unknown }>} - Story 3.3: Pending saves tracking */
             this.pendingSaves = new Map();
+            /** @type {Array<Record<string, unknown>>} - Story 4.1: New rows pending INSERT */
+            this.newRows = [];
         }
 
         /**
@@ -87,6 +89,24 @@
          */
         get isEditing() {
             return this.editingCell.rowIndex !== null && this.editingCell.colIndex !== null;
+        }
+
+        /**
+         * Check if there are unsaved new rows
+         * Story 4.1: New row state helper
+         * @returns {boolean}
+         */
+        get hasNewRows() {
+            return this.newRows.length > 0;
+        }
+
+        /**
+         * Get total display rows (server rows + new rows)
+         * Story 4.1: New row state helper
+         * @returns {number}
+         */
+        get totalDisplayRows() {
+            return this.rows.length + this.newRows.length;
         }
     }
 
@@ -205,28 +225,31 @@
     /**
      * Get the raw value of a cell from state
      * Story 3.2: Helper for edit mode
+     * Story 4.1: Updated to handle new rows
      * @param {number} rowIndex
      * @param {number} colIndex
      * @returns {unknown}
      */
     function getCellValue(rowIndex, colIndex) {
-        if (rowIndex < 0 || rowIndex >= state.rows.length) return null;
+        if (rowIndex < 0 || rowIndex >= state.totalDisplayRows) return null;
         if (colIndex < 0 || colIndex >= state.columns.length) return null;
         const colName = state.columns[colIndex].name;
-        return state.rows[rowIndex][colName];
+        const rowData = getRowData(rowIndex);
+        return rowData ? rowData[colName] : null;
     }
 
     /**
      * Enter edit mode for a cell
      * Story 3.2: Core edit function
+     * Story 4.1: Updated to handle new rows
      * @param {number} rowIndex - Row index (0-based)
      * @param {number} colIndex - Column index (0-based)
      * @param {string | null} [initialValue] - Initial value for input (null = use current cell value)
      * @param {'end' | 'select' | 'start'} [cursorPosition='select'] - Where to position cursor
      */
     function enterEditMode(rowIndex, colIndex, initialValue = null, cursorPosition = 'select') {
-        // Validate bounds
-        if (rowIndex < 0 || rowIndex >= state.rows.length) return;
+        // Validate bounds (including new rows)
+        if (rowIndex < 0 || rowIndex >= state.totalDisplayRows) return;
         if (colIndex < 0 || colIndex >= state.columns.length) return;
 
         // If already editing a different cell, exit that first
@@ -329,7 +352,12 @@
                 // Update local state with new value (optimistic update)
                 // Convert empty string to null for proper NULL handling
                 const valueToStore = newValue === '' ? null : newValue;
-                state.rows[rowIndex][colName] = valueToStore;
+
+                // Story 4.1: Handle new rows vs existing rows
+                const rowData = getRowData(rowIndex);
+                if (rowData) {
+                    rowData[colName] = valueToStore;
+                }
 
                 // Update display
                 const { display, cssClass } = formatCellValue(valueToStore, state.columns[colIndex].dataType);
@@ -340,48 +368,58 @@
                 result = { saved: true, oldValue, newValue: valueToStore, rowIndex, colIndex };
                 console.debug(`${LOG_PREFIX} Exited edit mode with save: "${oldValue}" -> "${valueToStore}"`);
 
-                // Story 3.3: Send save command to extension if value changed
-                // Check for actual change (handle null comparisons)
-                const hasChanged = String(oldValue ?? '') !== String(valueToStore ?? '');
-                if (hasChanged) {
-                    // Find primary key column and value
-                    // Look for ID column first, then fall back to first column
-                    const pkColumn = findPrimaryKeyColumn();
-                    if (pkColumn) {
-                        const pkValue = state.rows[rowIndex][pkColumn];
-                        // Validate primary key value exists
-                        if (pkValue === null || pkValue === undefined) {
-                            console.warn(`${LOG_PREFIX} Cannot save: Row has no primary key value`);
-                            announce(`Cannot save: Row has no ID value`);
-                            rollbackCellValue(rowIndex, colIndex, oldValue);
-                        } else {
-                            // Track pending save using primary key value as identifier
-                            const saveKey = `${pkValue}:${colName}`;
-                            state.pendingSaves.set(saveKey, { rowIndex, colIndex, oldValue, pkValue });
+                // Story 4.1: For new rows, don't send save command yet (handled in Story 4.3)
+                // Only send save command for existing (server) rows
+                if (!isNewRow(rowIndex)) {
+                    // Story 3.3: Send save command to extension if value changed
+                    // Check for actual change (handle null comparisons)
+                    const hasChanged = String(oldValue ?? '') !== String(valueToStore ?? '');
+                    if (hasChanged) {
+                        // Find primary key column and value
+                        // Look for ID column first, then fall back to first column
+                        const pkColumn = findPrimaryKeyColumn();
+                        if (pkColumn) {
+                            const pkValue = state.rows[rowIndex][pkColumn];
+                            // Validate primary key value exists
+                            if (pkValue === null || pkValue === undefined) {
+                                console.warn(`${LOG_PREFIX} Cannot save: Row has no primary key value`);
+                                announce(`Cannot save: Row has no ID value`);
+                                rollbackCellValue(rowIndex, colIndex, oldValue);
+                            } else {
+                                // Track pending save using primary key value as identifier
+                                const saveKey = `${pkValue}:${colName}`;
+                                state.pendingSaves.set(saveKey, { rowIndex, colIndex, oldValue, pkValue });
 
-                            sendCommand('saveCell', {
-                                rowIndex,
-                                colIndex,
-                                columnName: colName,
-                                oldValue,
-                                newValue: valueToStore,
-                                primaryKeyColumn: pkColumn,
-                                primaryKeyValue: pkValue
-                            });
-                            // Mark cell as saving (pending server response)
-                            cell.classList.add('ite-grid__cell--saving');
-                            announce(`Saving ${colName}...`);
+                                sendCommand('saveCell', {
+                                    rowIndex,
+                                    colIndex,
+                                    columnName: colName,
+                                    oldValue,
+                                    newValue: valueToStore,
+                                    primaryKeyColumn: pkColumn,
+                                    primaryKeyValue: pkValue
+                                });
+                                // Mark cell as saving (pending server response)
+                                cell.classList.add('ite-grid__cell--saving');
+                                announce(`Saving ${colName}...`);
+                            }
+                        } else {
+                            // No primary key - can't save
+                            console.warn(`${LOG_PREFIX} Cannot save: No primary key column found`);
+                            announce(`Cannot save: Table has no ID column`);
+                            // Rollback immediately
+                            rollbackCellValue(rowIndex, colIndex, oldValue);
                         }
                     } else {
-                        // No primary key - can't save
-                        console.warn(`${LOG_PREFIX} Cannot save: No primary key column found`);
-                        announce(`Cannot save: Table has no ID column`);
-                        // Rollback immediately
-                        rollbackCellValue(rowIndex, colIndex, oldValue);
+                        // No change - just announce
+                        announce(`No changes to ${colName}`);
                     }
                 } else {
-                    // No change - just announce
-                    announce(`No changes to ${colName}`);
+                    // New row - just acknowledge the edit locally
+                    const hasChanged = String(oldValue ?? '') !== String(valueToStore ?? '');
+                    if (hasChanged) {
+                        announce(`Edited ${colName} (unsaved new row)`);
+                    }
                 }
             } else {
                 // Restore original value
@@ -553,6 +591,69 @@
             // Story 3.5: Show error toast with formatted message
             showError({ message: error?.message || 'Failed to save changes', code: error?.code });
         }
+    }
+
+    // ========================================================================
+    // Story 4.1: New Row Functions
+    // ========================================================================
+
+    /**
+     * Check if a row index refers to a new (unsaved) row
+     * Story 4.1: New row helper
+     * @param {number} rowIndex - Row index (0-based)
+     * @returns {boolean}
+     */
+    function isNewRow(rowIndex) {
+        return rowIndex >= state.rows.length && rowIndex < state.totalDisplayRows;
+    }
+
+    /**
+     * Get row data (from either server rows or new rows)
+     * Story 4.1: Unified row accessor
+     * @param {number} rowIndex - Row index (0-based)
+     * @returns {Record<string, unknown> | null}
+     */
+    function getRowData(rowIndex) {
+        if (rowIndex < 0 || rowIndex >= state.totalDisplayRows) return null;
+        if (rowIndex < state.rows.length) {
+            return state.rows[rowIndex];
+        } else {
+            const newRowIndex = rowIndex - state.rows.length;
+            return state.newRows[newRowIndex];
+        }
+    }
+
+    /**
+     * Add a new empty row to the grid
+     * Story 4.1: Core new row creation
+     */
+    function handleAddRow() {
+        // Create empty row with null values for all columns
+        const newRow = {};
+        state.columns.forEach(col => {
+            newRow[col.name] = null;
+        });
+
+        // Add to newRows array
+        state.newRows.push(newRow);
+
+        // Re-render grid to show new row
+        renderGrid();
+
+        // Calculate the index of the new row (server rows + new rows - 1)
+        const newRowIndex = state.totalDisplayRows - 1;
+
+        // Focus first editable cell of new row
+        selectCell(newRowIndex, 0);
+
+        // Enter edit mode automatically
+        setTimeout(() => {
+            enterEditMode(newRowIndex, 0, '', 'start');
+        }, 50);
+
+        announce(`New row added. Row ${newRowIndex + 1} of ${state.totalDisplayRows}`);
+        console.debug(`${LOG_PREFIX} Added new row at index ${newRowIndex}`);
+        saveState();
     }
 
     // ========================================================================
@@ -886,13 +987,14 @@
     /**
      * Select a cell by row and column index
      * Story 3.1: Core selection function
+     * Story 4.1: Updated to handle new rows
      * @param {number} rowIndex - Row index (0-based, data rows only)
      * @param {number} colIndex - Column index (0-based)
      * @param {boolean} [focus=true] - Whether to focus the cell
      */
     function selectCell(rowIndex, colIndex, focus = true) {
-        // Validate bounds
-        if (rowIndex < 0 || rowIndex >= state.rows.length) return;
+        // Validate bounds (including new rows)
+        if (rowIndex < 0 || rowIndex >= state.totalDisplayRows) return;
         if (colIndex < 0 || colIndex >= state.columns.length) return;
 
         // Remove selection from previous cell
@@ -985,7 +1087,8 @@
         }
 
         const { rowIndex, colIndex } = state.selectedCell;
-        const maxRow = state.rows.length - 1;
+        // Story 4.1: Include new rows in max calculation
+        const maxRow = state.totalDisplayRows - 1;
         const maxCol = state.columns.length - 1;
 
         switch (event.key) {
@@ -1150,6 +1253,7 @@
     /**
      * Render grid data rows
      * Story 3.1: Added cell selection support with tabindex and aria-selected
+     * Story 4.1: Added new row rendering with visual indicator
      */
     function renderRows() {
         const grid = document.getElementById('dataGrid');
@@ -1157,46 +1261,65 @@
             return;
         }
 
+        // Render server rows
         state.rows.forEach((row, rowIndex) => {
-            const dataRow = document.createElement('div');
-            dataRow.className = 'ite-grid__row';
-            dataRow.setAttribute('role', 'row');
-            dataRow.setAttribute('aria-rowindex', String(rowIndex + 2)); // +2 for header row
-
-            state.columns.forEach((col, colIndex) => {
-                const cell = document.createElement('div');
-                const { display, cssClass } = formatCellValue(row[col.name], col.dataType);
-
-                cell.className = `ite-grid__cell ${cssClass}`.trim();
-                cell.setAttribute('role', 'gridcell');
-                cell.setAttribute('aria-colindex', String(colIndex + 1));
-
-                // Story 3.1: Cell selection support
-                // Check if this cell should be selected (restored from state)
-                const isSelected = state.selectedCell.rowIndex === rowIndex &&
-                                   state.selectedCell.colIndex === colIndex;
-
-                if (isSelected) {
-                    cell.classList.add('ite-grid__cell--selected');
-                    cell.setAttribute('aria-selected', 'true');
-                    cell.setAttribute('tabindex', '0');
-                } else {
-                    cell.setAttribute('aria-selected', 'false');
-                    // First cell gets tabindex=0 if no selection, others get -1
-                    const isFirstCell = rowIndex === 0 && colIndex === 0;
-                    const hasSelection = state.selectedCell.rowIndex !== null;
-                    cell.setAttribute('tabindex', (!hasSelection && isFirstCell) ? '0' : '-1');
-                }
-
-                // SECURITY: Use textContent instead of innerHTML to prevent XSS
-                cell.textContent = display;
-                cell.title = String(row[col.name] ?? 'NULL');
-
-                dataRow.appendChild(cell);
-            });
-
-            grid.appendChild(dataRow);
+            renderSingleRow(grid, row, rowIndex, false);
         });
+
+        // Story 4.1: Render new rows (pending INSERT)
+        state.newRows.forEach((newRow, newRowIdx) => {
+            const actualRowIndex = state.rows.length + newRowIdx;
+            renderSingleRow(grid, newRow, actualRowIndex, true);
+        });
+    }
+
+    /**
+     * Render a single row (server row or new row)
+     * Story 4.1: Extracted row rendering logic
+     * @param {HTMLElement} grid - Grid container element
+     * @param {Record<string, unknown>} row - Row data
+     * @param {number} rowIndex - Actual row index in display
+     * @param {boolean} isNew - Whether this is a new (unsaved) row
+     */
+    function renderSingleRow(grid, row, rowIndex, isNew) {
+        const dataRow = document.createElement('div');
+        dataRow.className = isNew ? 'ite-grid__row ite-grid__row--new' : 'ite-grid__row';
+        dataRow.setAttribute('role', 'row');
+        dataRow.setAttribute('aria-rowindex', String(rowIndex + 2)); // +2 for header row
+
+        state.columns.forEach((col, colIndex) => {
+            const cell = document.createElement('div');
+            const { display, cssClass } = formatCellValue(row[col.name], col.dataType);
+
+            cell.className = `ite-grid__cell ${cssClass}`.trim();
+            cell.setAttribute('role', 'gridcell');
+            cell.setAttribute('aria-colindex', String(colIndex + 1));
+
+            // Story 3.1: Cell selection support
+            // Check if this cell should be selected (restored from state)
+            const isSelected = state.selectedCell.rowIndex === rowIndex &&
+                               state.selectedCell.colIndex === colIndex;
+
+            if (isSelected) {
+                cell.classList.add('ite-grid__cell--selected');
+                cell.setAttribute('aria-selected', 'true');
+                cell.setAttribute('tabindex', '0');
+            } else {
+                cell.setAttribute('aria-selected', 'false');
+                // First cell gets tabindex=0 if no selection, others get -1
+                const isFirstCell = rowIndex === 0 && colIndex === 0;
+                const hasSelection = state.selectedCell.rowIndex !== null;
+                cell.setAttribute('tabindex', (!hasSelection && isFirstCell) ? '0' : '-1');
+            }
+
+            // SECURITY: Use textContent instead of innerHTML to prevent XSS
+            cell.textContent = display;
+            cell.title = String(row[col.name] ?? 'NULL');
+
+            dataRow.appendChild(cell);
+        });
+
+        grid.appendChild(dataRow);
     }
 
     /**
@@ -1380,6 +1503,7 @@
      * Render the full grid
      * Story 2.2: Added pagination UI update and empty state handling
      * Story 3.1: Added selection restoration after render
+     * Story 4.1: Handle new rows in render logic
      */
     function renderGrid() {
         clearGrid();
@@ -1391,7 +1515,8 @@
         renderHeader();
 
         // Story 2.2: Handle empty table edge case
-        if (state.rows.length === 0) {
+        // Story 4.1: Also show rows if we have new rows pending
+        if (state.rows.length === 0 && state.newRows.length === 0) {
             renderEmptyState();
             // Story 3.1: Clear selection when no rows
             state.selectedCell = { rowIndex: null, colIndex: null };
@@ -1399,9 +1524,10 @@
             renderRows();
 
             // Story 3.1: Validate and restore selection after render
+            // Story 4.1: Include new rows in bounds check
             // If selection is out of bounds (e.g., after refresh), clear it
             if (state.selectedCell.rowIndex !== null && state.selectedCell.colIndex !== null) {
-                if (state.selectedCell.rowIndex >= state.rows.length ||
+                if (state.selectedCell.rowIndex >= state.totalDisplayRows ||
                     state.selectedCell.colIndex >= state.columns.length) {
                     state.selectedCell = { rowIndex: null, colIndex: null };
                 }
@@ -1572,6 +1698,10 @@
             // Story 3.2: Ensure editingCell is properly initialized (never persist edit state)
             state.editingCell = { rowIndex: null, colIndex: null };
             state.editOriginalValue = null;
+            // Story 4.1: Ensure newRows is properly initialized
+            if (!state.newRows) {
+                state.newRows = [];
+            }
             if (state.columns.length > 0) {
                 renderGrid();
             }
@@ -1584,6 +1714,12 @@
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', handleRefresh);
+        }
+
+        // Story 4.1: Setup add row button
+        const addRowBtn = document.getElementById('addRowBtn');
+        if (addRowBtn) {
+            addRowBtn.addEventListener('click', handleAddRow);
         }
 
         // Story 2.2: Setup pagination buttons
@@ -1621,11 +1757,19 @@
     }
 
     /**
-     * Handle keyboard navigation for pagination
+     * Handle keyboard navigation for pagination and global shortcuts
      * Story 2.2: Keyboard shortcuts (Ctrl+PageDown/PageUp or Alt+Right/Left)
+     * Story 4.1: Added Ctrl+N / Cmd+N for new row
      * @param {KeyboardEvent} event
      */
     function handleKeyboardNavigation(event) {
+        // Story 4.1: Ctrl+N (or Cmd+N on Mac) for new row
+        if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+            event.preventDefault();
+            handleAddRow();
+            return;
+        }
+
         // Ctrl+PageDown or Alt+Right for next page
         if ((event.ctrlKey && event.key === 'PageDown') || (event.altKey && event.key === 'ArrowRight')) {
             event.preventDefault();
