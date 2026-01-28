@@ -99,6 +99,29 @@ export class AtelierApiService {
     }
 
     /**
+     * Parse a fully qualified table name into schema and table name components
+     * Examples:
+     *   "Ens_Lib.MessageHeader" -> { schemaName: "Ens_Lib", baseTableName: "MessageHeader" }
+     *   "MessageHeader" -> { schemaName: "SQLUser", baseTableName: "MessageHeader" }
+     * @param qualifiedName - The table name (may or may not include schema prefix)
+     * @returns Object with schemaName and baseTableName
+     */
+    private _parseQualifiedTableName(qualifiedName: string): { schemaName: string; baseTableName: string } {
+        const dotIndex = qualifiedName.indexOf('.');
+        if (dotIndex > 0) {
+            return {
+                schemaName: qualifiedName.substring(0, dotIndex),
+                baseTableName: qualifiedName.substring(dotIndex + 1)
+            };
+        }
+        // No schema prefix - default to SQLUser (IRIS default schema)
+        return {
+            schemaName: 'SQLUser',
+            baseTableName: qualifiedName
+        };
+    }
+
+    /**
      * Test connection to server by hitting the root Atelier endpoint
      * This endpoint returns server info and available namespaces without requiring a specific namespace
      * @param spec - Server specification
@@ -396,11 +419,13 @@ export class AtelierApiService {
 
         const headers = this._buildAuthHeaders(username, password);
 
+        // Select both schema and table name to return fully qualified names
+        // IRIS uses TABLE_SCHEMA for the schema prefix (e.g., 'Ens_Lib', 'SQLUser')
         const query = `
-            SELECT TABLE_NAME
+            SELECT TABLE_SCHEMA, TABLE_NAME
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_TYPE = 'BASE TABLE'
-            ORDER BY TABLE_NAME
+            ORDER BY TABLE_SCHEMA, TABLE_NAME
         `;
 
         console.debug(`${LOG_PREFIX} Fetching tables from ${spec.host}:${spec.port}/${namespace}`);
@@ -460,10 +485,17 @@ export class AtelierApiService {
                 }
             }
 
-            // Extract table names from result content, filtering out any malformed rows
+            // Extract fully qualified table names (SCHEMA.TABLE_NAME) from result
+            // This ensures tables like Ens_Lib.MessageHeader and Temp.MessageHeader are distinct
             const tables = (body.result?.content || [])
-                .map((row: unknown) => (row as { TABLE_NAME: string }).TABLE_NAME)
-                .filter((name): name is string => typeof name === 'string');
+                .map((row: unknown) => {
+                    const r = row as { TABLE_SCHEMA: string; TABLE_NAME: string };
+                    if (typeof r.TABLE_SCHEMA === 'string' && typeof r.TABLE_NAME === 'string') {
+                        return `${r.TABLE_SCHEMA}.${r.TABLE_NAME}`;
+                    }
+                    return null;
+                })
+                .filter((name): name is string => name !== null);
 
             console.debug(`${LOG_PREFIX} Retrieved ${tables.length} tables`);
             return {
@@ -522,7 +554,11 @@ export class AtelierApiService {
 
         const headers = this._buildAuthHeaders(username, password);
 
+        // Parse schema and table name from fully qualified name (e.g., "Ens_Lib.MessageHeader")
+        const { schemaName, baseTableName } = this._parseQualifiedTableName(tableName);
+
         // Parameterized query to prevent SQL injection
+        // Filter by both TABLE_SCHEMA and TABLE_NAME to get the correct table
         const query = `
             SELECT
                 COLUMN_NAME,
@@ -532,11 +568,11 @@ export class AtelierApiService {
                 NUMERIC_PRECISION,
                 NUMERIC_SCALE
             FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = ?
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
             ORDER BY ORDINAL_POSITION
         `;
 
-        console.debug(`${LOG_PREFIX} Fetching schema for table ${tableName} in ${namespace}`);
+        console.debug(`${LOG_PREFIX} Fetching schema for table ${schemaName}.${baseTableName} in ${namespace}`);
 
         try {
             const controller = new AbortController();
@@ -547,7 +583,7 @@ export class AtelierApiService {
                 headers,
                 body: JSON.stringify({
                     query,
-                    parameters: [tableName]
+                    parameters: [schemaName, baseTableName]
                 }),
                 signal: controller.signal
             });
@@ -714,7 +750,12 @@ export class AtelierApiService {
         let validatedOffset: number;
 
         try {
-            escapedTableName = this._validateAndEscapeIdentifier(tableName, 'table name');
+            // Parse schema-qualified table name and escape each part separately
+            // "Ens_Lib.MessageHeader" -> "Ens_Lib"."MessageHeader"
+            const { schemaName, baseTableName } = this._parseQualifiedTableName(tableName);
+            const escapedSchema = this._validateAndEscapeIdentifier(schemaName, 'schema name');
+            const escapedBase = this._validateAndEscapeIdentifier(baseTableName, 'table name');
+            escapedTableName = `${escapedSchema}.${escapedBase}`;
             escapedColumnNames = schema.columns
                 .map(col => this._validateAndEscapeIdentifier(col.name, 'column name'))
                 .join(', ');
