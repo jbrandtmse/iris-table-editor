@@ -444,6 +444,139 @@ body {
     white-space: nowrap;
 }
 
+/* Schema Tree - Story 6.1 */
+.ite-schema-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+/* Schema folder item */
+.ite-schema-tree__schema {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+    user-select: none;
+}
+
+.ite-schema-tree__schema:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-schema-tree__schema:focus {
+    outline: none;
+    background-color: var(--vscode-list-focusBackground);
+    box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.ite-schema-tree__schema:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+
+.ite-schema-tree__schema--expanded {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.ite-schema-tree__schema-chevron {
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: transform 0.15s ease;
+}
+
+.ite-schema-tree__schema--expanded .ite-schema-tree__schema-chevron {
+    opacity: 1;
+}
+
+.ite-schema-tree__schema-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    opacity: 0.8;
+    color: var(--vscode-symbolIcon-folderForeground, var(--vscode-foreground));
+}
+
+.ite-schema-tree__schema-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.ite-schema-tree__schema-count {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+/* Table items in schema tree */
+.ite-schema-tree__table {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ite-schema-tree__table--nested {
+    padding-left: 32px; /* Indentation for nested tables */
+}
+
+.ite-schema-tree__table--root {
+    /* Root-level tables (single-table schemas) have no extra indent */
+}
+
+.ite-schema-tree__table:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-schema-tree__table:focus {
+    outline: none;
+    background-color: var(--vscode-list-focusBackground);
+    box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.ite-schema-tree__table:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-focusBorder);
+}
+
+.ite-schema-tree__table--selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.ite-schema-tree__table--selected:focus {
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.ite-schema-tree__table-icon {
+    font-size: 16px;
+    opacity: 0.8;
+    flex-shrink: 0;
+    color: var(--vscode-symbolIcon-classForeground, var(--vscode-foreground));
+}
+
+.ite-schema-tree__table-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
@@ -464,6 +597,19 @@ body {
     }
 
     .ite-table-list__item {
+        transition: none;
+    }
+
+    /* Schema tree reduced motion (Story 6.1) */
+    .ite-schema-tree__schema {
+        transition: none;
+    }
+
+    .ite-schema-tree__schema-chevron {
+        transition: none;
+    }
+
+    .ite-schema-tree__table {
         transition: none;
     }
 }
@@ -501,6 +647,15 @@ body {
     box-shadow: inset 0 0 0 2px var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
 }
 
+/* Schema tree high contrast support (Story 6.1) */
+.ite-schema-tree__schema:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+}
+
+.ite-schema-tree__table:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+}
+
 /* Windows High Contrast Mode (forced-colors)
    This media query targets Windows High Contrast mode specifically,
    ensuring system colors are properly applied for accessibility. */
@@ -532,7 +687,9 @@ body {
     /* Selection states use system colors */
     .ite-server-list__item--selected,
     .ite-namespace-list__item--selected,
-    .ite-table-list__item--selected {
+    .ite-table-list__item--selected,
+    .ite-schema-tree__schema--expanded,
+    .ite-schema-tree__table--selected {
         background-color: Highlight;
         color: HighlightText;
     }
@@ -540,9 +697,18 @@ body {
     /* Hover states use system colors */
     .ite-server-list__item:hover,
     .ite-namespace-list__item:hover,
-    .ite-table-list__item:hover {
+    .ite-table-list__item:hover,
+    .ite-schema-tree__schema:hover,
+    .ite-schema-tree__table:hover {
         background-color: Highlight;
         color: HighlightText;
+    }
+
+    /* Schema tree focus states (Story 6.1) */
+    .ite-schema-tree__schema:focus,
+    .ite-schema-tree__table:focus {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
     }
 
     /* Loading spinner visibility */

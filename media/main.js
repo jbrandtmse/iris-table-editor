@@ -74,7 +74,10 @@
                 tables: [],
                 selectedTable: initialState.selectedTable || null,
                 tablesLoading: false,
-                tableError: null
+                tableError: null,
+
+                // Schema tree state (Story 6.1)
+                expandedSchema: initialState.expandedSchema || null
             };
             this._listeners = [];
         }
@@ -91,7 +94,8 @@
                 connectionState: this._state.connectionState,
                 connectedServer: this._state.connectedServer,
                 selectedNamespace: this._state.selectedNamespace,
-                selectedTable: this._state.selectedTable
+                selectedTable: this._state.selectedTable,
+                expandedSchema: this._state.expandedSchema
             });
             this._notifyListeners();
         }
@@ -300,6 +304,67 @@
             selectedTable: payload.tableName
         });
         announce(`Selected table ${payload.tableName}`);
+    }
+
+    /**
+     * Parse flat table list into schema-grouped structure (Story 6.1)
+     * Tables are in format "Schema.TableName"
+     * @param {string[]} tables - Flat array of fully qualified table names
+     * @returns {object} Parsed structure with schemas and singleTableSchemas
+     */
+    function parseTablesBySchema(tables) {
+        // Group tables by schema
+        const schemaMap = new Map();
+
+        tables.forEach(fullName => {
+            const dotIndex = fullName.indexOf('.');
+            if (dotIndex > 0) {
+                const schema = fullName.substring(0, dotIndex);
+                const tableName = fullName.substring(dotIndex + 1);
+
+                if (!schemaMap.has(schema)) {
+                    schemaMap.set(schema, []);
+                }
+                schemaMap.get(schema).push({ fullName, tableName });
+            } else {
+                // No schema prefix - treat as its own "schema"
+                if (!schemaMap.has(fullName)) {
+                    schemaMap.set(fullName, []);
+                }
+                schemaMap.get(fullName).push({ fullName, tableName: fullName });
+            }
+        });
+
+        // Convert to array and sort
+        const schemas = [];
+        const singleTableSchemas = [];
+
+        // Sort schemas alphabetically
+        const sortedSchemas = Array.from(schemaMap.keys()).sort((a, b) =>
+            a.toLowerCase().localeCompare(b.toLowerCase())
+        );
+
+        sortedSchemas.forEach(schemaName => {
+            const schemaTables = schemaMap.get(schemaName);
+            // Sort tables within schema alphabetically
+            schemaTables.sort((a, b) =>
+                a.tableName.toLowerCase().localeCompare(b.tableName.toLowerCase())
+            );
+
+            if (schemaTables.length === 1) {
+                // Single-table schema - show at root level per AC #4
+                singleTableSchemas.push(schemaTables[0].fullName);
+            } else {
+                // Multi-table schema - show as folder
+                schemas.push({
+                    name: schemaName,
+                    tables: schemaTables,
+                    count: schemaTables.length
+                });
+            }
+        });
+
+        return { schemas, singleTableSchemas };
     }
 
     /**
@@ -517,7 +582,7 @@
     }
 
     /**
-     * Render table section (loading, error, empty, or list)
+     * Render table section (loading, error, empty, or schema tree)
      * @param {string} namespace - Selected namespace
      * @param {string[]} tables - Array of table names
      * @param {string|null} selectedTable - Currently selected table
@@ -561,36 +626,88 @@
             `;
         }
 
-        // Render table list
-        return renderTableList(tables, selectedTable, namespace);
+        // Render schema tree (Story 6.1)
+        const expandedSchema = appState.state.expandedSchema;
+        return renderSchemaTree(tables, selectedTable, namespace, expandedSchema);
     }
 
     /**
-     * Render table list
-     * @param {string[]} tables - Array of table names
+     * Render schema tree with collapsible schema folders (Story 6.1)
+     * @param {string[]} tables - Array of fully qualified table names (Schema.Table)
      * @param {string|null} selectedTable - Currently selected table
      * @param {string} namespace - Current namespace
+     * @param {string|null} expandedSchema - Currently expanded schema (null = all collapsed)
      * @returns {string} HTML string
      */
-    function renderTableList(tables, selectedTable, namespace) {
-        const tableItems = tables.map((table, index) => {
-            const isSelected = table === selectedTable;
-            const selectedClass = isSelected ? 'ite-table-list__item--selected' : '';
-            const safeAttr = escapeAttr(table);
-            const safeName = escapeHtml(table);
-            return `
-                <div class="ite-table-list__item ${selectedClass}"
-                     data-table="${safeAttr}"
+    function renderSchemaTree(tables, selectedTable, namespace, expandedSchema) {
+        const { schemas, singleTableSchemas } = parseTablesBySchema(tables);
+
+        let treeItems = '';
+        let itemIndex = 0;
+
+        // Render single-table schemas at root level (AC #4)
+        singleTableSchemas.forEach(fullName => {
+            const isSelected = fullName === selectedTable;
+            const selectedClass = isSelected ? 'ite-schema-tree__table--selected' : '';
+            treeItems += `
+                <div class="ite-schema-tree__table ite-schema-tree__table--root ${selectedClass}"
+                     data-table="${escapeAttr(fullName)}"
                      data-namespace="${escapeAttr(namespace)}"
-                     data-index="${index}"
+                     data-index="${itemIndex}"
                      tabindex="0"
-                     role="option"
+                     role="treeitem"
                      aria-selected="${isSelected}">
-                    <span class="ite-table-list__icon codicon codicon-table"></span>
-                    <span class="ite-table-list__name">${safeName}</span>
+                    <span class="ite-schema-tree__table-icon codicon codicon-table"></span>
+                    <span class="ite-schema-tree__table-name">${escapeHtml(fullName)}</span>
                 </div>
             `;
-        }).join('');
+            itemIndex++;
+        });
+
+        // Render multi-table schemas as collapsible folders
+        schemas.forEach(schema => {
+            const isExpanded = schema.name === expandedSchema;
+            const expandedClass = isExpanded ? 'ite-schema-tree__schema--expanded' : '';
+            const chevronClass = isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
+
+            treeItems += `
+                <div class="ite-schema-tree__schema ${expandedClass}"
+                     data-schema="${escapeAttr(schema.name)}"
+                     data-index="${itemIndex}"
+                     tabindex="0"
+                     role="treeitem"
+                     aria-expanded="${isExpanded}">
+                    <span class="ite-schema-tree__schema-chevron codicon ${chevronClass}"></span>
+                    <span class="ite-schema-tree__schema-icon codicon codicon-folder${isExpanded ? '-opened' : ''}"></span>
+                    <span class="ite-schema-tree__schema-name">${escapeHtml(schema.name)}</span>
+                    <span class="ite-schema-tree__schema-count">${schema.count}</span>
+                </div>
+            `;
+            itemIndex++;
+
+            // Render nested tables if schema is expanded
+            if (isExpanded) {
+                schema.tables.forEach(table => {
+                    const isSelected = table.fullName === selectedTable;
+                    const selectedClass = isSelected ? 'ite-schema-tree__table--selected' : '';
+                    treeItems += `
+                        <div class="ite-schema-tree__table ite-schema-tree__table--nested ${selectedClass}"
+                             data-table="${escapeAttr(table.fullName)}"
+                             data-namespace="${escapeAttr(namespace)}"
+                             data-schema="${escapeAttr(schema.name)}"
+                             data-index="${itemIndex}"
+                             tabindex="0"
+                             role="treeitem"
+                             aria-selected="${isSelected}"
+                             aria-level="2">
+                            <span class="ite-schema-tree__table-icon codicon codicon-table"></span>
+                            <span class="ite-schema-tree__table-name">${escapeHtml(table.tableName)}</span>
+                        </div>
+                    `;
+                    itemIndex++;
+                });
+            }
+        });
 
         return `
             <div class="ite-table-list__header-row">
@@ -601,8 +718,8 @@
                     <span class="codicon codicon-refresh"></span>
                 </button>
             </div>
-            <div class="ite-table-list" role="listbox" aria-label="Available tables in ${escapeAttr(namespace)}">
-                ${tableItems}
+            <div class="ite-schema-tree" role="tree" aria-label="Tables organized by schema in ${escapeAttr(namespace)}">
+                ${treeItems}
             </div>
         `;
     }
@@ -789,17 +906,27 @@
     }
 
     /**
-     * Attach event listeners for table list
+     * Attach event listeners for table list / schema tree
      * Note: Uses focus management only.
      * Click/keyboard events are handled via container delegation.
      */
     function attachTableListEvents() {
+        // Try schema tree first (Story 6.1), fall back to flat table list
+        const schemaTree = document.querySelector('.ite-schema-tree');
+        if (schemaTree) {
+            // Focus first or selected item in schema tree
+            const selectedItem = schemaTree.querySelector('.ite-schema-tree__table--selected');
+            const firstItem = schemaTree.querySelector('[tabindex="0"]');
+            (selectedItem || firstItem)?.focus();
+            return;
+        }
+
         const tableList = document.querySelector('.ite-table-list');
         if (!tableList) {
             return;
         }
 
-        // Focus first or selected item after render
+        // Focus first or selected item after render (legacy flat list)
         const selectedItem = tableList.querySelector('.ite-table-list__item--selected');
         const firstItem = tableList.querySelector('.ite-table-list__item');
         (selectedItem || firstItem)?.focus();
@@ -815,7 +942,8 @@
             tables: [],
             selectedTable: null,
             tablesLoading: true,
-            tableError: null
+            tableError: null,
+            expandedSchema: null  // Clear expansion state when changing namespaces (Story 6.1)
         });
         announce(`Selected namespace ${namespace}`);
         postCommand('selectNamespace', { namespace });
@@ -829,6 +957,24 @@
     function selectTable(tableName, namespace) {
         // Single-click opens the table directly
         openTable(tableName, namespace);
+    }
+
+    /**
+     * Toggle schema folder expand/collapse (Story 6.1)
+     * Implements accordion behavior - only one schema open at a time (AC #3)
+     * @param {string} schemaName - Schema name to toggle
+     */
+    function toggleSchema(schemaName) {
+        const currentExpanded = appState.state.expandedSchema;
+        if (currentExpanded === schemaName) {
+            // Collapse if already expanded
+            appState.update({ expandedSchema: null });
+            announce(`Collapsed schema ${schemaName}`);
+        } else {
+            // Expand this schema (auto-collapses previous per accordion behavior)
+            appState.update({ expandedSchema: schemaName });
+            announce(`Expanded schema ${schemaName}`);
+        }
     }
 
     /**
@@ -932,7 +1078,21 @@
                 return;
             }
 
-            // Table list item click
+            // Schema folder click (Story 6.1) - expand/collapse
+            const schemaItem = target.closest('.ite-schema-tree__schema');
+            if (schemaItem) {
+                toggleSchema(schemaItem.dataset.schema);
+                return;
+            }
+
+            // Table item click in schema tree (Story 6.1)
+            const schemaTreeTableItem = target.closest('.ite-schema-tree__table');
+            if (schemaTreeTableItem) {
+                selectTable(schemaTreeTableItem.dataset.table, schemaTreeTableItem.dataset.namespace);
+                return;
+            }
+
+            // Table list item click (legacy flat list fallback)
             const tableItem = target.closest('.ite-table-list__item');
             if (tableItem) {
                 selectTable(tableItem.dataset.table, tableItem.dataset.namespace);
@@ -999,7 +1159,69 @@
                 return;
             }
 
-            // Table list keyboard navigation
+            // Schema tree keyboard navigation (Story 6.1)
+            const schemaItem = e.target.closest('.ite-schema-tree__schema');
+            if (schemaItem) {
+                // Enter, Space, or Right arrow expands/toggles schema
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleSchema(schemaItem.dataset.schema);
+                    return;
+                }
+                // Right arrow expands if collapsed
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const isExpanded = schemaItem.getAttribute('aria-expanded') === 'true';
+                    if (!isExpanded) {
+                        toggleSchema(schemaItem.dataset.schema);
+                    } else {
+                        // Move to first child table if expanded
+                        const nextItem = schemaItem.nextElementSibling;
+                        if (nextItem && nextItem.classList.contains('ite-schema-tree__table--nested')) {
+                            nextItem.focus();
+                        }
+                    }
+                    return;
+                }
+                // Left arrow collapses if expanded
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const isExpanded = schemaItem.getAttribute('aria-expanded') === 'true';
+                    if (isExpanded) {
+                        toggleSchema(schemaItem.dataset.schema);
+                    }
+                    return;
+                }
+                // Arrow up/down for tree navigation
+                handleTreeKeydown(e, schemaItem);
+                return;
+            }
+
+            // Schema tree table item keyboard navigation
+            const schemaTreeTableItem = e.target.closest('.ite-schema-tree__table');
+            if (schemaTreeTableItem) {
+                // Enter or Space opens the table
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openTable(schemaTreeTableItem.dataset.table, schemaTreeTableItem.dataset.namespace);
+                    return;
+                }
+                // Left arrow moves to parent schema folder
+                if (e.key === 'ArrowLeft' && schemaTreeTableItem.classList.contains('ite-schema-tree__table--nested')) {
+                    e.preventDefault();
+                    const schemaName = schemaTreeTableItem.dataset.schema;
+                    const parentSchema = document.querySelector(`.ite-schema-tree__schema[data-schema="${schemaName}"]`);
+                    if (parentSchema) {
+                        parentSchema.focus();
+                    }
+                    return;
+                }
+                // Arrow up/down for tree navigation
+                handleTreeKeydown(e, schemaTreeTableItem);
+                return;
+            }
+
+            // Table list keyboard navigation (legacy flat list fallback)
             const tableItem = e.target.closest('.ite-table-list__item');
             if (tableItem) {
                 // Enter or Space opens the table
@@ -1057,6 +1279,44 @@
             case 'End':
                 e.preventDefault();
                 items[items.length - 1]?.focus();
+                break;
+        }
+    }
+
+    /**
+     * Tree keyboard navigation handler for schema tree (Story 6.1)
+     * Handles Up/Down arrow keys for navigating visible tree items
+     * @param {KeyboardEvent} e - Keyboard event
+     * @param {HTMLElement} currentItem - Currently focused item
+     */
+    function handleTreeKeydown(e, currentItem) {
+        const tree = document.querySelector('.ite-schema-tree');
+        if (!tree) return;
+
+        // Get all visible focusable items in the tree
+        const allItems = Array.from(tree.querySelectorAll('[tabindex="0"]'));
+        const currentIndex = allItems.indexOf(currentItem);
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                if (currentIndex < allItems.length - 1) {
+                    allItems[currentIndex + 1].focus();
+                }
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                if (currentIndex > 0) {
+                    allItems[currentIndex - 1].focus();
+                }
+                break;
+            case 'Home':
+                e.preventDefault();
+                allItems[0]?.focus();
+                break;
+            case 'End':
+                e.preventDefault();
+                allItems[allItems.length - 1]?.focus();
                 break;
         }
     }
