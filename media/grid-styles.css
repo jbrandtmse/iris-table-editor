@@ -1069,6 +1069,56 @@ body {
     cursor: wait;
 }
 
+/* Story 6.5: Icon-only pagination buttons */
+.ite-pagination__button--icon {
+    padding: 4px 8px;
+    min-width: 28px;
+    justify-content: center;
+}
+
+/* Story 6.5: Page input container */
+.ite-pagination__page-input-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Story 6.5: Page number input field */
+.ite-pagination__page-input {
+    width: 50px;
+    padding: 3px 6px;
+    border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+    border-radius: 4px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.ite-pagination__page-input:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+    border-color: var(--vscode-focusBorder);
+}
+
+.ite-pagination__page-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Story 6.5: Error state for invalid page input */
+.ite-pagination__page-input--error {
+    border-color: var(--vscode-inputValidation-errorBorder, #f44336);
+    background-color: var(--vscode-inputValidation-errorBackground, rgba(244, 67, 54, 0.1));
+}
+
+/* Story 6.5: Page total label */
+.ite-pagination__page-total {
+    font-size: 0.9em;
+    color: var(--vscode-foreground);
+    white-space: nowrap;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {

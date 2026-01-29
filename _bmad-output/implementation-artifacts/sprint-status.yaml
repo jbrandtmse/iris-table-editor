@@ -86,6 +86,6 @@ development_status:
   6-2-inline-column-filtering: done
   6-3-filter-panel-advanced-options: done
   6-4-column-sorting: done
-  6-5-enhanced-pagination-controls: backlog
+  6-5-enhanced-pagination-controls: done
   6-6-lazy-loading-verification-optimization: backlog
   epic-6-retrospective: optional

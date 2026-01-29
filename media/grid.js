@@ -2403,20 +2403,31 @@
     }
 
     /**
+     * Format a number with thousands separators (Story 6.5)
+     * @param {number} num - Number to format
+     * @returns {string} Formatted number string
+     */
+    function formatNumber(num) {
+        return num.toLocaleString();
+    }
+
+    /**
      * Create pagination indicator text
      * Story 2.2: Pagination UI
+     * Story 6.5: Updated to use thousands separators
      * @returns {string}
      */
     function getPaginationIndicator() {
         if (state.totalRows === 0) return 'No data';
         const start = (state.currentPage - 1) * state.pageSize + 1;
         const end = Math.min(start + state.rows.length - 1, state.totalRows);
-        return `Rows ${start}-${end} of ${state.totalRows}`;
+        return `Rows ${formatNumber(start)}-${formatNumber(end)} of ${formatNumber(state.totalRows)}`;
     }
 
     /**
      * Update pagination UI
      * Story 2.2: Pagination controls and indicator with loading state
+     * Story 6.5: Enhanced with First/Last buttons and page input
      */
     function updatePaginationUI() {
         const paginationContainer = document.getElementById('paginationContainer');
@@ -2440,9 +2451,31 @@
             }
         }
 
+        // Story 6.5: Update page input and total label
+        const pageInput = document.getElementById('pageInput');
+        const pageTotalLabel = document.getElementById('pageTotalLabel');
+        if (pageInput && !state.paginationLoading) {
+            // Only update if not focused (to avoid overwriting user input)
+            if (document.activeElement !== pageInput) {
+                pageInput.value = String(state.currentPage);
+            }
+            pageInput.disabled = state.paginationLoading;
+        }
+        if (pageTotalLabel) {
+            pageTotalLabel.textContent = `of ${formatNumber(state.totalPages)}`;
+        }
+
         // Update button states
+        const firstBtn = document.getElementById('firstPageBtn');
         const prevBtn = document.getElementById('prevPageBtn');
         const nextBtn = document.getElementById('nextPageBtn');
+        const lastBtn = document.getElementById('lastPageBtn');
+
+        // Story 6.5: First and Prev disabled on page 1
+        if (firstBtn) {
+            firstBtn.disabled = !state.canGoPrev || state.paginationLoading;
+            firstBtn.setAttribute('aria-disabled', String(!state.canGoPrev || state.paginationLoading));
+        }
 
         if (prevBtn) {
             prevBtn.disabled = !state.canGoPrev || state.paginationLoading;
@@ -2454,6 +2487,12 @@
             nextBtn.disabled = !state.canGoNext || state.paginationLoading;
             nextBtn.setAttribute('aria-disabled', String(!state.canGoNext || state.paginationLoading));
             nextBtn.classList.toggle('ite-pagination__button--loading', state.paginationLoading);
+        }
+
+        // Story 6.5: Next and Last disabled on last page
+        if (lastBtn) {
+            lastBtn.disabled = !state.canGoNext || state.paginationLoading;
+            lastBtn.setAttribute('aria-disabled', String(!state.canGoNext || state.paginationLoading));
         }
     }
 
@@ -2525,6 +2564,124 @@
         });
 
         announce(`Loading page ${state.currentPage - 1} of ${state.totalPages}`);
+    }
+
+    /**
+     * Handle first page navigation (Story 6.5)
+     */
+    function handleFirstPage() {
+        if (!state.canGoPrev || state.paginationLoading) return;
+
+        console.debug(`${LOG_PREFIX} Navigate to first page from page ${state.currentPage}`);
+
+        clearRowSelection();
+        if (isDeleteDialogOpen) {
+            hideDeleteConfirmDialog();
+        }
+
+        // Navigate to page 1
+        state.currentPage = 1;
+        state.paginationLoading = true;
+        saveState();
+        updatePaginationUI();
+
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
+        sendCommand('requestData', {
+            page: 1,
+            pageSize: state.pageSize,
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
+        });
+
+        announce('Loading first page');
+    }
+
+    /**
+     * Handle last page navigation (Story 6.5)
+     */
+    function handleLastPage() {
+        if (!state.canGoNext || state.paginationLoading) return;
+
+        console.debug(`${LOG_PREFIX} Navigate to last page from page ${state.currentPage}`);
+
+        clearRowSelection();
+        if (isDeleteDialogOpen) {
+            hideDeleteConfirmDialog();
+        }
+
+        // Navigate to last page
+        state.currentPage = state.totalPages;
+        state.paginationLoading = true;
+        saveState();
+        updatePaginationUI();
+
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
+        sendCommand('requestData', {
+            page: state.totalPages,
+            pageSize: state.pageSize,
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
+        });
+
+        announce(`Loading last page (${state.totalPages})`);
+    }
+
+    /**
+     * Handle direct page number input (Story 6.5)
+     * @param {string} inputValue - Value from the page input field
+     */
+    function handleGoToPage(inputValue) {
+        const pageInput = document.getElementById('pageInput');
+        const pageNum = parseInt(inputValue, 10);
+
+        // Validate input
+        if (isNaN(pageNum) || pageNum < 1 || pageNum > state.totalPages) {
+            console.debug(`${LOG_PREFIX} Invalid page number: ${inputValue}`);
+            // Show error state briefly
+            if (pageInput) {
+                pageInput.classList.add('ite-pagination__page-input--error');
+                setTimeout(() => {
+                    pageInput.classList.remove('ite-pagination__page-input--error');
+                    pageInput.value = String(state.currentPage);
+                }, 500);
+            }
+            announce('Invalid page number');
+            return;
+        }
+
+        // If same page, just reset the input
+        if (pageNum === state.currentPage) {
+            if (pageInput) {
+                pageInput.value = String(state.currentPage);
+            }
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Navigate to page ${pageNum} from page ${state.currentPage}`);
+
+        clearRowSelection();
+        if (isDeleteDialogOpen) {
+            hideDeleteConfirmDialog();
+        }
+
+        // Navigate to requested page
+        state.currentPage = pageNum;
+        state.paginationLoading = true;
+        saveState();
+        updatePaginationUI();
+
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
+        sendCommand('requestData', {
+            page: pageNum,
+            pageSize: state.pageSize,
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
+        });
+
+        announce(`Loading page ${pageNum} of ${state.totalPages}`);
     }
 
     /**
@@ -2905,14 +3062,37 @@
         setupDeleteDialog();
 
         // Story 2.2: Setup pagination buttons
+        // Story 6.5: Added First/Last buttons and page input
+        const firstPageBtn = document.getElementById('firstPageBtn');
         const prevPageBtn = document.getElementById('prevPageBtn');
         const nextPageBtn = document.getElementById('nextPageBtn');
+        const lastPageBtn = document.getElementById('lastPageBtn');
+        const pageInput = document.getElementById('pageInput');
 
+        if (firstPageBtn) {
+            firstPageBtn.addEventListener('click', handleFirstPage);
+        }
         if (prevPageBtn) {
             prevPageBtn.addEventListener('click', handlePaginatePrev);
         }
         if (nextPageBtn) {
             nextPageBtn.addEventListener('click', handlePaginateNext);
+        }
+        if (lastPageBtn) {
+            lastPageBtn.addEventListener('click', handleLastPage);
+        }
+        if (pageInput) {
+            // Handle Enter key
+            pageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGoToPage(pageInput.value);
+                }
+            });
+            // Handle blur (leaving the input)
+            pageInput.addEventListener('blur', () => {
+                handleGoToPage(pageInput.value);
+            });
         }
 
         // Story 3.1: Setup cell selection click handler (delegated on grid)

@@ -755,21 +755,45 @@ export class GridPanelManager {
         </div>
 
         <!-- Story 2.2: Pagination Controls -->
+        <!-- Story 6.5: Enhanced with First/Last buttons and page input -->
         <div class="ite-pagination" id="paginationContainer" role="navigation" aria-label="Table pagination" style="display: none;">
             <span class="ite-pagination__info" id="paginationInfo" aria-live="polite">
                 Rows 1-50 of 0
             </span>
             <div class="ite-pagination__controls">
-                <button class="ite-pagination__button"
+                <button class="ite-pagination__button ite-pagination__button--icon"
+                        id="firstPageBtn"
+                        aria-label="First page"
+                        title="First page"
+                        disabled>
+                    ⏮
+                </button>
+                <button class="ite-pagination__button ite-pagination__button--icon"
                         id="prevPageBtn"
                         aria-label="Previous page"
+                        title="Previous page"
                         disabled>
-                    ◀ Prev
+                    ◀
                 </button>
-                <button class="ite-pagination__button"
+                <div class="ite-pagination__page-input-container">
+                    <input type="text"
+                           class="ite-pagination__page-input"
+                           id="pageInput"
+                           aria-label="Page number"
+                           value="1" />
+                    <span class="ite-pagination__page-total" id="pageTotalLabel">of 1</span>
+                </div>
+                <button class="ite-pagination__button ite-pagination__button--icon"
                         id="nextPageBtn"
-                        aria-label="Next page">
-                    Next ▶
+                        aria-label="Next page"
+                        title="Next page">
+                    ▶
+                </button>
+                <button class="ite-pagination__button ite-pagination__button--icon"
+                        id="lastPageBtn"
+                        aria-label="Last page"
+                        title="Last page">
+                    ⏭
                 </button>
             </div>
         </div>

@@ -116,3 +116,25 @@ Stories to process: 6
 
 ---
 
+## Story 6.5: Enhanced Pagination Controls
+
+**Status:** Done
+**Files touched:**
+- media/grid.js
+- media/grid-styles.css
+- src/providers/GridPanelManager.ts
+- _bmad-output/implementation-artifacts/6-5-enhanced-pagination-controls.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+
+**Key design decisions:**
+1. Added First (⏮) and Last (⏭) page buttons
+2. Direct page input with Enter/blur submission
+3. Invalid page number shows error state and reverts
+4. Numbers formatted with thousands separators via toLocaleString()
+5. All buttons disabled during pagination loading
+
+**Issues auto-resolved:** 0
+**User input required:** 0
+
+---
+
