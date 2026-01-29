@@ -164,6 +164,7 @@ body {
 .ite-grid-wrapper {
     flex: 1;
     overflow: auto;
+    overflow-x: hidden;
     position: relative;
 }
 
@@ -277,18 +278,11 @@ body {
 /* Story 4.1: New Row (pending INSERT) */
 .ite-grid__row--new {
     background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15));
-    position: relative;
 }
 
-/* New row indicator - dashed left border */
-.ite-grid__row--new::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background-color: var(--vscode-gitDecoration-addedResourceForeground, #73c991);
+/* New row indicator - left border on first cell (::before pseudo-element causes layout issues with table-row) */
+.ite-grid__row--new .ite-grid__cell:first-child {
+    border-left: 3px solid var(--vscode-gitDecoration-addedResourceForeground, #73c991);
 }
 
 /* Override even row alternating background for new rows */
@@ -308,8 +302,8 @@ body {
         outline-offset: -2px;
     }
 
-    .ite-grid__row--new::before {
-        background-color: Highlight;
+    .ite-grid__row--new .ite-grid__cell:first-child {
+        border-left-color: Highlight;
     }
 }
 
@@ -399,7 +393,7 @@ body {
 /* Story 3.2: Cell Editing Styles */
 .ite-grid__cell--editing {
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
     /* Keep position relative for z-index */
     position: relative;
     z-index: 2;

@@ -975,7 +975,6 @@
         }, 50);
 
         announce(`New row added. Row ${newRowIndex + 1} of ${state.totalDisplayRows}`);
-        console.debug(`${LOG_PREFIX} Added new row at index ${newRowIndex}`);
 
         // Story 4.3: Enable save button when there are new rows
         updateSaveButtonState();
@@ -1474,6 +1473,9 @@
         // Don't edit header cells
         if (cell.closest('.ite-grid__header-row')) return;
 
+        // Don't process double-clicks on selector cells
+        if (cell.classList.contains('ite-grid__cell--selector')) return;
+
         // Find row and column index
         const row = cell.closest('.ite-grid__row');
         if (!row) return;
@@ -1485,7 +1487,8 @@
         const rowIndex = rows.indexOf(row);
         if (rowIndex < 0) return;
 
-        const cells = Array.from(row.querySelectorAll('.ite-grid__cell'));
+        // Get data cells only (exclude selector cell) to match getCellElement behavior
+        const cells = Array.from(row.querySelectorAll('.ite-grid__cell:not(.ite-grid__cell--selector)'));
         const colIndex = cells.indexOf(cell);
         if (colIndex < 0) return;
 
@@ -1511,7 +1514,8 @@
         const rows = grid.querySelectorAll('.ite-grid__row');
         if (rowIndex < 0 || rowIndex >= rows.length) return null;
 
-        const cells = rows[rowIndex].querySelectorAll('.ite-grid__cell');
+        // Get only data cells, excluding the selector cell
+        const cells = rows[rowIndex].querySelectorAll('.ite-grid__cell:not(.ite-grid__cell--selector)');
         if (colIndex < 0 || colIndex >= cells.length) return null;
 
         return /** @type {HTMLElement} */ (cells[colIndex]);
@@ -1591,6 +1595,9 @@
         // Don't select header cells
         if (cell.closest('.ite-grid__header-row')) return;
 
+        // Don't process clicks on selector cells (handled by checkbox click handler)
+        if (cell.classList.contains('ite-grid__cell--selector')) return;
+
         // Find row and column index
         const row = cell.closest('.ite-grid__row');
         if (!row) return;
@@ -1602,7 +1609,8 @@
         const rowIndex = rows.indexOf(row);
         if (rowIndex < 0) return;
 
-        const cells = Array.from(row.querySelectorAll('.ite-grid__cell'));
+        // Get data cells only (exclude selector cell) to match getCellElement behavior
+        const cells = Array.from(row.querySelectorAll('.ite-grid__cell:not(.ite-grid__cell--selector)'));
         const colIndex = cells.indexOf(cell);
         if (colIndex < 0) return;
 
@@ -1780,6 +1788,7 @@
         if (!grid || !state.columns.length) {
             return;
         }
+        console.debug(`${LOG_PREFIX} renderHeader: state.columns.length=${state.columns.length}, creating ${state.columns.length + 1} header cells (1 selector + ${state.columns.length} data)`);
 
         const headerRow = document.createElement('div');
         headerRow.className = 'ite-grid__header-row';
@@ -2182,6 +2191,8 @@
             namespace: payload.namespace,
             tableName: payload.tableName
         };
+        // Clear any stale newRows from previous session - they won't match new schema
+        state.newRows = [];
         saveState(); // Persist immediately after schema update
     }
 
