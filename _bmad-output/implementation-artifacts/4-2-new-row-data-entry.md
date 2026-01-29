@@ -10,7 +10,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | review |
+| Status | done |
 | Epic | 4 - Row Creation |
 | Story Points | 3 |
 | Prepared | 2026-01-28 |
