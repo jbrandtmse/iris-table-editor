@@ -699,6 +699,70 @@ export class ServerConnectionManager {
     }
 
     /**
+     * Delete a row from a table
+     * Story 5.3: Row deletion wrapper
+     * @param namespace - Target namespace
+     * @param tableName - Table name
+     * @param primaryKeyColumn - Primary key column name
+     * @param primaryKeyValue - Primary key value for the row
+     * @returns Result with success flag and optional error
+     */
+    public async deleteRow(
+        namespace: string,
+        tableName: string,
+        primaryKeyColumn: string,
+        primaryKeyValue: unknown
+    ): Promise<{ success: boolean; error?: IUserError }> {
+        if (!this._connectedServer || !this._serverSpec || !this._credentials) {
+            return {
+                success: false,
+                error: {
+                    message: 'Not connected to a server',
+                    code: ErrorCodes.CONNECTION_FAILED,
+                    recoverable: true,
+                    context: 'deleteRow'
+                }
+            };
+        }
+
+        if (!namespace || !tableName || !primaryKeyColumn) {
+            return {
+                success: false,
+                error: {
+                    message: 'Missing required parameters for delete',
+                    code: ErrorCodes.INVALID_INPUT,
+                    recoverable: false,
+                    context: 'deleteRow'
+                }
+            };
+        }
+
+        try {
+            console.debug(`${LOG_PREFIX} Deleting row from ${tableName} WHERE ${primaryKeyColumn}=${primaryKeyValue}`);
+            return this._atelierApiService.deleteRow(
+                this._serverSpec,
+                namespace,
+                tableName,
+                primaryKeyColumn,
+                primaryKeyValue,
+                this._credentials.username,
+                this._credentials.password
+            );
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Delete row error:`, error);
+            return {
+                success: false,
+                error: ErrorHandler.parse(error, 'deleteRow') || {
+                    message: 'Failed to delete row',
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    recoverable: true,
+                    context: 'deleteRow'
+                }
+            };
+        }
+    }
+
+    /**
      * Check if currently connected
      */
     public isConnected(): boolean {

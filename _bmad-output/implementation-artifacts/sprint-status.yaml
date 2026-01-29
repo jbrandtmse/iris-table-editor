@@ -77,5 +77,5 @@ development_status:
   epic-5: in-progress
   5-1-row-selection-for-deletion: done
   5-2-delete-confirmation-dialog: done
-  5-3-execute-delete-feedback: backlog
+  5-3-execute-delete-feedback: review
   epic-5-retrospective: optional

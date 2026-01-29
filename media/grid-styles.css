@@ -539,6 +539,12 @@ body {
     border-color: var(--vscode-inputValidation-infoBorder, #0078d4);
 }
 
+/* Story 5.3: Success toast for delete confirmation */
+.ite-toast--success {
+    background-color: rgba(46, 125, 50, 0.1);
+    border-color: var(--vscode-testing-iconPassed, #2e7d32);
+}
+
 .ite-toast__icon {
     flex-shrink: 0;
     font-size: 16px;
@@ -554,6 +560,11 @@ body {
 
 .ite-toast--info .ite-toast__icon {
     color: var(--vscode-editorInfo-foreground, #75beff);
+}
+
+/* Story 5.3: Success toast icon color */
+.ite-toast--success .ite-toast__icon {
+    color: var(--vscode-testing-iconPassed, #2e7d32);
 }
 
 .ite-toast__message {

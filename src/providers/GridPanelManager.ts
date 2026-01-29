@@ -12,7 +12,9 @@ import {
     ISaveCellPayload,
     ISaveCellResultPayload,
     IInsertRowPayload,
-    IInsertRowResultPayload
+    IInsertRowResultPayload,
+    IDeleteRowPayload,
+    IDeleteRowResultPayload
 } from '../models/IMessages';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -197,6 +199,12 @@ export class GridPanelManager {
                 await this._handleInsertRow(panelKey, payload);
                 break;
             }
+            // Story 5.3: Handle delete row command
+            case 'deleteRow': {
+                const payload = message.payload as IDeleteRowPayload;
+                await this._handleDeleteRow(panelKey, payload);
+                break;
+            }
         }
     }
 
@@ -377,6 +385,85 @@ export class GridPanelManager {
                         code: 'UNKNOWN_ERROR'
                     }
                 } as IInsertRowResultPayload
+            });
+        }
+    }
+
+    /**
+     * Handle deleteRow command from grid webview
+     * Story 5.3: Row deletion with server persistence
+     */
+    private async _handleDeleteRow(panelKey: string, payload: IDeleteRowPayload): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        // Validate payload (including rowIndex >= 0 check)
+        if (!payload || typeof payload.rowIndex !== 'number' || payload.rowIndex < 0 ||
+            !payload.primaryKeyColumn || payload.primaryKeyValue === undefined) {
+            console.warn(`${LOG_PREFIX} Invalid deleteRow payload`);
+            this._postMessage(panel, {
+                event: 'deleteRowResult',
+                payload: {
+                    success: false,
+                    rowIndex: payload?.rowIndex ?? -1,
+                    error: {
+                        message: 'Invalid delete request',
+                        code: 'INVALID_INPUT'
+                    }
+                } as IDeleteRowResultPayload
+            });
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Deleting row from ${context.tableName} WHERE ${payload.primaryKeyColumn}=${payload.primaryKeyValue}`);
+
+        try {
+            const result = await this._serverConnectionManager.deleteRow(
+                context.namespace,
+                context.tableName,
+                payload.primaryKeyColumn,
+                payload.primaryKeyValue
+            );
+
+            if (result.success) {
+                console.debug(`${LOG_PREFIX} Row deleted successfully`);
+                this._postMessage(panel, {
+                    event: 'deleteRowResult',
+                    payload: {
+                        success: true,
+                        rowIndex: payload.rowIndex
+                    } as IDeleteRowResultPayload
+                });
+            } else {
+                console.debug(`${LOG_PREFIX} Row delete failed: ${result.error?.message}`);
+                this._postMessage(panel, {
+                    event: 'deleteRowResult',
+                    payload: {
+                        success: false,
+                        rowIndex: payload.rowIndex,
+                        error: {
+                            message: result.error?.message || 'Failed to delete row',
+                            code: result.error?.code || 'UNKNOWN_ERROR'
+                        }
+                    } as IDeleteRowResultPayload
+                });
+            }
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Delete row error:`, error);
+            this._postMessage(panel, {
+                event: 'deleteRowResult',
+                payload: {
+                    success: false,
+                    rowIndex: payload.rowIndex,
+                    error: {
+                        message: 'An unexpected error occurred while deleting',
+                        code: 'UNKNOWN_ERROR'
+                    }
+                } as IDeleteRowResultPayload
             });
         }
     }

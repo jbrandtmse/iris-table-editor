@@ -1241,6 +1241,150 @@ export class AtelierApiService {
     }
 
     /**
+     * Delete a row from a table
+     * Story 5.3: Row deletion with parameterized query
+     * @param spec - Server specification
+     * @param namespace - Target namespace
+     * @param tableName - Name of the table
+     * @param primaryKeyColumn - Name of the primary key column
+     * @param primaryKeyValue - Value of the primary key
+     * @param username - Authentication username
+     * @param password - Authentication password
+     * @returns Result with success flag and optional error
+     */
+    public async deleteRow(
+        spec: IServerSpec,
+        namespace: string,
+        tableName: string,
+        primaryKeyColumn: string,
+        primaryKeyValue: unknown,
+        username: string,
+        password: string
+    ): Promise<{ success: boolean; error?: IUserError }> {
+        const url = UrlBuilder.buildQueryUrl(
+            UrlBuilder.buildBaseUrl(spec),
+            namespace
+        );
+
+        const headers = this._buildAuthHeaders(username, password);
+
+        // SECURITY: Validate and escape all identifiers to prevent SQL injection
+        let escapedTableName: string;
+        let escapedPkColumn: string;
+
+        try {
+            // Parse schema-qualified table name and escape each part separately
+            const { schemaName, baseTableName } = this._parseQualifiedTableName(tableName);
+            const escapedSchema = this._validateAndEscapeIdentifier(schemaName, 'schema name');
+            const escapedBase = this._validateAndEscapeIdentifier(baseTableName, 'table name');
+            escapedTableName = `${escapedSchema}.${escapedBase}`;
+            escapedPkColumn = this._validateAndEscapeIdentifier(primaryKeyColumn, 'primary key column');
+        } catch (validationError) {
+            console.error(`${LOG_PREFIX} Validation error:`, validationError);
+            return {
+                success: false,
+                error: {
+                    message: validationError instanceof Error ? validationError.message : 'Invalid query parameters',
+                    code: ErrorCodes.INVALID_INPUT,
+                    recoverable: false,
+                    context: 'deleteRow'
+                }
+            };
+        }
+
+        // SECURITY: Use parameterized query - values are NEVER interpolated into SQL
+        const query = `DELETE FROM ${escapedTableName} WHERE ${escapedPkColumn} = ?`;
+        const parameters = [primaryKeyValue];
+
+        console.debug(`${LOG_PREFIX} Deleting row from ${tableName} WHERE ${primaryKeyColumn}=${primaryKeyValue}`);
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query,
+                    parameters
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            // Check HTTP status
+            if (response.status === 401) {
+                console.debug(`${LOG_PREFIX} Delete row failed: Authentication error`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Authentication failed. Please check your credentials.',
+                        code: ErrorCodes.AUTH_FAILED,
+                        recoverable: true,
+                        context: 'deleteRow'
+                    }
+                };
+            }
+
+            if (!response.ok) {
+                console.debug(`${LOG_PREFIX} Delete row failed: HTTP ${response.status}`);
+                return {
+                    success: false,
+                    error: {
+                        message: `Server returned status ${response.status}`,
+                        code: ErrorCodes.CONNECTION_FAILED,
+                        recoverable: true,
+                        context: 'deleteRow'
+                    }
+                };
+            }
+
+            // Parse response body
+            const body = await response.json() as IAtelierQueryResponse;
+
+            // Check for Atelier errors (e.g., foreign key constraint violations)
+            if (body.status?.errors?.length > 0) {
+                const error = ErrorHandler.parse(body, 'deleteRow');
+                if (error) {
+                    console.debug(`${LOG_PREFIX} Delete row failed: ${error.message}`);
+                    return { success: false, error };
+                }
+            }
+
+            console.debug(`${LOG_PREFIX} Row deleted successfully`);
+            return { success: true };
+
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.debug(`${LOG_PREFIX} Delete row failed: Timeout`);
+                return {
+                    success: false,
+                    error: {
+                        message: 'Connection timed out. The server may be busy or unreachable.',
+                        code: ErrorCodes.CONNECTION_TIMEOUT,
+                        recoverable: true,
+                        context: 'deleteRow'
+                    }
+                };
+            }
+
+            // Network error
+            console.debug(`${LOG_PREFIX} Delete row failed: Network error`, error);
+            return {
+                success: false,
+                error: {
+                    message: 'Cannot reach server. Please verify the server address and that IRIS is running.',
+                    code: ErrorCodes.SERVER_UNREACHABLE,
+                    recoverable: true,
+                    context: 'deleteRow'
+                }
+            };
+        }
+    }
+
+    /**
      * Set the request timeout
      * @param timeout - Timeout in milliseconds
      */

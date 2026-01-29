@@ -248,6 +248,29 @@ export interface IInsertRowResultPayload {
 }
 
 /**
+ * Payload for deleteRow command (grid webview to extension)
+ * Story 5.3: Row deletion
+ */
+export interface IDeleteRowPayload {
+    rowIndex: number;              // Index of the row in the grid
+    primaryKeyColumn: string;      // Name of the primary key column
+    primaryKeyValue: unknown;      // Value of the primary key
+}
+
+/**
+ * Payload for deleteRowResult event (extension to grid webview)
+ * Story 5.3: Row deletion result
+ */
+export interface IDeleteRowResultPayload {
+    success: boolean;
+    rowIndex: number;              // Original row index for UI update
+    error?: {
+        message: string;
+        code: string;
+    };
+}
+
+/**
  * Server-related commands sent from webview to extension
  */
 export type ServerCommand =
@@ -265,6 +288,7 @@ export type ServerCommand =
  * Grid-related commands sent from grid webview to extension
  * Story 3.3: Added saveCell command
  * Story 4.3: Added insertRow command
+ * Story 5.3: Added deleteRow command
  */
 export type GridCommand =
     | { command: 'requestData'; payload: IRequestDataPayload }
@@ -272,7 +296,8 @@ export type GridCommand =
     | { command: 'paginateNext'; payload: IPaginatePayload }
     | { command: 'paginatePrev'; payload: IPaginatePayload }
     | { command: 'saveCell'; payload: ISaveCellPayload }
-    | { command: 'insertRow'; payload: IInsertRowPayload };
+    | { command: 'insertRow'; payload: IInsertRowPayload }
+    | { command: 'deleteRow'; payload: IDeleteRowPayload };
 
 /**
  * Server-related events sent from extension to webview
@@ -293,6 +318,7 @@ export type ServerEvent =
  * Grid-related events sent from extension to grid webview
  * Story 3.3: Added saveCellResult event
  * Story 4.3: Added insertRowResult event
+ * Story 5.3: Added deleteRowResult event
  */
 export type GridEvent =
     | { event: 'tableSchema'; payload: ITableSchemaPayload }
@@ -300,4 +326,5 @@ export type GridEvent =
     | { event: 'tableLoading'; payload: ITableLoadingPayload }
     | { event: 'saveCellResult'; payload: ISaveCellResultPayload }
     | { event: 'insertRowResult'; payload: IInsertRowResultPayload }
+    | { event: 'deleteRowResult'; payload: IDeleteRowResultPayload }
     | { event: 'error'; payload: IErrorPayload };

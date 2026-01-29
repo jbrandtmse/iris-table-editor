@@ -699,6 +699,12 @@
             return;
         }
 
+        // Story 5.3: Prevent opening dialog if delete is already in progress
+        if (isDeleteInProgress) {
+            announce('Delete operation in progress');
+            return;
+        }
+
         console.debug(`${LOG_PREFIX} Delete row clicked for row ${state.selectedRowIndex}`);
         // Story 5.2: Show confirmation dialog
         showDeleteConfirmDialog();
@@ -712,6 +718,8 @@
     let dialogPreviousFocus = null;
     /** @type {boolean} - Track if delete dialog is currently open */
     let isDeleteDialogOpen = false;
+    /** @type {boolean} - Story 5.3: Track if delete operation is in progress */
+    let isDeleteInProgress = false;
 
     /**
      * Show the delete confirmation dialog
@@ -784,18 +792,55 @@
 
     /**
      * Execute the row deletion
-     * Story 5.3 placeholder - actual implementation in next story
+     * Story 5.3: Send deleteRow command to extension
      */
     function executeDeleteRow() {
         if (!state.hasSelectedRow || state.selectedRowIsNew) {
             return;
         }
 
-        const rowIndex = state.selectedRowIndex;
-        console.debug(`${LOG_PREFIX} Executing delete for row ${rowIndex}`);
+        // Story 5.3: Prevent concurrent delete operations
+        if (isDeleteInProgress) {
+            return;
+        }
 
-        // Story 5.3 will send the deleteRow command to extension
-        // Placeholder announcement until Story 5.3 is implemented
+        const rowIndex = state.selectedRowIndex;
+        const row = state.rows[rowIndex];
+
+        if (!row) {
+            showToast('Cannot delete: row not found', 'error');
+            return;
+        }
+
+        // Get primary key column (typically 'ID')
+        const pkColumn = findPrimaryKeyColumn();
+        if (!pkColumn) {
+            showToast('Cannot delete: no primary key column', 'error');
+            return;
+        }
+
+        const pkValue = row[pkColumn];
+        if (pkValue === undefined || pkValue === null) {
+            showToast('Cannot delete: row has no primary key value', 'error');
+            return;
+        }
+
+        console.debug(`${LOG_PREFIX} Executing delete for row ${rowIndex}, PK ${pkColumn}=${pkValue}`);
+
+        // Story 5.3: Mark delete in progress and disable button
+        isDeleteInProgress = true;
+        const deleteBtn = document.getElementById('deleteRowBtn');
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+        }
+
+        // Send deleteRow command to extension
+        sendCommand('deleteRow', {
+            rowIndex: rowIndex,
+            primaryKeyColumn: pkColumn,
+            primaryKeyValue: pkValue
+        });
+
         announce(`Deleting row ${rowIndex + 1}...`);
     }
 
@@ -1049,6 +1094,58 @@
     }
 
     /**
+     * Handle delete row result from extension
+     * Story 5.3: Process deletion result
+     * @param {{ success: boolean; rowIndex: number; error?: { message: string; code: string } }} payload
+     */
+    function handleDeleteRowResult(payload) {
+        const { success, rowIndex, error } = payload;
+
+        // Story 5.3: Clear delete in progress state
+        isDeleteInProgress = false;
+
+        if (success) {
+            console.debug(`${LOG_PREFIX} Row deleted successfully (index: ${rowIndex})`);
+
+            // Code review fix: Validate rowIndex bounds before splice
+            if (rowIndex >= 0 && rowIndex < state.rows.length) {
+                // Remove row from state
+                state.rows.splice(rowIndex, 1);
+                state.totalRows = Math.max(0, state.totalRows - 1);
+            } else {
+                // Row index is stale (grid may have been paginated) - refresh data instead
+                console.warn(`${LOG_PREFIX} Delete rowIndex ${rowIndex} out of bounds (rows: ${state.rows.length}), refreshing data`);
+                sendCommand('refresh', {});
+            }
+
+            // Clear row selection
+            clearRowSelection();
+
+            // Re-render grid
+            renderGrid();
+
+            // Update pagination info
+            updatePaginationInfo();
+
+            // Show success feedback
+            showToast('Row deleted successfully', 'success');
+            announce('Row deleted successfully');
+
+            saveState();
+        } else {
+            console.debug(`${LOG_PREFIX} Row delete failed:`, error?.message);
+
+            // Row remains in grid - just show error
+            const errorMessage = error?.message || 'Failed to delete row';
+            showToast(errorMessage, 'error');
+            announce(`Delete failed: ${errorMessage}`);
+
+            // Story 5.3: Re-enable delete button on failure (row is still selected)
+            updateDeleteButtonState();
+        }
+    }
+
+    /**
      * Cancel/discard a new row
      * Story 4.3: Cancel new row creation
      */
@@ -1167,7 +1264,7 @@
         toast.setAttribute('role', 'alert');
 
         // Icon based on type
-        const iconMap = { error: '\u26A0', warning: '\u26A0', info: '\u2139' }; // ⚠, ⚠, ℹ
+        const iconMap = { error: '\u26A0', warning: '\u26A0', info: '\u2139', success: '\u2713' }; // ⚠, ⚠, ℹ, ✓
         const icon = document.createElement('span');
         icon.className = 'ite-toast__icon';
         icon.textContent = iconMap[type];
@@ -1922,11 +2019,20 @@
     /**
      * Handle paginate next
      * Story 2.2: Pagination navigation
+     * Story 5.3: Clear row selection and close delete dialog on pagination
      */
     function handlePaginateNext() {
         if (!state.canGoNext || state.paginationLoading) return;
 
         console.debug(`${LOG_PREFIX} Paginate next from page ${state.currentPage}`);
+
+        // Story 5.3: Clear row selection - indices will be stale after pagination
+        clearRowSelection();
+        // Story 5.3: Close delete dialog if open
+        if (isDeleteDialogOpen) {
+            hideDeleteConfirmDialog();
+        }
+
         state.paginationLoading = true;
         updatePaginationUI();
 
@@ -1942,11 +2048,20 @@
     /**
      * Handle paginate previous
      * Story 2.2: Pagination navigation
+     * Story 5.3: Clear row selection and close delete dialog on pagination
      */
     function handlePaginatePrev() {
         if (!state.canGoPrev || state.paginationLoading) return;
 
         console.debug(`${LOG_PREFIX} Paginate prev from page ${state.currentPage}`);
+
+        // Story 5.3: Clear row selection - indices will be stale after pagination
+        clearRowSelection();
+        // Story 5.3: Close delete dialog if open
+        if (isDeleteDialogOpen) {
+            hideDeleteConfirmDialog();
+        }
+
         state.paginationLoading = true;
         updatePaginationUI();
 
@@ -2203,6 +2318,10 @@
             case 'insertRowResult':
                 // Story 4.3: Handle insert row result
                 handleInsertRowResult(message.payload);
+                break;
+            case 'deleteRowResult':
+                // Story 5.3: Handle delete row result
+                handleDeleteRowResult(message.payload);
                 break;
             case 'error':
                 handleError(message.payload);
