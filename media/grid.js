@@ -955,6 +955,7 @@
         state.columns.forEach(col => {
             newRow[col.name] = null;
         });
+        console.debug(`${LOG_PREFIX} Creating new row with columns:`, Object.keys(newRow), 'state.columns count:', state.columns.length);
 
         // Add to newRows array
         state.newRows.push(newRow);
@@ -2172,8 +2173,10 @@
      * @param {{ tableName: string; namespace: string; serverName: string; columns: Array<{ name: string; dataType: string; nullable: boolean; maxLength?: number }> }} payload
      */
     function handleTableSchema(payload) {
-        console.debug(`${LOG_PREFIX} Received schema:`, payload.columns.length, 'columns');
-        state.columns = payload.columns;
+        // Filter out any columns with empty/invalid names
+        const validColumns = payload.columns.filter(col => col.name && col.name.trim());
+        console.debug(`${LOG_PREFIX} Received schema:`, validColumns.length, 'columns', validColumns.map(c => c.name));
+        state.columns = validColumns;
         state.context = {
             serverName: payload.serverName,
             namespace: payload.namespace,
