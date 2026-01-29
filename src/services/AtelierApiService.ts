@@ -774,20 +774,20 @@ export class AtelierApiService {
             };
         }
 
-        // IRIS SQL pagination syntax uses TOP with %VID for offset
-        // For simple pagination, we use TOP and a subquery for offset
+        // IRIS SQL pagination using %VID (virtual row ID for subquery results)
+        // %VID is only available on the result set of a subquery, not inside it
         // NOTE: For very large tables (millions of rows), this offset-based pagination
         // may become slow. Consider cursor-based pagination for future optimization.
         let query: string;
         if (validatedOffset > 0) {
-            // Use %VID (virtual ID) for offset pagination in IRIS
+            // %VID is applied to the subquery result, filtered in outer WHERE
             query = `
                 SELECT TOP ${validatedPageSize} ${escapedColumnNames}
                 FROM (
-                    SELECT TOP ${validatedOffset + validatedPageSize} ${escapedColumnNames}, %VID AS _vid
+                    SELECT TOP ${validatedOffset + validatedPageSize} ${escapedColumnNames}
                     FROM ${escapedTableName}
                 )
-                WHERE _vid > ${validatedOffset}
+                WHERE %VID > ${validatedOffset}
             `;
         } else {
             query = `SELECT TOP ${validatedPageSize} ${escapedColumnNames} FROM ${escapedTableName}`;
