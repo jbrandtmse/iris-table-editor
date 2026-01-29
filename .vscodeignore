@@ -2,6 +2,7 @@
 .vscode-test/**
 src/**
 node_modules/**
+!node_modules/@vscode/codicons/**
 .gitignore
 eslint.config.mjs
 tsconfig.json
