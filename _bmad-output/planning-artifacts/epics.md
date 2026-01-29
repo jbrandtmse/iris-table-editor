@@ -229,6 +229,14 @@ Users can select and delete rows with confirmation for full CRUD capability.
 **NFRs addressed:** NFR8, NFR16
 **UX covered:** UX6 (Delete Row), UX9, UX13
 
+### Epic 6: Scalability & Advanced Navigation (Growth Phase)
+Users can efficiently navigate namespaces with thousands of tables and work with tables containing millions of rows through schema-based browsing, filtering, sorting, and enhanced pagination.
+
+**FRs covered:** FR8 (enhanced), FR13 (enhanced)
+**NFRs addressed:** NFR1, NFR4
+**Growth Features:** Pagination enhancement, Column sorting and filtering, Performance optimization
+**Dependencies:** Requires Epics 1 & 2 complete
+
 ---
 
 ## Epic 1: Extension Foundation & Server Connection
@@ -913,3 +921,339 @@ So that **I know the deletion succeeded or failed**.
 **When** an error happens
 **Then** the UI remains consistent
 **And** data integrity is preserved (no orphaned states)
+
+---
+
+## Epic 6: Scalability & Advanced Navigation
+
+**Goal:** Users can efficiently navigate namespaces with thousands of tables and work with tables containing millions of rows through schema-based browsing, filtering, sorting, and enhanced pagination.
+
+**Phase:** Growth (Post-MVP)
+**Dependencies:** Requires Epic 1 (sidebar) and Epic 2 (grid/pagination) to be complete.
+
+**FRs covered:** FR8 (enhanced), FR13 (enhanced)
+**NFRs addressed:** NFR1, NFR4
+**Growth Features addressed:** Pagination enhancement, Column sorting and filtering, Performance optimization for large datasets
+
+---
+
+### Story 6.1: Schema-Based Table Tree View
+
+As a **user**,
+I want **to browse tables organized by schema in a collapsible tree view**,
+So that **I can quickly find tables even when there are thousands in the namespace**.
+
+**Acceptance Criteria:**
+
+**Given** a namespace is selected
+**When** the table list loads
+**Then** I see schemas displayed as folder icons at the root level
+**And** schemas are sorted alphabetically
+
+**Given** a schema contains multiple tables
+**When** I click on the schema folder
+**Then** it expands to show the tables within that schema
+**And** tables are sorted alphabetically within the schema
+
+**Given** a schema is expanded
+**When** I click on a different schema
+**Then** the previously expanded schema collapses
+**And** the clicked schema expands (accordion behavior - one open at a time)
+
+**Given** a schema contains only one table
+**When** the table list displays
+**Then** that table is shown at the root level (not nested in a folder)
+
+**Given** I have expanded a schema and selected a table
+**When** I refresh the table list
+**Then** my expansion state is preserved
+
+---
+
+### Story 6.2: Inline Column Filtering
+
+As a **user**,
+I want **to filter table data by typing in filter boxes below column headers**,
+So that **I can quickly find specific records in tables with millions of rows**.
+
+**Acceptance Criteria:**
+
+**Given** the grid is displayed with data
+**When** I look below the column headers
+**Then** I see a filter row with an input for each column
+
+**Given** a column has ≤10 distinct values
+**When** I click the filter input for that column
+**Then** I see a checklist dropdown with all distinct values
+**And** I can select/deselect multiple values to filter
+
+**Given** a column has >10 distinct values
+**When** I click the filter input for that column
+**Then** I see a text input field
+**And** I see placeholder text indicating wildcard support (e.g., "Filter... (* = wildcard)")
+
+**Given** I am using text filter with wildcards
+**When** I type `John*`
+**Then** the grid filters to rows where that column starts with "John"
+
+**Given** I am using text filter with wildcards
+**When** I type `*smith*`
+**Then** the grid filters to rows where that column contains "smith"
+
+**Given** I am using text filter without wildcards
+**When** I type `active`
+**Then** the grid filters to rows where that column contains "active" (implicit contains)
+
+**Given** I have set filters on multiple columns
+**When** the filter applies
+**Then** results match ALL filter conditions (AND logic)
+
+**Given** I have active filters
+**When** I look at the filter row
+**Then** active filter inputs are visually highlighted
+**And** I see a "Clear all filters" button in the toolbar
+**And** I see a "Toggle filters" button (on/off) in the toolbar
+
+**Given** I have active filters
+**When** I click the "Toggle filters" button to disable
+**Then** all filters are temporarily disabled (data shows unfiltered)
+**And** the filter row shows my filter criteria grayed out / dimmed
+**And** the toggle button shows filters are "off"
+**And** my filter criteria is preserved (not cleared)
+
+**Given** filters are disabled (toggled off)
+**When** I click the "Toggle filters" button to enable
+**Then** all my previous filter criteria is re-applied
+**And** the filter row returns to normal appearance
+**And** data refreshes with filters active
+
+**Given** I clear a filter input
+**When** the input becomes empty
+**Then** that column filter is removed and data refreshes
+
+**Given** I click "Clear all filters"
+**When** the action executes
+**Then** all filter criteria is permanently removed
+**And** all filter inputs are cleared
+**And** the toggle returns to "on" state
+
+---
+
+### Story 6.3: Filter Panel with Advanced Options
+
+As a **user**,
+I want **a filter panel that shows all active filters and provides advanced filtering options**,
+So that **I can manage complex filter combinations and use operators beyond simple text matching**.
+
+**Acceptance Criteria:**
+
+**Given** the grid toolbar is visible
+**When** I look at the toolbar
+**Then** I see a "Filter Panel" button (funnel icon)
+
+**Given** I click the "Filter Panel" button
+**When** the panel opens
+**Then** I see a collapsible panel (sidebar or dropdown) showing all columns
+**And** each column shows its current filter value (if any)
+**And** active filters are visually emphasized
+
+**Given** the filter panel is open
+**When** I set a filter for a column
+**Then** I can choose an operator:
+
+| Operator | Meaning |
+|----------|---------|
+| Contains | Value contains text |
+| Starts with | Value starts with text |
+| Ends with | Value ends with text |
+| Equals | Exact match |
+| Not equals | Excludes exact match |
+| Greater than | Numeric/date comparison |
+| Less than | Numeric/date comparison |
+| Is empty | NULL or empty string |
+| Is not empty | Has a value |
+
+**Given** I set a filter in the filter panel
+**When** the filter applies
+**Then** the inline filter row updates to show the same filter
+**And** data refreshes with the filter applied
+
+**Given** I set a filter in the inline filter row
+**When** I open the filter panel
+**Then** I see that filter reflected in the panel with "Contains" as default operator
+
+**Given** the filter panel shows active filters
+**When** I look at each active filter
+**Then** I see a remove (X) button to clear that individual filter
+
+**Given** filters are toggled off (disabled)
+**When** I open the filter panel
+**Then** I see all filter criteria displayed but visually dimmed
+**And** I see indication that filters are currently disabled
+
+**Given** the filter panel is open
+**When** I click the "Filter Panel" button again or click outside
+**Then** the panel closes
+
+---
+
+### Story 6.4: Column Sorting
+
+As a **user**,
+I want **to sort table data by clicking column headers**,
+So that **I can organize data to find patterns or locate specific records**.
+
+**Acceptance Criteria:**
+
+**Given** the grid displays column headers
+**When** I look at a column header
+**Then** I see a subtle sort indicator area (or hover reveals sort affordance)
+
+**Given** a column is not currently sorted
+**When** I click the column header
+**Then** the data sorts by that column in ascending order (A→Z, 0→9)
+**And** the header shows an ascending sort indicator (▲)
+
+**Given** a column is sorted ascending
+**When** I click the same column header again
+**Then** the data sorts by that column in descending order (Z→A, 9→0)
+**And** the header shows a descending sort indicator (▼)
+
+**Given** a column is sorted descending
+**When** I click the same column header again
+**Then** the sort is cleared for that column
+**And** the sort indicator is removed
+**And** data returns to default order (by primary key)
+
+**Given** column A is currently sorted
+**When** I click a different column B header
+**Then** sorting switches to column B (ascending)
+**And** column A's sort indicator is removed
+**And** only column B shows the sort indicator
+
+**Given** I have active filters applied
+**When** I sort by a column
+**Then** the sort applies to the filtered results
+**And** filters remain active
+
+**Given** I am on page 3 of results
+**When** I change the sort order
+**Then** pagination resets to page 1
+**And** the newly sorted data displays from the beginning
+
+**Given** the table has millions of rows
+**When** I sort by a column
+**Then** the sort is performed server-side (SQL ORDER BY)
+**And** only the current page of sorted results is returned
+
+---
+
+### Story 6.5: Enhanced Pagination Controls
+
+As a **user**,
+I want **pagination controls with first, last, and direct page access**,
+So that **I can navigate efficiently through tables with millions of rows**.
+
+**Acceptance Criteria:**
+
+**Given** a table has multiple pages of data
+**When** I look at the pagination bar
+**Then** I see the following controls (left to right):
+- Row count: "Rows 1-50 of 1,234,567"
+- First page button (⏮)
+- Previous page button (◀)
+- Page input: text field showing current page with "of X" label
+- Next page button (▶)
+- Last page button (⏭)
+
+**Given** I am on page 1
+**When** I look at the pagination controls
+**Then** the First (⏮) and Previous (◀) buttons are disabled
+
+**Given** I am on the last page
+**When** I look at the pagination controls
+**Then** the Next (▶) and Last (⏭) buttons are disabled
+
+**Given** I am on page 5 of 100
+**When** I click the First page button (⏮)
+**Then** the grid navigates to page 1
+**And** the page input updates to "1"
+
+**Given** I am on page 5 of 100
+**When** I click the Last page button (⏭)
+**Then** the grid navigates to page 100
+**And** the page input updates to "100"
+
+**Given** the page input shows "5"
+**When** I clear it and type "42" then press Enter
+**Then** the grid navigates to page 42
+**And** the row count updates to show "Rows 2,051-2,100 of ..."
+
+**Given** I type an invalid page number (e.g., "abc", "0", "-5", or > max pages)
+**When** I press Enter
+**Then** the input reverts to the current valid page number
+**And** a brief error indication shows (red border flash)
+
+**Given** I type a page number
+**When** I click outside the input (blur) without pressing Enter
+**Then** the page navigation executes (same as Enter)
+
+**Given** filters or sort changes
+**When** the data refreshes
+**Then** pagination resets to page 1
+**And** total row count updates to reflect filtered results
+
+**Given** the table has 1,234,567 rows
+**When** the row count displays
+**Then** numbers are formatted with thousands separators ("1,234,567")
+
+---
+
+### Story 6.6: Lazy Loading Verification & Optimization
+
+As a **user**,
+I want **the grid to load data lazily without fetching all rows**,
+So that **performance remains fast even with tables containing millions of rows**.
+
+**Acceptance Criteria:**
+
+**Given** a table has millions of rows
+**When** I open the table
+**Then** only the first page of rows (50) is fetched from the server
+**And** the total row count is fetched separately (COUNT query)
+**And** the grid displays within 2 seconds
+
+**Given** I navigate to page 50
+**When** the page loads
+**Then** only rows 2,451-2,500 are fetched
+**And** previously loaded pages are not re-fetched
+**And** no intermediate pages are fetched
+
+**Given** I have filters applied reducing results to 500 rows
+**When** I view the grid
+**Then** only the current page of filtered results is fetched
+**And** the COUNT reflects filtered total (500)
+
+**Given** I apply a sort
+**When** the grid refreshes
+**Then** only the current page of sorted results is fetched
+**And** the server performs the sort (ORDER BY), not the client
+
+**Given** network latency is high
+**When** I navigate pages
+**Then** I see a loading indicator while the page fetches
+**And** the UI remains responsive (non-blocking)
+
+**Given** I rapidly click Next multiple times
+**When** requests are in flight
+**Then** intermediate page requests are cancelled or ignored
+**And** only the final requested page displays (debounce/cancel pattern)
+
+**Performance Targets:**
+
+| Scenario | Target |
+|----------|--------|
+| Initial page load | < 2 seconds |
+| Page navigation | < 1 second |
+| Filter apply | < 2 seconds |
+| Sort apply | < 2 seconds |

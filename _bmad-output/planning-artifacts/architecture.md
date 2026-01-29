@@ -158,6 +158,34 @@ npx --package yo --package generator-code -- yo code
 | Type Safety | TypeScript interfaces for all message types |
 | Rationale | Clear directionality, matches PRD terminology, intuitive for implementation |
 
+**Growth Phase Commands (Epic 6):**
+
+| Command | Payload | Description |
+|---------|---------|-------------|
+| `loadSchemas` | `{ namespace: string }` | Load schema list for tree view |
+| `loadTablesBySchema` | `{ namespace: string, schema: string }` | Load tables within a schema |
+| `filterData` | `{ filters: FilterCriteria[], enabled: boolean }` | Apply column filters |
+| `sortData` | `{ column: string, direction: 'asc' \| 'desc' \| null }` | Apply column sort |
+| `gotoPage` | `{ page: number }` | Navigate to specific page |
+| `getDistinctValues` | `{ column: string, limit: number }` | Get distinct values for filter UI |
+
+**Growth Phase Events (Epic 6):**
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `schemaList` | `{ schemas: SchemaInfo[] }` | Available schemas with table counts |
+| `distinctValues` | `{ column: string, values: string[], hasMore: boolean }` | Distinct values for filter checklist |
+| `dataFiltered` | `{ rows: [], totalFiltered: number, page: number }` | Filtered/sorted data response |
+
+**Filter Criteria Interface:**
+```typescript
+interface FilterCriteria {
+  column: string;
+  operator: 'contains' | 'startsWith' | 'endsWith' | 'equals' | 'notEquals' | 'gt' | 'lt' | 'isEmpty' | 'isNotEmpty';
+  value: string;
+}
+```
+
 ### Webview State Management
 
 | Aspect | Decision |
@@ -166,6 +194,19 @@ npx --package yo --package generator-code -- yo code
 | State Properties | server, namespace, tables, selectedTable, rows, schema, pendingEdits, loading, error |
 | Update Pattern | Explicit update() method with listener notification |
 | Rationale | Encapsulated, testable, appropriate complexity for scope |
+
+**Growth Phase State Properties (Epic 6):**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `schemas` | `SchemaInfo[]` | Available schemas for tree view |
+| `expandedSchema` | `string \| null` | Currently expanded schema in tree |
+| `filters` | `FilterCriteria[]` | Active filter criteria |
+| `filtersEnabled` | `boolean` | Whether filters are applied (toggle state) |
+| `sort` | `{ column: string, direction: 'asc' \| 'desc' } \| null` | Current sort state |
+| `currentPage` | `number` | Current page number (1-based) |
+| `totalRows` | `number` | Total rows (may differ from filtered count) |
+| `totalFilteredRows` | `number` | Total rows matching current filters |
 
 ### Error Handling Strategy
 
@@ -379,6 +420,79 @@ const ErrorCodes = {
   INVALID_RESPONSE: 'INVALID_RESPONSE',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR'
 } as const;
+```
+
+**Growth Phase: SqlBuilder Query Patterns (Epic 6)**
+
+```typescript
+// Filter query generation
+interface FilterCriteria {
+  column: string;
+  operator: 'contains' | 'startsWith' | 'endsWith' | 'equals' | 'notEquals' | 'gt' | 'lt' | 'isEmpty' | 'isNotEmpty';
+  value: string;
+}
+
+// SqlBuilder.buildFilteredQuery() example output:
+{
+  query: "SELECT * FROM Schema.Table WHERE Name LIKE ? AND Status = ? ORDER BY CreatedDate DESC",
+  parameters: ["%John%", "Active"]
+}
+
+// Operator to SQL mapping
+const operatorMap = {
+  'contains': (col, val) => ({ sql: `${col} LIKE ?`, param: `%${val}%` }),
+  'startsWith': (col, val) => ({ sql: `${col} LIKE ?`, param: `${val}%` }),
+  'endsWith': (col, val) => ({ sql: `${col} LIKE ?`, param: `%${val}` }),
+  'equals': (col, val) => ({ sql: `${col} = ?`, param: val }),
+  'notEquals': (col, val) => ({ sql: `${col} != ?`, param: val }),
+  'gt': (col, val) => ({ sql: `${col} > ?`, param: val }),
+  'lt': (col, val) => ({ sql: `${col} < ?`, param: val }),
+  'isEmpty': (col) => ({ sql: `(${col} IS NULL OR ${col} = '')`, param: null }),
+  'isNotEmpty': (col) => ({ sql: `(${col} IS NOT NULL AND ${col} != '')`, param: null })
+};
+
+// Wildcard conversion for user input
+// User types: John*  → SQL: John%
+// User types: *smith → SQL: %smith
+// User types: J?hn   → SQL: J_hn
+function convertWildcards(input: string): string {
+  return input.replace(/\*/g, '%').replace(/\?/g, '_');
+}
+
+// Combined query with filter, sort, pagination
+function buildFilteredQuery(
+  table: string,
+  filters: FilterCriteria[],
+  sort: { column: string, direction: 'asc' | 'desc' } | null,
+  page: number,
+  pageSize: number
+): { query: string, parameters: unknown[] } {
+  // Always use parameterized queries - NEVER concatenate user input
+}
+```
+
+**Schema Query Pattern:**
+
+```sql
+-- Get distinct schemas for tree view
+SELECT DISTINCT %EXACT(TABLE_SCHEMA) AS schema_name, COUNT(*) AS table_count
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE'
+GROUP BY %EXACT(TABLE_SCHEMA)
+ORDER BY schema_name
+
+-- Get tables for a specific schema
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'
+ORDER BY TABLE_NAME
+```
+
+**Distinct Values Query Pattern:**
+
+```sql
+-- Get distinct values for filter checklist (limited)
+SELECT DISTINCT TOP 11 column_name FROM Schema.Table
+-- If 11 returned, hasMore=true, show text input instead of checklist
 ```
 
 ### Communication Patterns

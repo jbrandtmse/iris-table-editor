@@ -1055,3 +1055,322 @@ function announceToScreenReader(message) {
 3. Use semantic HTML (`<button>` not `<div onclick>`)
 4. Announce dynamic changes via live regions
 5. Respect user's motion preferences
+
+---
+
+## Growth Phase: Scalability Components (Epic 6)
+
+This section defines UX components for handling namespaces with thousands of tables and tables with millions of rows.
+
+### Schema-Based Table Tree View
+
+**Purpose:** Replace flat table list with hierarchical schema → table navigation
+
+**Structure:**
+
+```
+┌─────────────────────────────────┐
+│ Tables                    [🔄]  │
+├─────────────────────────────────┤
+│ 📁 Analytics                    │  ← Collapsed schema
+│ 📂 Customer                     │  ← Expanded schema
+│    ├─ Address                   │
+│    ├─ Contact                   │
+│    └─ Person                    │
+│ 📁 Inventory                    │
+│ 📁 Order                        │
+│ SingleTableSchema.MyTable       │  ← Single-table at root
+└─────────────────────────────────┘
+```
+
+**Behavior:**
+- Click folder icon to expand/collapse schema
+- Only one schema expanded at a time (accordion)
+- Single-table schemas display at root level (no folder)
+- Expansion state preserved on refresh
+- Alphabetical sort for schemas and tables
+
+**CSS Classes:**
+
+```css
+.ite-tree { }
+.ite-tree__schema { }
+.ite-tree__schema--expanded { }
+.ite-tree__schema-icon { }  /* 📁 or 📂 */
+.ite-tree__schema-label { }
+.ite-tree__schema-count { } /* (5 tables) */
+.ite-tree__table { }
+.ite-tree__table--selected { }
+```
+
+**Accessibility:**
+- `role="tree"` on container
+- `role="treeitem"` on schemas and tables
+- `aria-expanded` on schema folders
+- Arrow keys for navigation
+
+---
+
+### Inline Filter Row
+
+**Purpose:** Quick column filtering directly below headers
+
+**Layout:**
+
+```
+┌──────┬─────────────┬────────────────────┬───────────┐
+│ ID   │ Name        │ Email              │ Status    │  ← Headers
+├──────┼─────────────┼────────────────────┼───────────┤
+│ [  ] │ [John*    ] │ [              ]   │ [▼ All  ] │  ← Filter row
+├──────┼─────────────┼────────────────────┼───────────┤
+│ 1    │ John Smith  │ john@example.com   │ Active    │  ← Data
+```
+
+**Filter Input Types:**
+
+| Cardinality | UI Component | Behavior |
+|-------------|--------------|----------|
+| ≤10 distinct values | Dropdown checklist | Multi-select checkboxes |
+| >10 distinct values | Text input | Wildcards: `*` = any, `?` = single char |
+
+**Checklist Dropdown:**
+
+```
+┌─────────────────────┐
+│ ☑ Active            │
+│ ☑ Pending           │
+│ ☐ Inactive          │
+│ ☑ Archived          │
+├─────────────────────┤
+│ [Select All] [Clear]│
+└─────────────────────┘
+```
+
+**Text Input with Wildcards:**
+
+```
+┌─────────────────────────────────┐
+│ John*                         🔍│
+│ ─────────────────────────────── │
+│ Wildcards: * = any, ? = single  │
+└─────────────────────────────────┘
+```
+
+**Visual States:**
+
+| State | Appearance |
+|-------|------------|
+| Empty (no filter) | Subtle placeholder text |
+| Active filter | Highlighted background, bold border |
+| Disabled (toggled off) | Grayed out, italic text, value preserved |
+
+**CSS Classes:**
+
+```css
+.ite-filter-row { }
+.ite-filter-row--disabled { }  /* Toggle off state */
+.ite-filter-input { }
+.ite-filter-input--active { }
+.ite-filter-input--disabled { }
+.ite-filter-dropdown { }
+.ite-filter-dropdown__option { }
+.ite-filter-dropdown__option--selected { }
+```
+
+---
+
+### Filter Panel
+
+**Purpose:** Advanced filtering with operators, synced with inline row
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────┐
+│ Filters                           [✕]    │
+├──────────────────────────────────────────┤
+│ ⚡ Filters: ON / OFF                     │  ← Toggle
+├──────────────────────────────────────────┤
+│ Name                                     │
+│ [Contains    ▼] [John           ] [✕]   │
+│                                          │
+│ Status                                   │
+│ [Equals      ▼] [Active         ] [✕]   │
+│                                          │
+│ Created Date                             │
+│ [Greater than▼] [2024-01-01     ] [✕]   │
+├──────────────────────────────────────────┤
+│ [+ Add Filter]           [Clear All]     │
+└──────────────────────────────────────────┘
+```
+
+**Operators:**
+
+| Operator | Text Fields | Numeric/Date |
+|----------|-------------|--------------|
+| Contains | ✓ | - |
+| Starts with | ✓ | - |
+| Ends with | ✓ | - |
+| Equals | ✓ | ✓ |
+| Not equals | ✓ | ✓ |
+| Greater than | - | ✓ |
+| Less than | - | ✓ |
+| Is empty | ✓ | ✓ |
+| Is not empty | ✓ | ✓ |
+
+**Sync Behavior:**
+- Changes in panel immediately update inline row
+- Changes in inline row immediately update panel
+- Inline shows value only; panel shows operator + value
+
+**CSS Classes:**
+
+```css
+.ite-filter-panel { }
+.ite-filter-panel__header { }
+.ite-filter-panel__toggle { }
+.ite-filter-panel__row { }
+.ite-filter-panel__column-label { }
+.ite-filter-panel__operator { }
+.ite-filter-panel__value { }
+.ite-filter-panel__remove { }
+.ite-filter-panel__actions { }
+```
+
+---
+
+### Column Sort Indicators
+
+**Purpose:** Visual feedback for sort state on column headers
+
+**States:**
+
+| State | Indicator | Header Appearance |
+|-------|-----------|-------------------|
+| Unsorted | None (hover reveals affordance) | Normal |
+| Ascending | ▲ | Bold, indicator visible |
+| Descending | ▼ | Bold, indicator visible |
+
+**Interaction:**
+1. Click unsorted → Ascending (▲)
+2. Click ascending → Descending (▼)
+3. Click descending → Unsorted (clear)
+4. Click different column → New column ascending, previous cleared
+
+**Layout:**
+
+```
+┌──────────────────┬──────────────────┬──────────────────┐
+│ ID               │ Name         ▲   │ Email            │
+│                  │ (sorted asc)     │                  │
+└──────────────────┴──────────────────┴──────────────────┘
+```
+
+**CSS Classes:**
+
+```css
+.ite-header { }
+.ite-header--sortable { cursor: pointer; }
+.ite-header--sorted { font-weight: bold; }
+.ite-header__sort-indicator { }
+.ite-header__sort-indicator--asc::after { content: '▲'; }
+.ite-header__sort-indicator--desc::after { content: '▼'; }
+```
+
+**Accessibility:**
+- `aria-sort="ascending"` or `aria-sort="descending"` on sorted header
+- Click action announced: "Sorted by Name, ascending"
+
+---
+
+### Enhanced Pagination Bar
+
+**Purpose:** Full navigation control for large datasets
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Rows 2,051-2,100 of 1,234,567    [⏮] [◀] Page [42] of 24,692 [▶] [⏭] │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+
+| Element | Description |
+|---------|-------------|
+| Row count | "Rows X-Y of Z" with thousands separators |
+| First (⏮) | Jump to page 1 |
+| Previous (◀) | Go back one page |
+| Page input | Editable text field, current page |
+| Page total | "of X" label |
+| Next (▶) | Go forward one page |
+| Last (⏭) | Jump to last page |
+
+**Button States:**
+
+| Position | First/Prev | Next/Last |
+|----------|------------|-----------|
+| Page 1 | Disabled | Enabled |
+| Middle | Enabled | Enabled |
+| Last page | Enabled | Disabled |
+
+**Page Input Behavior:**
+- Type number + Enter → navigate
+- Blur (click away) → navigate
+- Invalid input (text, 0, negative, > max) → revert + error flash
+
+**CSS Classes:**
+
+```css
+.ite-pagination { }
+.ite-pagination__info { }           /* Row count */
+.ite-pagination__button { }
+.ite-pagination__button--disabled { opacity: 0.5; cursor: not-allowed; }
+.ite-pagination__page-input { width: 60px; text-align: center; }
+.ite-pagination__page-input--error { border-color: var(--vscode-inputValidation-errorBorder); }
+.ite-pagination__page-total { }
+```
+
+**Accessibility:**
+- Buttons have `aria-label` (e.g., "Go to first page")
+- Page input has `aria-label="Current page"`
+- Disabled buttons have `aria-disabled="true"`
+
+---
+
+### Toolbar Enhancements
+
+**Updated Toolbar Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ [🔄] [➕] [🗑️]  │  [🔽 Filters: ON] [🧹 Clear]  │  server > NS > Table  │
+│ Refresh Add Delete   Filter Toggle   Clear All      Context breadcrumb  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**New Toolbar Buttons:**
+
+| Button | Icon | Action |
+|--------|------|--------|
+| Filter Panel | 🔽 (funnel) | Open/close filter panel |
+| Toggle Filters | Part of filter button | Enable/disable without clearing |
+| Clear All Filters | 🧹 (broom) | Remove all filter criteria |
+
+**Filter Toggle States:**
+
+| State | Button Appearance |
+|-------|-------------------|
+| Filters ON (active) | Highlighted, "Filters: ON" |
+| Filters OFF (disabled) | Dimmed, "Filters: OFF" |
+| No filters set | Normal, "Filters" |
+
+**CSS Classes:**
+
+```css
+.ite-toolbar__filter-toggle { }
+.ite-toolbar__filter-toggle--active { }
+.ite-toolbar__filter-toggle--disabled { opacity: 0.7; }
+.ite-toolbar__clear-filters { }
+```

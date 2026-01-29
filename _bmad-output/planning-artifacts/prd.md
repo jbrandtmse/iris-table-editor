@@ -70,14 +70,18 @@ classification:
 - All CRUD operations use HTTP-only Atelier API (no superserver port required)
 - Secure credential handling via VS Code authentication provider
 - SQL injection prevention through parameterized queries
-- Responsive performance with tables up to 1000+ rows
+- Responsive performance with tables up to 1000+ rows (MVP)
 - Full support for VS Code light and dark themes
+- **(Growth)** Scalable navigation for namespaces with thousands of tables
+- **(Growth)** Efficient handling of tables with millions of rows via server-side operations
 
 ### Measurable Outcomes
 
 - Users can complete a data edit in under 30 seconds (vs. minutes writing SQL)
 - Zero credential exposure in logs or extension state
 - Extension loads table data within 2 seconds for typical tables (<500 rows)
+- **(Growth)** Page navigation completes within 1 second for tables with millions of rows
+- **(Growth)** Filter and sort operations complete within 2 seconds
 
 ## Product Scope
 
@@ -94,10 +98,18 @@ classification:
 
 ### Growth Features (Post-MVP)
 
-- Pagination for large tables (50+ rows per page)
+**Scalability & Advanced Navigation (Epic 6):**
+- Schema-based table tree view with collapsible folder hierarchy for namespaces with thousands of tables
+- Inline column filtering with smart UI: checklist for low-cardinality columns (≤10 values), text input with wildcard support (* and ?) for high-cardinality columns
+- Filter panel with advanced operators (contains, starts with, equals, greater than, less than, is empty, etc.)
+- Filter toggle to disable/enable filters without losing criteria
+- Column sorting via header click (ascending/descending/clear)
+- Enhanced pagination with First, Previous, page number input, Next, Last buttons
+- Server-side filtering, sorting, and pagination for tables with millions of rows
+- Lazy loading verification ensuring only current page is fetched
+
+**Additional Growth Features:**
 - Keyboard shortcuts for common operations
-- Column sorting and filtering
-- Performance optimization for large datasets
 - Multiple namespace support
 - Auto-refresh capability
 
