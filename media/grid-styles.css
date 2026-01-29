@@ -129,6 +129,20 @@ body {
     cursor: not-allowed;
 }
 
+/* Story 6.2: Toolbar separator */
+.ite-toolbar__separator {
+    width: 1px;
+    height: 20px;
+    background-color: var(--vscode-widget-border);
+    margin: 0 4px;
+}
+
+/* Story 6.2: Toggled filter button state */
+.ite-toolbar__button--toggled {
+    background-color: var(--vscode-toolbar-activeBackground, rgba(255, 255, 255, 0.1));
+    opacity: 0.5;
+}
+
 /* Loading Overlay */
 .ite-grid-loading {
     display: flex;
@@ -204,6 +218,70 @@ body {
 
 .ite-grid__header-cell:last-child {
     border-right: none;
+}
+
+/* Story 6.2: Filter Row */
+.ite-grid__filter-row {
+    display: table-row;
+    background-color: var(--vscode-editorWidget-background);
+    position: sticky;
+    top: 35px; /* Below header row - approximate height */
+    z-index: 1;
+}
+
+.ite-grid__filter-row--disabled {
+    opacity: 0.5;
+}
+
+.ite-grid__filter-cell {
+    display: table-cell;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--vscode-widget-border);
+    border-right: 1px solid var(--vscode-widget-border);
+    vertical-align: middle;
+}
+
+.ite-grid__filter-cell:last-child {
+    border-right: none;
+}
+
+.ite-grid__filter-cell--selector {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    text-align: center;
+}
+
+.ite-grid__filter-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+    border-radius: 3px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-family: inherit;
+    font-size: 0.9em;
+    box-sizing: border-box;
+}
+
+.ite-grid__filter-input:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+}
+
+.ite-grid__filter-input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+    opacity: 0.7;
+}
+
+.ite-grid__filter-input--active {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-inputOption-activeBackground, rgba(0, 120, 215, 0.1));
+}
+
+.ite-grid__filter-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* Story 5.1: Row Selector Column */

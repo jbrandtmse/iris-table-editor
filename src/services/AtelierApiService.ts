@@ -4,7 +4,7 @@
  */
 
 import { IServerSpec } from '../models/IServerSpec';
-import { IUserError } from '../models/IMessages';
+import { IUserError, IFilterCriterion } from '../models/IMessages';
 import { IColumnInfo, ITableSchema } from '../models/ITableSchema';
 import { ITableRow } from '../models/ITableData';
 import { ErrorHandler, ErrorCodes } from '../utils/ErrorHandler';
@@ -118,6 +118,76 @@ export class AtelierApiService {
         return {
             schemaName: 'SQLUser',
             baseTableName: qualifiedName
+        };
+    }
+
+    /**
+     * Build WHERE clause from filter criteria (Story 6.2)
+     * Uses parameterized queries for security (prevents SQL injection)
+     * Supports wildcards: * → %, ? → _ for LIKE patterns
+     * @param filters - Array of column filter criteria
+     * @param schema - Table schema for column validation
+     * @returns Object with WHERE clause string and parameter values
+     */
+    private _buildFilterWhereClause(filters: IFilterCriterion[], schema: ITableSchema): { whereClause: string; filterParams: string[] } {
+        if (!filters || filters.length === 0) {
+            return { whereClause: '', filterParams: [] };
+        }
+
+        const validColumnNames = new Set(schema.columns.map(c => c.name));
+        const conditions: string[] = [];
+        const params: string[] = [];
+
+        for (const filter of filters) {
+            // Validate column exists (security: prevent probing for non-existent columns)
+            if (!validColumnNames.has(filter.column)) {
+                console.warn(`${LOG_PREFIX} Filter ignored: unknown column "${filter.column}"`);
+                continue;
+            }
+
+            // Skip empty filter values
+            const value = filter.value.trim();
+            if (!value) {
+                continue;
+            }
+
+            // Escape the column name
+            const escapedColumn = this._validateAndEscapeIdentifier(filter.column, 'filter column');
+
+            // Convert wildcards and determine if LIKE is needed
+            // * → % (match any characters)
+            // ? → _ (match single character)
+            const hasWildcard = value.includes('*') || value.includes('?');
+
+            if (hasWildcard) {
+                // Convert to SQL LIKE pattern
+                // First escape any existing % or _ in the value (they're literal in user input)
+                let likePattern = value
+                    .replace(/%/g, '\\%')
+                    .replace(/_/g, '\\_');
+                // Then convert our wildcards
+                likePattern = likePattern
+                    .replace(/\*/g, '%')
+                    .replace(/\?/g, '_');
+
+                conditions.push(`${escapedColumn} LIKE ? ESCAPE '\\'`);
+                params.push(likePattern);
+            } else {
+                // Exact match (case-insensitive for strings)
+                // Use LIKE with exact value for case-insensitive matching
+                conditions.push(`${escapedColumn} LIKE ?`);
+                params.push(value);
+            }
+        }
+
+        if (conditions.length === 0) {
+            return { whereClause: '', filterParams: [] };
+        }
+
+        // AND logic: all conditions must match (per AC #3)
+        return {
+            whereClause: `WHERE ${conditions.join(' AND ')}`,
+            filterParams: params
         };
     }
 
@@ -724,6 +794,7 @@ export class AtelierApiService {
      * @param offset - Row offset for pagination
      * @param username - Authentication username
      * @param password - Authentication password
+     * @param filters - Story 6.2: Column filter criteria
      * @returns Result with success flag, rows, totalRows, and optional error
      */
     public async getTableData(
@@ -734,7 +805,8 @@ export class AtelierApiService {
         pageSize: number,
         offset: number,
         username: string,
-        password: string
+        password: string,
+        filters: IFilterCriterion[] = []
     ): Promise<{ success: boolean; rows?: ITableRow[]; totalRows?: number; error?: IUserError }> {
         const url = UrlBuilder.buildQueryUrl(
             UrlBuilder.buildBaseUrl(spec),
@@ -774,6 +846,10 @@ export class AtelierApiService {
             };
         }
 
+        // Story 6.2: Build WHERE clause from filters
+        // Using parameterized queries for security (prevent SQL injection)
+        const { whereClause, filterParams } = this._buildFilterWhereClause(filters, schema);
+
         // IRIS SQL pagination using %VID (virtual row ID for subquery results)
         // %VID is only available on the result set of a subquery, not inside it
         // NOTE: For very large tables (millions of rows), this offset-based pagination
@@ -781,31 +857,35 @@ export class AtelierApiService {
         let query: string;
         if (validatedOffset > 0) {
             // %VID is applied to the subquery result, filtered in outer WHERE
+            // Story 6.2: Filter is applied in the inner query
             query = `
                 SELECT TOP ${validatedPageSize} ${escapedColumnNames}
                 FROM (
                     SELECT TOP ${validatedOffset + validatedPageSize} ${escapedColumnNames}
                     FROM ${escapedTableName}
+                    ${whereClause}
                 )
                 WHERE %VID > ${validatedOffset}
             `;
         } else {
-            query = `SELECT TOP ${validatedPageSize} ${escapedColumnNames} FROM ${escapedTableName}`;
+            // Story 6.2: Filter is applied directly
+            query = `SELECT TOP ${validatedPageSize} ${escapedColumnNames} FROM ${escapedTableName} ${whereClause}`;
         }
 
-        console.debug(`${LOG_PREFIX} Fetching data for table ${tableName} (page size: ${pageSize}, offset: ${offset})`);
+        console.debug(`${LOG_PREFIX} Fetching data for table ${tableName} (page size: ${pageSize}, offset: ${offset}, filters: ${filters.length})`);
 
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this._timeout);
 
             // Execute data query
+            // Story 6.2: Use parameterized query with filter values
             const response = await fetch(url, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     query,
-                    parameters: []
+                    parameters: filterParams
                 }),
                 signal: controller.signal
             });
@@ -855,7 +935,8 @@ export class AtelierApiService {
             const rows: ITableRow[] = (body.result?.content || []) as ITableRow[];
 
             // Get total row count (separate query) - pass already-escaped table name
-            const countResult = await this._getTableRowCount(url, headers, escapedTableName, controller.signal);
+            // Story 6.2: Pass filters to count query for filtered row count
+            const countResult = await this._getTableRowCount(url, headers, escapedTableName, whereClause, filterParams, controller.signal);
 
             console.debug(`${LOG_PREFIX} Retrieved ${rows.length} rows from ${tableName}`);
             return {
@@ -897,6 +978,8 @@ export class AtelierApiService {
      * @param url - Query endpoint URL
      * @param headers - Auth headers
      * @param escapedTableName - Already validated and escaped table name
+     * @param whereClause - Story 6.2: Optional WHERE clause for filtering
+     * @param filterParams - Story 6.2: Parameters for WHERE clause
      * @param signal - Abort signal
      * @returns Total row count or 0 on error
      */
@@ -904,17 +987,20 @@ export class AtelierApiService {
         url: string,
         headers: Record<string, string>,
         escapedTableName: string,
+        whereClause: string,
+        filterParams: string[],
         signal: AbortSignal
     ): Promise<{ totalRows: number }> {
         try {
             // SECURITY: tableName is already validated and escaped by caller
-            const countQuery = `SELECT COUNT(*) AS total FROM ${escapedTableName}`;
+            // Story 6.2: Include WHERE clause for filtered count
+            const countQuery = `SELECT COUNT(*) AS total FROM ${escapedTableName} ${whereClause}`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     query: countQuery,
-                    parameters: []
+                    parameters: filterParams
                 }),
                 signal
             });

@@ -83,7 +83,7 @@ development_status:
   # Epic 6: Scalability & Advanced Navigation
   epic-6: in-progress
   6-1-schema-based-table-tree-view: done
-  6-2-inline-column-filtering: backlog
+  6-2-inline-column-filtering: done
   6-3-filter-panel-advanced-options: backlog
   6-4-column-sorting: backlog
   6-5-enhanced-pagination-controls: backlog

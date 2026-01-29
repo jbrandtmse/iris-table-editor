@@ -44,3 +44,28 @@ Stories to process: 6
 
 ---
 
+## Story 6.2: Inline Column Filtering
+
+**Status:** Done
+**Files touched:**
+- media/grid.js
+- media/grid-styles.css
+- src/providers/GridPanelManager.ts
+- src/providers/ServerConnectionManager.ts
+- src/services/AtelierApiService.ts
+- src/models/IMessages.ts
+- _bmad-output/implementation-artifacts/6-2-inline-column-filtering.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+
+**Key design decisions:**
+1. Parameterized queries for filter values (SQL injection prevention)
+2. Wildcard conversion: * → %, ? → _
+3. AND logic for multiple filters
+4. Filter row sticky below header
+5. Filter state persisted via webview state API
+
+**Issues auto-resolved:** 0
+**User input required:** 0
+
+---
+

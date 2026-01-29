@@ -175,21 +175,41 @@ export interface ITableLoadingPayload {
 }
 
 /**
+ * Filter criteria for column filtering (Story 6.2)
+ */
+export interface IFilterCriterion {
+    column: string;
+    value: string;
+}
+
+/**
  * Payload for requestData command (grid webview to extension)
+ * Story 6.2: Added filters support
  */
 export interface IRequestDataPayload {
     page: number;
     pageSize: number;
+    filters?: IFilterCriterion[];
 }
 
 /**
  * Payload for paginate command (grid webview to extension)
  * Story 2.2: Pagination support
+ * Story 6.2: Added filters support
  */
 export interface IPaginatePayload {
     direction: 'next' | 'prev';
     currentPage: number;
     pageSize: number;
+    filters?: IFilterCriterion[];
+}
+
+/**
+ * Payload for refresh command (grid webview to extension)
+ * Story 6.2: Added filters support
+ */
+export interface IRefreshPayload {
+    filters?: IFilterCriterion[];
 }
 
 /**
@@ -289,10 +309,11 @@ export type ServerCommand =
  * Story 3.3: Added saveCell command
  * Story 4.3: Added insertRow command
  * Story 5.3: Added deleteRow command
+ * Story 6.2: Added filter support to data commands
  */
 export type GridCommand =
     | { command: 'requestData'; payload: IRequestDataPayload }
-    | { command: 'refresh'; payload: IEmptyPayload }
+    | { command: 'refresh'; payload: IRefreshPayload }
     | { command: 'paginateNext'; payload: IPaginatePayload }
     | { command: 'paginatePrev'; payload: IPaginatePayload }
     | { command: 'saveCell'; payload: ISaveCellPayload }

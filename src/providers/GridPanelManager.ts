@@ -9,6 +9,8 @@ import {
     IErrorPayload,
     IRequestDataPayload,
     IPaginatePayload,
+    IRefreshPayload,
+    IFilterCriterion,
     ISaveCellPayload,
     ISaveCellResultPayload,
     IInsertRowPayload,
@@ -22,6 +24,7 @@ const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * Context for a table grid panel
+ * Story 6.2: Added filters tracking
  */
 interface IGridPanelContext {
     serverName: string;
@@ -29,6 +32,7 @@ interface IGridPanelContext {
     tableName: string;
     pageSize: number;
     currentPage: number;
+    filters: IFilterCriterion[];
 }
 
 /**
@@ -79,13 +83,15 @@ export class GridPanelManager {
 
         // Store panel and context
         // Story 2.2: Default pageSize is 50 per architecture spec
+        // Story 6.2: Initialize filters as empty
         this._panels.set(panelKey, panel);
         this._panelContexts.set(panelKey, {
             serverName,
             namespace,
             tableName,
             pageSize: DEFAULT_PAGE_SIZE,
-            currentPage: 0
+            currentPage: 0,
+            filters: []
         });
 
         // Set HTML content
@@ -147,12 +153,20 @@ export class GridPanelManager {
                 const payload = message.payload as IRequestDataPayload;
                 context.currentPage = payload.page;
                 context.pageSize = payload.pageSize;
-                await this._loadTableData(panelKey, payload.page, payload.pageSize);
+                // Story 6.2: Update filters from payload
+                context.filters = payload.filters || [];
+                await this._loadTableData(panelKey, payload.page, payload.pageSize, context.filters);
                 break;
             }
-            case 'refresh':
-                await this._loadTableData(panelKey, context.currentPage, context.pageSize);
+            case 'refresh': {
+                // Story 6.2: Extract filters from refresh payload
+                const refreshPayload = message.payload as IRefreshPayload;
+                if (refreshPayload?.filters) {
+                    context.filters = refreshPayload.filters;
+                }
+                await this._loadTableData(panelKey, context.currentPage, context.pageSize, context.filters);
                 break;
+            }
             case 'paginateNext': {
                 const payload = message.payload as IPaginatePayload;
                 // Input validation: ensure payload has valid positive numbers
@@ -161,13 +175,17 @@ export class GridPanelManager {
                     console.warn(`${LOG_PREFIX} Invalid paginateNext payload`);
                     return;
                 }
+                // Story 6.2: Update filters from payload
+                if (payload.filters) {
+                    context.filters = payload.filters;
+                }
                 // Page conversion: webview sends 1-indexed page (1, 2, 3...)
                 // API uses 0-indexed offset calculation: offset = page * pageSize
                 // So 1-indexed page N -> 0-indexed page N-1 for current, we want N for next
                 // When user is on page 1 and clicks Next: currentPage=1, API page=1, offset=50 (rows 51-100)
                 const newPage = payload.currentPage;
                 context.currentPage = newPage;
-                await this._loadTableData(panelKey, newPage, payload.pageSize);
+                await this._loadTableData(panelKey, newPage, payload.pageSize, context.filters);
                 break;
             }
             case 'paginatePrev': {
@@ -179,12 +197,16 @@ export class GridPanelManager {
                     console.warn(`${LOG_PREFIX} Invalid paginatePrev payload`);
                     return;
                 }
+                // Story 6.2: Update filters from payload
+                if (payload.filters) {
+                    context.filters = payload.filters;
+                }
                 // Page conversion: webview sends 1-indexed page (1, 2, 3...)
                 // When user is on page 2 and clicks Prev: currentPage=2, want API page=0, offset=0 (rows 1-50)
                 // Formula: (1-indexed current) - 2 = 0-indexed previous page
                 const newPage = Math.max(0, payload.currentPage - 2);
                 context.currentPage = newPage;
-                await this._loadTableData(panelKey, newPage, payload.pageSize);
+                await this._loadTableData(panelKey, newPage, payload.pageSize, context.filters);
                 break;
             }
             // Story 3.3: Handle cell save command
@@ -471,8 +493,9 @@ export class GridPanelManager {
     /**
      * Load table schema and data for a panel
      * Story 2.2: Default pageSize changed to 50
+     * Story 6.2: Added filters parameter
      */
-    private async _loadTableData(panelKey: string, page = 0, pageSize = DEFAULT_PAGE_SIZE): Promise<void> {
+    private async _loadTableData(panelKey: string, page = 0, pageSize = DEFAULT_PAGE_SIZE, filters: IFilterCriterion[] = []): Promise<void> {
         const panel = this._panels.get(panelKey);
         const context = this._panelContexts.get(panelKey);
 
@@ -522,12 +545,14 @@ export class GridPanelManager {
             });
 
             // Get data
+            // Story 6.2: Pass filters to getTableData
             const offset = page * pageSize;
             const dataResult = await this._serverConnectionManager.getTableData(
                 context.namespace,
                 context.tableName,
                 pageSize,
-                offset
+                offset,
+                filters
             );
 
             if (!dataResult.success) {
@@ -648,6 +673,13 @@ export class GridPanelManager {
             </button>
             <button class="ite-toolbar__button" id="deleteRowBtn" title="Delete row (Del)" disabled>
                 <i class="codicon codicon-trash"></i>
+            </button>
+            <span class="ite-toolbar__separator"></span>
+            <button class="ite-toolbar__button" id="clearFiltersBtn" title="Clear all filters" disabled>
+                <i class="codicon codicon-clear-all"></i>
+            </button>
+            <button class="ite-toolbar__button" id="toggleFiltersBtn" title="Disable filters">
+                <i class="codicon codicon-filter"></i>
             </button>
         </div>
 

@@ -11,7 +11,7 @@ interface ICredentials {
     password: string;
 }
 import { IServerSpec } from '../models/IServerSpec';
-import { IUserError } from '../models/IMessages';
+import { IUserError, IFilterCriterion } from '../models/IMessages';
 import { ITableSchema } from '../models/ITableSchema';
 import { ITableRow } from '../models/ITableData';
 import { AtelierApiService } from '../services/AtelierApiService';
@@ -479,9 +479,10 @@ export class ServerConnectionManager {
      * @param tableName - Name of the table to get data from
      * @param pageSize - Number of rows to fetch
      * @param offset - Row offset for pagination
+     * @param filters - Story 6.2: Column filter criteria
      * @returns Result with success flag, rows, totalRows, and optional error
      */
-    public async getTableData(namespace: string, tableName: string, pageSize: number, offset: number): Promise<{
+    public async getTableData(namespace: string, tableName: string, pageSize: number, offset: number, filters: IFilterCriterion[] = []): Promise<{
         success: boolean;
         rows?: ITableRow[];
         totalRows?: number;
@@ -538,7 +539,8 @@ export class ServerConnectionManager {
                 };
             }
 
-            console.debug(`${LOG_PREFIX} Fetching data for ${tableName} in ${namespace} (pageSize: ${pageSize}, offset: ${offset})`);
+            console.debug(`${LOG_PREFIX} Fetching data for ${tableName} in ${namespace} (pageSize: ${pageSize}, offset: ${offset}, filters: ${filters.length})`);
+            // Story 6.2: Pass filters to AtelierApiService
             return this._atelierApiService.getTableData(
                 this._serverSpec,
                 namespace,
@@ -547,7 +549,8 @@ export class ServerConnectionManager {
                 pageSize,
                 offset,
                 this._credentials.username,
-                this._credentials.password
+                this._credentials.password,
+                filters
             );
 
         } catch (error) {

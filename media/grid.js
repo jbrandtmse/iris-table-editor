@@ -49,6 +49,12 @@
             this.newRows = [];
             /** @type {number | null} - Story 5.1: Selected row for deletion */
             this.selectedRowIndex = null;
+            /** @type {Map<string, string>} - Story 6.2: Filter values per column */
+            this.filters = new Map();
+            /** @type {boolean} - Story 6.2: Whether filters are currently applied */
+            this.filtersEnabled = true;
+            /** @type {number} - Story 6.2: Total rows matching current filters (may differ from totalRows) */
+            this.totalFilteredRows = 0;
         }
 
         /**
@@ -128,6 +134,39 @@
         get selectedRowIsNew() {
             if (this.selectedRowIndex === null) return false;
             return this.selectedRowIndex >= this.rows.length;
+        }
+
+        /**
+         * Check if any filters are set
+         * Story 6.2: Filter state helper
+         * @returns {boolean}
+         */
+        get hasFilters() {
+            return this.filters.size > 0 && Array.from(this.filters.values()).some(v => v.trim() !== '');
+        }
+
+        /**
+         * Check if filters are active (set and enabled)
+         * Story 6.2: Filter state helper
+         * @returns {boolean}
+         */
+        get filtersActive() {
+            return this.hasFilters && this.filtersEnabled;
+        }
+
+        /**
+         * Get filter criteria as array for backend
+         * Story 6.2: Convert filters to array format
+         * @returns {Array<{column: string, value: string}>}
+         */
+        getFilterCriteria() {
+            const criteria = [];
+            this.filters.forEach((value, column) => {
+                if (value.trim() !== '') {
+                    criteria.push({ column, value: value.trim() });
+                }
+            });
+            return criteria;
         }
     }
 
@@ -1782,6 +1821,7 @@
     /**
      * Render grid header row
      * Story 5.1: Added row selector column header
+     * Story 6.2: Added filter row below header
      */
     function renderHeader() {
         const grid = document.getElementById('dataGrid');
@@ -1813,6 +1853,201 @@
         });
 
         grid.appendChild(headerRow);
+
+        // Story 6.2: Render filter row
+        renderFilterRow(grid);
+    }
+
+    /**
+     * Render filter row with input for each column (Story 6.2)
+     * @param {HTMLElement} grid - Grid container element
+     */
+    function renderFilterRow(grid) {
+        const filterRow = document.createElement('div');
+        filterRow.className = 'ite-grid__filter-row';
+        if (!state.filtersEnabled) {
+            filterRow.classList.add('ite-grid__filter-row--disabled');
+        }
+        filterRow.setAttribute('role', 'row');
+        filterRow.id = 'filterRow';
+
+        // Empty cell for row selector column
+        const selectorFilterCell = document.createElement('div');
+        selectorFilterCell.className = 'ite-grid__filter-cell ite-grid__filter-cell--selector';
+        filterRow.appendChild(selectorFilterCell);
+
+        state.columns.forEach((col) => {
+            const filterCell = document.createElement('div');
+            filterCell.className = 'ite-grid__filter-cell';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'ite-grid__filter-input';
+            input.placeholder = 'Filter...';
+            input.setAttribute('aria-label', `Filter ${col.name}`);
+            input.setAttribute('data-column', col.name);
+
+            // Restore filter value if exists
+            const existingValue = state.filters.get(col.name) || '';
+            input.value = existingValue;
+            if (existingValue.trim() !== '') {
+                input.classList.add('ite-grid__filter-input--active');
+            }
+
+            // Disable input if filters are disabled
+            if (!state.filtersEnabled) {
+                input.disabled = true;
+            }
+
+            // Apply filter on Enter or blur
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyFilter(col.name, input.value);
+                }
+                // Escape clears the current input
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    input.value = '';
+                    applyFilter(col.name, '');
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                const currentValue = state.filters.get(col.name) || '';
+                if (input.value !== currentValue) {
+                    applyFilter(col.name, input.value);
+                }
+            });
+
+            filterCell.appendChild(input);
+            filterRow.appendChild(filterCell);
+        });
+
+        grid.appendChild(filterRow);
+    }
+
+    /**
+     * Apply filter for a column (Story 6.2)
+     * @param {string} column - Column name
+     * @param {string} value - Filter value
+     */
+    function applyFilter(column, value) {
+        const trimmedValue = value.trim();
+        if (trimmedValue === '') {
+            state.filters.delete(column);
+        } else {
+            state.filters.set(column, trimmedValue);
+        }
+        saveState();
+        updateFilterInputStyles();
+        updateFilterToolbarButtons();
+
+        // Reset to page 1 and reload data
+        state.currentPage = 1;
+        requestFilteredData();
+    }
+
+    /**
+     * Update filter input styles based on active filters (Story 6.2)
+     */
+    function updateFilterInputStyles() {
+        const inputs = document.querySelectorAll('.ite-grid__filter-input');
+        inputs.forEach(input => {
+            const column = input.getAttribute('data-column');
+            const value = state.filters.get(column) || '';
+            if (value.trim() !== '' && state.filtersEnabled) {
+                input.classList.add('ite-grid__filter-input--active');
+            } else {
+                input.classList.remove('ite-grid__filter-input--active');
+            }
+        });
+    }
+
+    /**
+     * Update filter toolbar buttons state (Story 6.2)
+     */
+    function updateFilterToolbarButtons() {
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+
+        if (clearFiltersBtn) {
+            clearFiltersBtn.disabled = !state.hasFilters;
+        }
+        if (toggleFiltersBtn) {
+            if (state.filtersEnabled) {
+                toggleFiltersBtn.classList.remove('ite-toolbar__button--toggled');
+                toggleFiltersBtn.title = 'Disable filters';
+            } else {
+                toggleFiltersBtn.classList.add('ite-toolbar__button--toggled');
+                toggleFiltersBtn.title = 'Enable filters';
+            }
+        }
+    }
+
+    /**
+     * Clear all filters (Story 6.2)
+     */
+    function clearAllFilters() {
+        state.filters.clear();
+        saveState();
+
+        // Clear all input values
+        const inputs = document.querySelectorAll('.ite-grid__filter-input');
+        inputs.forEach(input => {
+            // @ts-ignore
+            input.value = '';
+            input.classList.remove('ite-grid__filter-input--active');
+        });
+
+        updateFilterToolbarButtons();
+        state.currentPage = 1;
+        requestFilteredData();
+        announce('All filters cleared');
+    }
+
+    /**
+     * Toggle filters on/off (Story 6.2)
+     */
+    function toggleFilters() {
+        state.filtersEnabled = !state.filtersEnabled;
+        saveState();
+
+        const filterRow = document.getElementById('filterRow');
+        if (filterRow) {
+            if (state.filtersEnabled) {
+                filterRow.classList.remove('ite-grid__filter-row--disabled');
+            } else {
+                filterRow.classList.add('ite-grid__filter-row--disabled');
+            }
+        }
+
+        // Enable/disable inputs
+        const inputs = document.querySelectorAll('.ite-grid__filter-input');
+        inputs.forEach(input => {
+            // @ts-ignore
+            input.disabled = !state.filtersEnabled;
+        });
+
+        updateFilterInputStyles();
+        updateFilterToolbarButtons();
+
+        // Reload data with or without filters
+        state.currentPage = 1;
+        requestFilteredData();
+        announce(state.filtersEnabled ? 'Filters enabled' : 'Filters disabled');
+    }
+
+    /**
+     * Request data with current filter criteria (Story 6.2)
+     */
+    function requestFilteredData() {
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
+        sendCommand('requestData', {
+            page: state.currentPage,
+            pageSize: state.pageSize,
+            filters: filterCriteria
+        });
     }
 
     /**
@@ -2034,10 +2269,13 @@
         state.paginationLoading = true;
         updatePaginationUI();
 
+        // Story 6.2: Include filter criteria in pagination
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('paginateNext', {
             direction: 'next',
             currentPage: state.currentPage,
-            pageSize: state.pageSize
+            pageSize: state.pageSize,
+            filters: filterCriteria
         });
 
         announce(`Loading page ${state.currentPage + 1} of ${state.totalPages}`);
@@ -2063,10 +2301,13 @@
         state.paginationLoading = true;
         updatePaginationUI();
 
+        // Story 6.2: Include filter criteria in pagination
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('paginatePrev', {
             direction: 'prev',
             currentPage: state.currentPage,
-            pageSize: state.pageSize
+            pageSize: state.pageSize,
+            filters: filterCriteria
         });
 
         announce(`Loading page ${state.currentPage - 1} of ${state.totalPages}`);
@@ -2292,7 +2533,11 @@
         console.debug(`${LOG_PREFIX} Refresh clicked`);
         // Story 5.1: Clear row selection immediately (don't wait for data)
         clearRowSelection();
-        sendCommand('refresh', {});
+        // Story 6.2: Include filter criteria in refresh
+        const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
+        sendCommand('refresh', {
+            filters: filterCriteria
+        });
     }
 
     /**
@@ -2360,10 +2605,19 @@
             if (state.selectedRowIndex === undefined) {
                 state.selectedRowIndex = null;
             }
+            // Story 6.2: Ensure filter state is properly initialized
+            if (!state.filters || !(state.filters instanceof Map)) {
+                state.filters = new Map();
+            }
+            if (state.filtersEnabled === undefined) {
+                state.filtersEnabled = true;
+            }
             if (state.columns.length > 0) {
                 renderGrid();
                 // Story 5.1: Update delete button state on restore
                 updateDeleteButtonState();
+                // Story 6.2: Update filter toolbar buttons on restore
+                updateFilterToolbarButtons();
             }
         }
 
@@ -2392,6 +2646,17 @@
         const deleteRowBtn = document.getElementById('deleteRowBtn');
         if (deleteRowBtn) {
             deleteRowBtn.addEventListener('click', handleDeleteRowClick);
+        }
+
+        // Story 6.2: Setup filter buttons
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', clearAllFilters);
+        }
+
+        const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+        if (toggleFiltersBtn) {
+            toggleFiltersBtn.addEventListener('click', toggleFilters);
         }
 
         // Story 5.2: Setup delete confirmation dialog
