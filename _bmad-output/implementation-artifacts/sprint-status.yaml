@@ -84,7 +84,7 @@ development_status:
   epic-6: in-progress
   6-1-schema-based-table-tree-view: done
   6-2-inline-column-filtering: done
-  6-3-filter-panel-advanced-options: backlog
+  6-3-filter-panel-advanced-options: done
   6-4-column-sorting: backlog
   6-5-enhanced-pagination-controls: backlog
   6-6-lazy-loading-verification-optimization: backlog

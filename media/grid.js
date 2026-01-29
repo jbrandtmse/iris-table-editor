@@ -1942,6 +1942,7 @@
         saveState();
         updateFilterInputStyles();
         updateFilterToolbarButtons();
+        updateFilterBadge();  // Story 6.3
 
         // Reset to page 1 and reload data
         state.currentPage = 1;
@@ -2001,6 +2002,8 @@
         });
 
         updateFilterToolbarButtons();
+        updateFilterBadge();  // Story 6.3
+        renderFilterPanelContent();  // Story 6.3: Update panel if open
         state.currentPage = 1;
         requestFilteredData();
         announce('All filters cleared');
@@ -2031,6 +2034,7 @@
 
         updateFilterInputStyles();
         updateFilterToolbarButtons();
+        updateFilterBadge();  // Story 6.3
 
         // Reload data with or without filters
         state.currentPage = 1;
@@ -2048,6 +2052,125 @@
             pageSize: state.pageSize,
             filters: filterCriteria
         });
+    }
+
+    /**
+     * Toggle filter panel visibility (Story 6.3)
+     */
+    function toggleFilterPanel() {
+        const panel = document.getElementById('filterPanel');
+        if (!panel) return;
+
+        const isVisible = panel.style.display !== 'none';
+        if (isVisible) {
+            panel.style.display = 'none';
+            announce('Filter panel closed');
+        } else {
+            panel.style.display = 'block';
+            renderFilterPanelContent();
+            announce('Filter panel opened');
+        }
+    }
+
+    /**
+     * Close filter panel (Story 6.3)
+     */
+    function closeFilterPanel() {
+        const panel = document.getElementById('filterPanel');
+        if (panel) {
+            panel.style.display = 'none';
+        }
+    }
+
+    /**
+     * Render filter panel content with active filters (Story 6.3)
+     */
+    function renderFilterPanelContent() {
+        const content = document.getElementById('filterPanelContent');
+        if (!content) return;
+
+        const filters = state.getFilterCriteria();
+
+        if (filters.length === 0) {
+            content.innerHTML = '<p class="ite-filter-panel__empty">No active filters</p>';
+            return;
+        }
+
+        let html = '';
+        filters.forEach(filter => {
+            const safeColumn = escapeHtml(filter.column);
+            const safeValue = escapeHtml(filter.value);
+            html += `
+                <div class="ite-filter-chip" data-column="${escapeAttr(filter.column)}">
+                    <span class="ite-filter-chip__column">${safeColumn}</span>
+                    <span class="ite-filter-chip__value">${safeValue}</span>
+                    <button class="ite-filter-chip__remove"
+                            title="Remove filter"
+                            data-column="${escapeAttr(filter.column)}">
+                        <i class="codicon codicon-close"></i>
+                    </button>
+                </div>
+            `;
+        });
+
+        content.innerHTML = html;
+
+        // Attach remove handlers
+        content.querySelectorAll('.ite-filter-chip__remove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const column = btn.getAttribute('data-column');
+                if (column) {
+                    removeFilterFromPanel(column);
+                }
+            });
+        });
+    }
+
+    /**
+     * Remove a filter from the panel (Story 6.3)
+     * Syncs with inline filter input
+     * @param {string} column - Column name to remove filter from
+     */
+    function removeFilterFromPanel(column) {
+        // Remove from state
+        state.filters.delete(column);
+        saveState();
+
+        // Clear inline input
+        const input = document.querySelector(`.ite-grid__filter-input[data-column="${column}"]`);
+        if (input) {
+            // @ts-ignore
+            input.value = '';
+            input.classList.remove('ite-grid__filter-input--active');
+        }
+
+        // Update UI
+        updateFilterInputStyles();
+        updateFilterToolbarButtons();
+        updateFilterBadge();
+        renderFilterPanelContent();
+
+        // Reload data
+        state.currentPage = 1;
+        requestFilteredData();
+        announce(`Filter removed from ${column}`);
+    }
+
+    /**
+     * Update filter badge count (Story 6.3)
+     */
+    function updateFilterBadge() {
+        const badge = document.getElementById('filterBadge');
+        if (!badge) return;
+
+        const filterCount = state.getFilterCriteria().length;
+        if (filterCount > 0) {
+            badge.textContent = String(filterCount);
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
     }
 
     /**
@@ -2618,6 +2741,8 @@
                 updateDeleteButtonState();
                 // Story 6.2: Update filter toolbar buttons on restore
                 updateFilterToolbarButtons();
+                // Story 6.3: Update filter badge on restore
+                updateFilterBadge();
             }
         }
 
@@ -2658,6 +2783,29 @@
         if (toggleFiltersBtn) {
             toggleFiltersBtn.addEventListener('click', toggleFilters);
         }
+
+        // Story 6.3: Setup filter panel buttons
+        const filterPanelBtn = document.getElementById('filterPanelBtn');
+        if (filterPanelBtn) {
+            filterPanelBtn.addEventListener('click', toggleFilterPanel);
+        }
+
+        const filterPanelClose = document.getElementById('filterPanelClose');
+        if (filterPanelClose) {
+            filterPanelClose.addEventListener('click', closeFilterPanel);
+        }
+
+        // Close filter panel when clicking outside
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('filterPanel');
+            const panelBtn = document.getElementById('filterPanelBtn');
+            if (panel && panel.style.display !== 'none') {
+                // @ts-ignore
+                if (!panel.contains(e.target) && !panelBtn?.contains(e.target)) {
+                    closeFilterPanel();
+                }
+            }
+        });
 
         // Story 5.2: Setup delete confirmation dialog
         setupDeleteDialog();

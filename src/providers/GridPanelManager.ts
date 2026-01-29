@@ -681,6 +681,24 @@ export class GridPanelManager {
             <button class="ite-toolbar__button" id="toggleFiltersBtn" title="Disable filters">
                 <i class="codicon codicon-filter"></i>
             </button>
+            <button class="ite-toolbar__button" id="filterPanelBtn" title="Filter panel">
+                <i class="codicon codicon-list-filter"></i>
+                <span class="ite-toolbar__badge" id="filterBadge" style="display: none;">0</span>
+            </button>
+        </div>
+
+        <!-- Story 6.3: Filter Panel (hidden by default) -->
+        <div class="ite-filter-panel" id="filterPanel" style="display: none;">
+            <div class="ite-filter-panel__header">
+                <h4 class="ite-filter-panel__title">Active Filters</h4>
+                <button class="ite-filter-panel__close" id="filterPanelClose" title="Close panel">
+                    <i class="codicon codicon-close"></i>
+                </button>
+            </div>
+            <div class="ite-filter-panel__content" id="filterPanelContent">
+                <!-- Filter chips will be rendered here by JavaScript -->
+                <p class="ite-filter-panel__empty">No active filters</p>
+            </div>
         </div>
 
         <div class="ite-grid-loading" id="loadingOverlay" style="display: flex;">

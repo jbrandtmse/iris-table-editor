@@ -69,3 +69,25 @@ Stories to process: 6
 
 ---
 
+## Story 6.3: Filter Panel with Advanced Options
+
+**Status:** Done
+**Files touched:**
+- media/grid.js
+- media/grid-styles.css
+- src/providers/GridPanelManager.ts
+- _bmad-output/implementation-artifacts/6-3-filter-panel-advanced-options.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+
+**Key design decisions:**
+1. Minimal viable implementation (deferred advanced operators to future enhancement)
+2. Filter panel as dropdown overlay next to toolbar button
+3. Active filter count badge on filter panel button
+4. Filter chips with column name, value, and remove button
+5. Bidirectional sync between inline filters and panel
+
+**Issues auto-resolved:** 0
+**User input required:** 0
+
+---
+
