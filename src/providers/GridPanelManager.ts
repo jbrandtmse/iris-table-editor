@@ -11,6 +11,7 @@ import {
     IPaginatePayload,
     IRefreshPayload,
     IFilterCriterion,
+    SortDirection,
     ISaveCellPayload,
     ISaveCellResultPayload,
     IInsertRowPayload,
@@ -25,6 +26,7 @@ const DEFAULT_PAGE_SIZE = 50;
 /**
  * Context for a table grid panel
  * Story 6.2: Added filters tracking
+ * Story 6.4: Added sort tracking
  */
 interface IGridPanelContext {
     serverName: string;
@@ -33,6 +35,8 @@ interface IGridPanelContext {
     pageSize: number;
     currentPage: number;
     filters: IFilterCriterion[];
+    sortColumn: string | null;
+    sortDirection: SortDirection;
 }
 
 /**
@@ -84,6 +88,7 @@ export class GridPanelManager {
         // Store panel and context
         // Story 2.2: Default pageSize is 50 per architecture spec
         // Story 6.2: Initialize filters as empty
+        // Story 6.4: Initialize sort as null
         this._panels.set(panelKey, panel);
         this._panelContexts.set(panelKey, {
             serverName,
@@ -91,7 +96,9 @@ export class GridPanelManager {
             tableName,
             pageSize: DEFAULT_PAGE_SIZE,
             currentPage: 0,
-            filters: []
+            filters: [],
+            sortColumn: null,
+            sortDirection: null
         });
 
         // Set HTML content
@@ -155,7 +162,10 @@ export class GridPanelManager {
                 context.pageSize = payload.pageSize;
                 // Story 6.2: Update filters from payload
                 context.filters = payload.filters || [];
-                await this._loadTableData(panelKey, payload.page, payload.pageSize, context.filters);
+                // Story 6.4: Update sort from payload
+                context.sortColumn = payload.sortColumn || null;
+                context.sortDirection = payload.sortDirection || null;
+                await this._loadTableData(panelKey, payload.page, payload.pageSize, context.filters, context.sortColumn, context.sortDirection);
                 break;
             }
             case 'refresh': {
@@ -164,7 +174,14 @@ export class GridPanelManager {
                 if (refreshPayload?.filters) {
                     context.filters = refreshPayload.filters;
                 }
-                await this._loadTableData(panelKey, context.currentPage, context.pageSize, context.filters);
+                // Story 6.4: Extract sort from refresh payload
+                if (refreshPayload?.sortColumn !== undefined) {
+                    context.sortColumn = refreshPayload.sortColumn || null;
+                }
+                if (refreshPayload?.sortDirection !== undefined) {
+                    context.sortDirection = refreshPayload.sortDirection || null;
+                }
+                await this._loadTableData(panelKey, context.currentPage, context.pageSize, context.filters, context.sortColumn, context.sortDirection);
                 break;
             }
             case 'paginateNext': {
@@ -179,13 +196,20 @@ export class GridPanelManager {
                 if (payload.filters) {
                     context.filters = payload.filters;
                 }
+                // Story 6.4: Update sort from payload
+                if (payload.sortColumn !== undefined) {
+                    context.sortColumn = payload.sortColumn || null;
+                }
+                if (payload.sortDirection !== undefined) {
+                    context.sortDirection = payload.sortDirection || null;
+                }
                 // Page conversion: webview sends 1-indexed page (1, 2, 3...)
                 // API uses 0-indexed offset calculation: offset = page * pageSize
                 // So 1-indexed page N -> 0-indexed page N-1 for current, we want N for next
                 // When user is on page 1 and clicks Next: currentPage=1, API page=1, offset=50 (rows 51-100)
                 const newPage = payload.currentPage;
                 context.currentPage = newPage;
-                await this._loadTableData(panelKey, newPage, payload.pageSize, context.filters);
+                await this._loadTableData(panelKey, newPage, payload.pageSize, context.filters, context.sortColumn, context.sortDirection);
                 break;
             }
             case 'paginatePrev': {
@@ -201,12 +225,19 @@ export class GridPanelManager {
                 if (payload.filters) {
                     context.filters = payload.filters;
                 }
+                // Story 6.4: Update sort from payload
+                if (payload.sortColumn !== undefined) {
+                    context.sortColumn = payload.sortColumn || null;
+                }
+                if (payload.sortDirection !== undefined) {
+                    context.sortDirection = payload.sortDirection || null;
+                }
                 // Page conversion: webview sends 1-indexed page (1, 2, 3...)
                 // When user is on page 2 and clicks Prev: currentPage=2, want API page=0, offset=0 (rows 1-50)
                 // Formula: (1-indexed current) - 2 = 0-indexed previous page
                 const newPage = Math.max(0, payload.currentPage - 2);
                 context.currentPage = newPage;
-                await this._loadTableData(panelKey, newPage, payload.pageSize, context.filters);
+                await this._loadTableData(panelKey, newPage, payload.pageSize, context.filters, context.sortColumn, context.sortDirection);
                 break;
             }
             // Story 3.3: Handle cell save command
@@ -494,8 +525,16 @@ export class GridPanelManager {
      * Load table schema and data for a panel
      * Story 2.2: Default pageSize changed to 50
      * Story 6.2: Added filters parameter
+     * Story 6.4: Added sort parameters
      */
-    private async _loadTableData(panelKey: string, page = 0, pageSize = DEFAULT_PAGE_SIZE, filters: IFilterCriterion[] = []): Promise<void> {
+    private async _loadTableData(
+        panelKey: string,
+        page = 0,
+        pageSize = DEFAULT_PAGE_SIZE,
+        filters: IFilterCriterion[] = [],
+        sortColumn: string | null = null,
+        sortDirection: SortDirection = null
+    ): Promise<void> {
         const panel = this._panels.get(panelKey);
         const context = this._panelContexts.get(panelKey);
 
@@ -546,13 +585,16 @@ export class GridPanelManager {
 
             // Get data
             // Story 6.2: Pass filters to getTableData
+            // Story 6.4: Pass sort parameters to getTableData
             const offset = page * pageSize;
             const dataResult = await this._serverConnectionManager.getTableData(
                 context.namespace,
                 context.tableName,
                 pageSize,
                 offset,
-                filters
+                filters,
+                sortColumn,
+                sortDirection
             );
 
             if (!dataResult.success) {

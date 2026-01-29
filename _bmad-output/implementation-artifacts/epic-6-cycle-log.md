@@ -91,3 +91,28 @@ Stories to process: 6
 
 ---
 
+## Story 6.4: Column Sorting
+
+**Status:** Done
+**Files touched:**
+- media/grid.js
+- media/grid-styles.css
+- src/providers/GridPanelManager.ts
+- src/providers/ServerConnectionManager.ts
+- src/services/AtelierApiService.ts
+- src/models/IMessages.ts
+- _bmad-output/implementation-artifacts/6-4-column-sorting.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+
+**Key design decisions:**
+1. Server-side sorting via SQL ORDER BY clause
+2. Click column header to cycle: none → asc → desc → none
+3. Sort indicator (▲/▼) displayed in header
+4. Pagination resets to page 1 when sort changes
+5. Sort parameters passed through all data request commands
+
+**Issues auto-resolved:** 0
+**User input required:** 0
+
+---
+

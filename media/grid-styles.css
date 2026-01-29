@@ -220,6 +220,51 @@ body {
     border-right: none;
 }
 
+/* Story 6.4: Sortable Header Cells */
+.ite-grid__header-cell--sortable {
+    cursor: pointer;
+    display: table-cell;
+}
+
+.ite-grid__header-cell--sortable:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-grid__header-cell--sortable:focus {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: -2px;
+}
+
+/* Story 6.4: Header Content Container */
+.ite-grid__header-content {
+    display: inline;
+}
+
+/* Story 6.4: Sort Indicator */
+.ite-grid__sort-indicator {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.7em;
+    opacity: 0.3;
+    vertical-align: middle;
+    transition: opacity 0.15s ease;
+}
+
+.ite-grid__header-cell--sortable:hover .ite-grid__sort-indicator {
+    opacity: 0.6;
+}
+
+/* Show ascending indicator on hover when not sorted */
+.ite-grid__header-cell--sortable:hover .ite-grid__sort-indicator:not(.ite-grid__sort-indicator--active):empty::after {
+    content: '\25B2'; /* ▲ */
+    opacity: 0.4;
+}
+
+.ite-grid__sort-indicator--active {
+    opacity: 1 !important;
+    color: var(--vscode-textLink-foreground);
+}
+
 /* Story 6.2: Filter Row */
 .ite-grid__filter-row {
     display: table-row;

@@ -183,33 +183,47 @@ export interface IFilterCriterion {
 }
 
 /**
+ * Sort direction type for column sorting (Story 6.4)
+ */
+export type SortDirection = 'asc' | 'desc' | null;
+
+/**
  * Payload for requestData command (grid webview to extension)
  * Story 6.2: Added filters support
+ * Story 6.4: Added sort support
  */
 export interface IRequestDataPayload {
     page: number;
     pageSize: number;
     filters?: IFilterCriterion[];
+    sortColumn?: string;
+    sortDirection?: SortDirection;
 }
 
 /**
  * Payload for paginate command (grid webview to extension)
  * Story 2.2: Pagination support
  * Story 6.2: Added filters support
+ * Story 6.4: Added sort support
  */
 export interface IPaginatePayload {
     direction: 'next' | 'prev';
     currentPage: number;
     pageSize: number;
     filters?: IFilterCriterion[];
+    sortColumn?: string;
+    sortDirection?: SortDirection;
 }
 
 /**
  * Payload for refresh command (grid webview to extension)
  * Story 6.2: Added filters support
+ * Story 6.4: Added sort support
  */
 export interface IRefreshPayload {
     filters?: IFilterCriterion[];
+    sortColumn?: string;
+    sortDirection?: SortDirection;
 }
 
 /**

@@ -55,6 +55,10 @@
             this.filtersEnabled = true;
             /** @type {number} - Story 6.2: Total rows matching current filters (may differ from totalRows) */
             this.totalFilteredRows = 0;
+            /** @type {string | null} - Story 6.4: Column currently sorted by */
+            this.sortColumn = null;
+            /** @type {'asc' | 'desc' | null} - Story 6.4: Current sort direction */
+            this.sortDirection = null;
         }
 
         /**
@@ -1844,11 +1848,45 @@
 
         state.columns.forEach((col, index) => {
             const cell = document.createElement('div');
-            cell.className = 'ite-grid__header-cell';
+            cell.className = 'ite-grid__header-cell ite-grid__header-cell--sortable';
             cell.setAttribute('role', 'columnheader');
             cell.setAttribute('aria-colindex', String(index + 2)); // +2 because selector is column 1
-            cell.textContent = col.name;
-            cell.title = `${col.name} (${col.dataType}${col.nullable ? ', nullable' : ''})`;
+            cell.setAttribute('data-column', col.name);
+            cell.tabIndex = 0; // Story 6.4: Make sortable headers focusable
+
+            // Story 6.4: Create header content container
+            const content = document.createElement('span');
+            content.className = 'ite-grid__header-content';
+            content.textContent = col.name;
+            cell.appendChild(content);
+
+            // Story 6.4: Add sort indicator
+            const sortIndicator = document.createElement('span');
+            sortIndicator.className = 'ite-grid__sort-indicator';
+            if (state.sortColumn === col.name) {
+                if (state.sortDirection === 'asc') {
+                    sortIndicator.textContent = '\u25B2'; // ▲
+                    sortIndicator.classList.add('ite-grid__sort-indicator--active');
+                    cell.setAttribute('aria-sort', 'ascending');
+                } else if (state.sortDirection === 'desc') {
+                    sortIndicator.textContent = '\u25BC'; // ▼
+                    sortIndicator.classList.add('ite-grid__sort-indicator--active');
+                    cell.setAttribute('aria-sort', 'descending');
+                }
+            }
+            cell.appendChild(sortIndicator);
+
+            cell.title = `${col.name} (${col.dataType}${col.nullable ? ', nullable' : ''}) - Click to sort`;
+
+            // Story 6.4: Add click handler for sorting
+            cell.addEventListener('click', () => handleColumnSort(col.name));
+            cell.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleColumnSort(col.name);
+                }
+            });
+
             headerRow.appendChild(cell);
         });
 
@@ -2043,15 +2081,62 @@
     }
 
     /**
-     * Request data with current filter criteria (Story 6.2)
+     * Request data with current filter and sort criteria (Story 6.2, 6.4)
      */
     function requestFilteredData() {
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('requestData', {
             page: state.currentPage,
             pageSize: state.pageSize,
-            filters: filterCriteria
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
         });
+    }
+
+    /**
+     * Handle column header click for sorting (Story 6.4)
+     * Cycles through: none -> asc -> desc -> none
+     * @param {string} columnName - Name of the column to sort by
+     */
+    function handleColumnSort(columnName) {
+        // Determine new sort state
+        if (state.sortColumn === columnName) {
+            // Same column - cycle through states
+            if (state.sortDirection === 'asc') {
+                state.sortDirection = 'desc';
+            } else if (state.sortDirection === 'desc') {
+                // Clear sort
+                state.sortColumn = null;
+                state.sortDirection = null;
+            } else {
+                // Was null, now ascending
+                state.sortDirection = 'asc';
+            }
+        } else {
+            // Different column - start with ascending
+            state.sortColumn = columnName;
+            state.sortDirection = 'asc';
+        }
+
+        // Reset to page 1 when sort changes (Story 6.4: AC7)
+        state.currentPage = 1;
+        saveState();
+
+        // Show loading and request new data
+        state.loading = true;
+        renderLoading();
+        requestFilteredData();
+
+        // Announce for accessibility
+        if (state.sortColumn) {
+            const direction = state.sortDirection === 'asc' ? 'ascending' : 'descending';
+            announce(`Sorted by ${state.sortColumn} ${direction}`);
+        } else {
+            announce('Sort cleared');
+        }
+
+        console.log(`${LOG_PREFIX} Sort changed: column=${state.sortColumn}, direction=${state.sortDirection}`);
     }
 
     /**
@@ -2393,12 +2478,15 @@
         updatePaginationUI();
 
         // Story 6.2: Include filter criteria in pagination
+        // Story 6.4: Include sort parameters in pagination
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('paginateNext', {
             direction: 'next',
             currentPage: state.currentPage,
             pageSize: state.pageSize,
-            filters: filterCriteria
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
         });
 
         announce(`Loading page ${state.currentPage + 1} of ${state.totalPages}`);
@@ -2425,12 +2513,15 @@
         updatePaginationUI();
 
         // Story 6.2: Include filter criteria in pagination
+        // Story 6.4: Include sort parameters in pagination
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('paginatePrev', {
             direction: 'prev',
             currentPage: state.currentPage,
             pageSize: state.pageSize,
-            filters: filterCriteria
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
         });
 
         announce(`Loading page ${state.currentPage - 1} of ${state.totalPages}`);
@@ -2657,9 +2748,12 @@
         // Story 5.1: Clear row selection immediately (don't wait for data)
         clearRowSelection();
         // Story 6.2: Include filter criteria in refresh
+        // Story 6.4: Include sort parameters in refresh
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('refresh', {
-            filters: filterCriteria
+            filters: filterCriteria,
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection
         });
     }
 

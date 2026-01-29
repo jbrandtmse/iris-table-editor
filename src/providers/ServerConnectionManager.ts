@@ -11,7 +11,7 @@ interface ICredentials {
     password: string;
 }
 import { IServerSpec } from '../models/IServerSpec';
-import { IUserError, IFilterCriterion } from '../models/IMessages';
+import { IUserError, IFilterCriterion, SortDirection } from '../models/IMessages';
 import { ITableSchema } from '../models/ITableSchema';
 import { ITableRow } from '../models/ITableData';
 import { AtelierApiService } from '../services/AtelierApiService';
@@ -480,9 +480,19 @@ export class ServerConnectionManager {
      * @param pageSize - Number of rows to fetch
      * @param offset - Row offset for pagination
      * @param filters - Story 6.2: Column filter criteria
+     * @param sortColumn - Story 6.4: Column to sort by
+     * @param sortDirection - Story 6.4: Sort direction (asc/desc/null)
      * @returns Result with success flag, rows, totalRows, and optional error
      */
-    public async getTableData(namespace: string, tableName: string, pageSize: number, offset: number, filters: IFilterCriterion[] = []): Promise<{
+    public async getTableData(
+        namespace: string,
+        tableName: string,
+        pageSize: number,
+        offset: number,
+        filters: IFilterCriterion[] = [],
+        sortColumn: string | null = null,
+        sortDirection: SortDirection = null
+    ): Promise<{
         success: boolean;
         rows?: ITableRow[];
         totalRows?: number;
@@ -539,8 +549,9 @@ export class ServerConnectionManager {
                 };
             }
 
-            console.debug(`${LOG_PREFIX} Fetching data for ${tableName} in ${namespace} (pageSize: ${pageSize}, offset: ${offset}, filters: ${filters.length})`);
+            console.debug(`${LOG_PREFIX} Fetching data for ${tableName} in ${namespace} (pageSize: ${pageSize}, offset: ${offset}, filters: ${filters.length}, sort: ${sortColumn || 'none'} ${sortDirection || ''})`);
             // Story 6.2: Pass filters to AtelierApiService
+            // Story 6.4: Pass sort parameters to AtelierApiService
             return this._atelierApiService.getTableData(
                 this._serverSpec,
                 namespace,
@@ -550,7 +561,9 @@ export class ServerConnectionManager {
                 offset,
                 this._credentials.username,
                 this._credentials.password,
-                filters
+                filters,
+                sortColumn,
+                sortDirection
             );
 
         } catch (error) {

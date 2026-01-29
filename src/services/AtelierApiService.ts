@@ -4,7 +4,7 @@
  */
 
 import { IServerSpec } from '../models/IServerSpec';
-import { IUserError, IFilterCriterion } from '../models/IMessages';
+import { IUserError, IFilterCriterion, SortDirection } from '../models/IMessages';
 import { IColumnInfo, ITableSchema } from '../models/ITableSchema';
 import { ITableRow } from '../models/ITableData';
 import { ErrorHandler, ErrorCodes } from '../utils/ErrorHandler';
@@ -189,6 +189,40 @@ export class AtelierApiService {
             whereClause: `WHERE ${conditions.join(' AND ')}`,
             filterParams: params
         };
+    }
+
+    /**
+     * Build ORDER BY clause from sort parameters (Story 6.4)
+     * Validates column exists in schema to prevent SQL injection
+     * @param sortColumn - Column to sort by (null for no sorting)
+     * @param sortDirection - Sort direction ('asc', 'desc', or null)
+     * @param schema - Table schema for column validation
+     * @returns ORDER BY clause string (empty if no sorting)
+     */
+    private _buildOrderByClause(
+        sortColumn: string | null,
+        sortDirection: SortDirection,
+        schema: ITableSchema
+    ): string {
+        // No sorting if column or direction is not specified
+        if (!sortColumn || !sortDirection) {
+            return '';
+        }
+
+        // Validate column exists in schema (security: prevent injection)
+        const validColumnNames = new Set(schema.columns.map(c => c.name));
+        if (!validColumnNames.has(sortColumn)) {
+            console.warn(`${LOG_PREFIX} Sort ignored: unknown column "${sortColumn}"`);
+            return '';
+        }
+
+        // Escape the column name
+        const escapedColumn = this._validateAndEscapeIdentifier(sortColumn, 'sort column');
+
+        // Validate direction (only 'asc' or 'desc' allowed)
+        const direction = sortDirection.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+        return `ORDER BY ${escapedColumn} ${direction}`;
     }
 
     /**
@@ -795,6 +829,8 @@ export class AtelierApiService {
      * @param username - Authentication username
      * @param password - Authentication password
      * @param filters - Story 6.2: Column filter criteria
+     * @param sortColumn - Story 6.4: Column to sort by
+     * @param sortDirection - Story 6.4: Sort direction (asc/desc/null)
      * @returns Result with success flag, rows, totalRows, and optional error
      */
     public async getTableData(
@@ -806,7 +842,9 @@ export class AtelierApiService {
         offset: number,
         username: string,
         password: string,
-        filters: IFilterCriterion[] = []
+        filters: IFilterCriterion[] = [],
+        sortColumn: string | null = null,
+        sortDirection: SortDirection = null
     ): Promise<{ success: boolean; rows?: ITableRow[]; totalRows?: number; error?: IUserError }> {
         const url = UrlBuilder.buildQueryUrl(
             UrlBuilder.buildBaseUrl(spec),
@@ -850,6 +888,9 @@ export class AtelierApiService {
         // Using parameterized queries for security (prevent SQL injection)
         const { whereClause, filterParams } = this._buildFilterWhereClause(filters, schema);
 
+        // Story 6.4: Build ORDER BY clause from sort parameters
+        const orderByClause = this._buildOrderByClause(sortColumn, sortDirection, schema);
+
         // IRIS SQL pagination using %VID (virtual row ID for subquery results)
         // %VID is only available on the result set of a subquery, not inside it
         // NOTE: For very large tables (millions of rows), this offset-based pagination
@@ -858,21 +899,24 @@ export class AtelierApiService {
         if (validatedOffset > 0) {
             // %VID is applied to the subquery result, filtered in outer WHERE
             // Story 6.2: Filter is applied in the inner query
+            // Story 6.4: ORDER BY is applied in the inner query for correct pagination
             query = `
                 SELECT TOP ${validatedPageSize} ${escapedColumnNames}
                 FROM (
                     SELECT TOP ${validatedOffset + validatedPageSize} ${escapedColumnNames}
                     FROM ${escapedTableName}
                     ${whereClause}
+                    ${orderByClause}
                 )
                 WHERE %VID > ${validatedOffset}
             `;
         } else {
             // Story 6.2: Filter is applied directly
-            query = `SELECT TOP ${validatedPageSize} ${escapedColumnNames} FROM ${escapedTableName} ${whereClause}`;
+            // Story 6.4: ORDER BY is applied directly
+            query = `SELECT TOP ${validatedPageSize} ${escapedColumnNames} FROM ${escapedTableName} ${whereClause} ${orderByClause}`;
         }
 
-        console.debug(`${LOG_PREFIX} Fetching data for table ${tableName} (page size: ${pageSize}, offset: ${offset}, filters: ${filters.length})`);
+        console.debug(`${LOG_PREFIX} Fetching data for table ${tableName} (page size: ${pageSize}, offset: ${offset}, filters: ${filters.length}, sort: ${sortColumn || 'none'})`);
 
         try {
             const controller = new AbortController();
