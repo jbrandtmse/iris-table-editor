@@ -74,8 +74,8 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Row Deletion
-  epic-5: backlog
-  5-1-row-selection-for-deletion: backlog
+  epic-5: in-progress
+  5-1-row-selection-for-deletion: done
   5-2-delete-confirmation-dialog: backlog
   5-3-execute-delete-feedback: backlog
   epic-5-retrospective: optional

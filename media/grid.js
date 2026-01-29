@@ -47,6 +47,8 @@
             this.pendingSaves = new Map();
             /** @type {Array<Record<string, unknown>>} - Story 4.1: New rows pending INSERT */
             this.newRows = [];
+            /** @type {number | null} - Story 5.1: Selected row for deletion */
+            this.selectedRowIndex = null;
         }
 
         /**
@@ -107,6 +109,25 @@
          */
         get totalDisplayRows() {
             return this.rows.length + this.newRows.length;
+        }
+
+        /**
+         * Check if a row is selected for deletion
+         * Story 5.1: Row selection helper
+         * @returns {boolean}
+         */
+        get hasSelectedRow() {
+            return this.selectedRowIndex !== null;
+        }
+
+        /**
+         * Check if selected row is a new (unsaved) row
+         * Story 5.1: Can't delete new rows - must be server rows
+         * @returns {boolean}
+         */
+        get selectedRowIsNew() {
+            if (this.selectedRowIndex === null) return false;
+            return this.selectedRowIndex >= this.rows.length;
         }
     }
 
@@ -598,6 +619,92 @@
     }
 
     // ========================================================================
+    // Story 5.1: Row Selection Functions
+    // ========================================================================
+
+    /**
+     * Handle row selector checkbox click
+     * Story 5.1: Toggle row selection for deletion
+     * @param {number} rowIndex - Row index (0-based)
+     */
+    function handleRowSelectorClick(rowIndex) {
+        // Validate bounds
+        if (rowIndex < 0 || rowIndex >= state.totalDisplayRows) return;
+
+        // Toggle selection: if already selected, deselect; otherwise select
+        if (state.selectedRowIndex === rowIndex) {
+            // Deselect
+            state.selectedRowIndex = null;
+            announce(`Row ${rowIndex + 1} deselected`);
+            console.debug(`${LOG_PREFIX} Row ${rowIndex} deselected`);
+        } else {
+            // Select new row (clears previous selection)
+            state.selectedRowIndex = rowIndex;
+            const isNew = isNewRow(rowIndex);
+            announce(`Row ${rowIndex + 1} selected${isNew ? ' (new row)' : ''}`);
+            console.debug(`${LOG_PREFIX} Row ${rowIndex} selected (isNew: ${isNew})`);
+        }
+
+        // Re-render to update visual state
+        renderGrid();
+
+        // Update delete button state
+        updateDeleteButtonState();
+
+        // Persist state
+        saveState();
+    }
+
+    /**
+     * Select a row programmatically
+     * Story 5.1: Row selection helper
+     * @param {number} rowIndex - Row index (0-based), or null to deselect
+     */
+    function selectRow(rowIndex) {
+        if (rowIndex === null || rowIndex < 0 || rowIndex >= state.totalDisplayRows) {
+            state.selectedRowIndex = null;
+        } else {
+            state.selectedRowIndex = rowIndex;
+        }
+        renderGrid();
+        updateDeleteButtonState();
+        saveState();
+    }
+
+    /**
+     * Clear row selection
+     * Story 5.1: Called on pagination, refresh, etc.
+     */
+    function clearRowSelection() {
+        if (state.selectedRowIndex !== null) {
+            state.selectedRowIndex = null;
+            updateDeleteButtonState();
+            saveState();
+        }
+    }
+
+    /**
+     * Handle delete row button click
+     * Story 5.1: Entry point for delete - actual deletion in Story 5.2/5.3
+     */
+    function handleDeleteRowClick() {
+        if (!state.hasSelectedRow) {
+            announce('No row selected');
+            return;
+        }
+
+        if (state.selectedRowIsNew) {
+            announce('Cannot delete unsaved new rows. Use Escape to discard.');
+            return;
+        }
+
+        // Story 5.2 will implement the confirmation dialog
+        // Story 5.3 will implement the actual DELETE
+        console.debug(`${LOG_PREFIX} Delete row clicked for row ${state.selectedRowIndex}`);
+        announce(`Delete requested for row ${state.selectedRowIndex + 1}. Confirmation coming in Story 5.2.`);
+    }
+
+    // ========================================================================
     // Story 4.1: New Row Functions
     // ========================================================================
 
@@ -822,6 +929,21 @@
             const hasSelectedNewRow = state.selectedCell.rowIndex !== null &&
                                       isNewRow(state.selectedCell.rowIndex);
             saveRowBtn.disabled = !hasSelectedNewRow;
+        }
+    }
+
+    /**
+     * Update delete button enabled state based on row selection
+     * Story 5.1: Delete button state management
+     * - Enabled when: row is selected AND row is NOT a new row (server rows only)
+     * - Disabled when: no row selected OR selected row is a new row
+     */
+    function updateDeleteButtonState() {
+        const deleteRowBtn = document.getElementById('deleteRowBtn');
+        if (deleteRowBtn) {
+            // Enable delete button only for existing (server) rows, not new rows
+            const canDelete = state.hasSelectedRow && !state.selectedRowIsNew;
+            deleteRowBtn.disabled = !canDelete;
         }
     }
 
@@ -1399,6 +1521,7 @@
 
     /**
      * Render grid header row
+     * Story 5.1: Added row selector column header
      */
     function renderHeader() {
         const grid = document.getElementById('dataGrid');
@@ -1410,11 +1533,19 @@
         headerRow.className = 'ite-grid__header-row';
         headerRow.setAttribute('role', 'row');
 
+        // Story 5.1: Add row selector column header
+        const selectorHeader = document.createElement('div');
+        selectorHeader.className = 'ite-grid__header-cell ite-grid__header-cell--selector';
+        selectorHeader.setAttribute('role', 'columnheader');
+        selectorHeader.setAttribute('aria-label', 'Row selection');
+        // Empty header - just visual consistency
+        headerRow.appendChild(selectorHeader);
+
         state.columns.forEach((col, index) => {
             const cell = document.createElement('div');
             cell.className = 'ite-grid__header-cell';
             cell.setAttribute('role', 'columnheader');
-            cell.setAttribute('aria-colindex', String(index + 1));
+            cell.setAttribute('aria-colindex', String(index + 2)); // +2 because selector is column 1
             cell.textContent = col.name;
             cell.title = `${col.name} (${col.dataType}${col.nullable ? ', nullable' : ''})`;
             headerRow.appendChild(cell);
@@ -1449,6 +1580,7 @@
     /**
      * Render a single row (server row or new row)
      * Story 4.1: Extracted row rendering logic
+     * Story 5.1: Added row selector column with checkbox
      * @param {HTMLElement} grid - Grid container element
      * @param {Record<string, unknown>} row - Row data
      * @param {number} rowIndex - Actual row index in display
@@ -1456,9 +1588,59 @@
      */
     function renderSingleRow(grid, row, rowIndex, isNew) {
         const dataRow = document.createElement('div');
-        dataRow.className = isNew ? 'ite-grid__row ite-grid__row--new' : 'ite-grid__row';
+        // Story 5.1: Add selected class if this row is selected
+        let rowClassName = isNew ? 'ite-grid__row ite-grid__row--new' : 'ite-grid__row';
+        if (state.selectedRowIndex === rowIndex) {
+            rowClassName += ' ite-grid__row--selected';
+        }
+        dataRow.className = rowClassName;
         dataRow.setAttribute('role', 'row');
         dataRow.setAttribute('aria-rowindex', String(rowIndex + 2)); // +2 for header row
+        // Story 5.1: Add aria-selected for row selection state
+        dataRow.setAttribute('aria-selected', state.selectedRowIndex === rowIndex ? 'true' : 'false');
+
+        // Story 5.1: Add row selector cell as first column
+        const selectorCell = document.createElement('div');
+        selectorCell.className = 'ite-grid__cell ite-grid__cell--selector';
+        selectorCell.setAttribute('role', 'gridcell');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'ite-row-selector__checkbox';
+        checkbox.checked = state.selectedRowIndex === rowIndex;
+        checkbox.setAttribute('aria-label', `Select row ${rowIndex + 1}`);
+        checkbox.setAttribute('role', 'checkbox');
+        checkbox.setAttribute('aria-checked', state.selectedRowIndex === rowIndex ? 'true' : 'false');
+        checkbox.setAttribute('tabindex', '0');
+
+        // Click handler for row selection
+        checkbox.addEventListener('click', (e) => {
+            e.stopPropagation(); // Don't trigger cell click
+            handleRowSelectorClick(rowIndex);
+        });
+
+        // Keyboard handler for accessibility
+        checkbox.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleRowSelectorClick(rowIndex);
+            }
+            // Story 5.1: Delete key on row selector triggers delete action
+            if (e.key === 'Delete') {
+                e.preventDefault();
+                e.stopPropagation();
+                // First select the row if not already selected
+                if (state.selectedRowIndex !== rowIndex) {
+                    handleRowSelectorClick(rowIndex);
+                }
+                // Then trigger delete (will be handled by Story 5.2/5.3)
+                handleDeleteRowClick();
+            }
+        });
+
+        selectorCell.appendChild(checkbox);
+        dataRow.appendChild(selectorCell);
 
         state.columns.forEach((col, colIndex) => {
             const cell = document.createElement('div');
@@ -1466,7 +1648,7 @@
 
             cell.className = `ite-grid__cell ${cssClass}`.trim();
             cell.setAttribute('role', 'gridcell');
-            cell.setAttribute('aria-colindex', String(colIndex + 1));
+            cell.setAttribute('aria-colindex', String(colIndex + 2)); // +2 because selector is column 1
 
             // Story 3.1: Cell selection support
             // Check if this cell should be selected (restored from state)
@@ -1735,6 +1917,7 @@
      * Handle tableData event
      * Story 2.2: Updated to use 1-indexed currentPage and clear pagination loading
      * Story 3.1: Clear selection on page change to avoid stale indices
+     * Story 5.1: Clear row selection on page change
      * @param {{ rows: Array<Record<string, unknown>>; totalRows: number; page: number; pageSize: number }} payload
      */
     function handleTableData(payload) {
@@ -1752,9 +1935,13 @@
         // Story 3.2: Clear edit state on page change
         state.editingCell = { rowIndex: null, colIndex: null };
         state.editOriginalValue = null;
+        // Story 5.1: Clear row selection on page change - row indices change
+        state.selectedRowIndex = null;
 
         renderGrid();
         updatePaginationUI();
+        // Story 5.1: Update delete button state after clearing selection
+        updateDeleteButtonState();
         saveState(); // Persist immediately after data update
     }
 
@@ -1816,9 +2003,12 @@
 
     /**
      * Handle refresh button click
+     * Story 5.1: Clear row selection immediately on refresh
      */
     function handleRefresh() {
         console.debug(`${LOG_PREFIX} Refresh clicked`);
+        // Story 5.1: Clear row selection immediately (don't wait for data)
+        clearRowSelection();
         sendCommand('refresh', {});
     }
 
@@ -1879,8 +2069,14 @@
             if (!state.newRows) {
                 state.newRows = [];
             }
+            // Story 5.1: Ensure selectedRowIndex is properly initialized
+            if (state.selectedRowIndex === undefined) {
+                state.selectedRowIndex = null;
+            }
             if (state.columns.length > 0) {
                 renderGrid();
+                // Story 5.1: Update delete button state on restore
+                updateDeleteButtonState();
             }
         }
 
@@ -1903,6 +2099,12 @@
         const saveRowBtn = document.getElementById('saveRowBtn');
         if (saveRowBtn) {
             saveRowBtn.addEventListener('click', handleSaveRow);
+        }
+
+        // Story 5.1: Setup delete row button (handler will be implemented in Story 5.2/5.3)
+        const deleteRowBtn = document.getElementById('deleteRowBtn');
+        if (deleteRowBtn) {
+            deleteRowBtn.addEventListener('click', handleDeleteRowClick);
         }
 
         // Story 2.2: Setup pagination buttons

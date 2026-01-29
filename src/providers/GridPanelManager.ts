@@ -559,6 +559,9 @@ export class GridPanelManager {
             <button class="ite-toolbar__button" id="saveRowBtn" title="Save new row (Ctrl+S)" disabled>
                 <i class="codicon codicon-save"></i>
             </button>
+            <button class="ite-toolbar__button" id="deleteRowBtn" title="Delete row (Del)" disabled>
+                <i class="codicon codicon-trash"></i>
+            </button>
         </div>
 
         <div class="ite-grid-loading" id="loadingOverlay" style="display: flex;">

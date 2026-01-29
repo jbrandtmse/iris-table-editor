@@ -124,6 +124,11 @@ body {
     background-color: var(--vscode-toolbar-activeBackground);
 }
 
+.ite-toolbar__button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 /* Loading Overlay */
 .ite-grid-loading {
     display: flex;
@@ -200,6 +205,31 @@ body {
     border-right: none;
 }
 
+/* Story 5.1: Row Selector Column */
+.ite-grid__cell--selector,
+.ite-grid__header-cell--selector {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    display: table-cell;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0;
+}
+
+.ite-row-selector__checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
+    margin: 0;
+}
+
+.ite-row-selector__checkbox:focus {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
 /* Grid Data Row */
 .ite-grid__row {
     display: table-row;
@@ -216,6 +246,26 @@ body {
 
 .ite-grid__row:hover .ite-grid__cell {
     color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* Story 5.1: Selected Row for Deletion */
+.ite-grid__row--selected {
+    background-color: var(--vscode-list-activeSelectionBackground) !important;
+}
+
+.ite-grid__row--selected .ite-grid__cell {
+    background-color: inherit;
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* Story 5.1: Row selector column in selected row */
+.ite-grid__row--selected .ite-grid__cell--selector {
+    background-color: inherit;
+}
+
+/* Story 5.1: Override even row background for selected rows */
+.ite-grid__row--selected:nth-child(even) {
+    background-color: var(--vscode-list-activeSelectionBackground) !important;
 }
 
 /* Story 3.1: Ensure selected cell keeps its styling even on row hover */
@@ -850,6 +900,20 @@ body {
     }
 
     .ite-grid__cell:focus {
+        outline: 2px solid Highlight;
+    }
+
+    /* Story 5.1: Row selection in forced colors mode */
+    .ite-grid__row--selected {
+        background-color: Highlight !important;
+        color: HighlightText;
+    }
+
+    .ite-grid__row--selected .ite-grid__cell {
+        color: HighlightText;
+    }
+
+    .ite-row-selector__checkbox:focus {
         outline: 2px solid Highlight;
     }
 
