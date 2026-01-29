@@ -601,6 +601,20 @@ export class GridPanelManager {
 
         <!-- Story 3.5: Toast notification container -->
         <div id="toastContainer" class="ite-toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+        <!-- Story 5.2: Delete confirmation dialog -->
+        <div class="ite-dialog-overlay" id="deleteDialogOverlay" style="display: none;" role="presentation">
+            <div class="ite-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle" aria-describedby="deleteDialogDesc">
+                <div class="ite-dialog__content">
+                    <h2 id="deleteDialogTitle" class="ite-dialog__title">Delete Row</h2>
+                    <p id="deleteDialogDesc" class="ite-dialog__message">Delete this row? This action cannot be undone.</p>
+                </div>
+                <div class="ite-dialog__actions">
+                    <button type="button" class="ite-dialog__button ite-dialog__button--secondary" id="deleteDialogCancel">Cancel</button>
+                    <button type="button" class="ite-dialog__button ite-dialog__button--danger" id="deleteDialogConfirm">Delete</button>
+                </div>
+            </div>
+        </div>
     </div>
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
     <script nonce="${nonce}">

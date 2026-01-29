@@ -685,7 +685,8 @@
 
     /**
      * Handle delete row button click
-     * Story 5.1: Entry point for delete - actual deletion in Story 5.2/5.3
+     * Story 5.1: Entry point for delete
+     * Story 5.2: Show confirmation dialog
      */
     function handleDeleteRowClick() {
         if (!state.hasSelectedRow) {
@@ -698,10 +699,175 @@
             return;
         }
 
-        // Story 5.2 will implement the confirmation dialog
-        // Story 5.3 will implement the actual DELETE
         console.debug(`${LOG_PREFIX} Delete row clicked for row ${state.selectedRowIndex}`);
-        announce(`Delete requested for row ${state.selectedRowIndex + 1}. Confirmation coming in Story 5.2.`);
+        // Story 5.2: Show confirmation dialog
+        showDeleteConfirmDialog();
+    }
+
+    // ========================================================================
+    // Story 5.2: Delete Confirmation Dialog
+    // ========================================================================
+
+    /** @type {HTMLElement | null} - Track focus before dialog opens */
+    let dialogPreviousFocus = null;
+    /** @type {boolean} - Track if delete dialog is currently open */
+    let isDeleteDialogOpen = false;
+
+    /**
+     * Show the delete confirmation dialog
+     * Story 5.2: Modal confirmation before deletion
+     */
+    function showDeleteConfirmDialog() {
+        const overlay = document.getElementById('deleteDialogOverlay');
+        const cancelBtn = document.getElementById('deleteDialogCancel');
+
+        if (!overlay || !cancelBtn) {
+            console.warn(`${LOG_PREFIX} Delete dialog elements not found`);
+            return;
+        }
+
+        // Save current focus for restoration
+        dialogPreviousFocus = /** @type {HTMLElement} */ (document.activeElement);
+
+        // Show dialog
+        overlay.style.display = 'flex';
+        isDeleteDialogOpen = true;
+
+        // Focus Cancel button (safer default)
+        cancelBtn.focus();
+
+        // Announce to screen readers
+        announce('Delete confirmation dialog opened. Press Cancel to keep the row, or Delete to remove it.');
+
+        console.debug(`${LOG_PREFIX} Delete confirmation dialog shown`);
+    }
+
+    /**
+     * Hide the delete confirmation dialog
+     * Story 5.2: Close dialog and restore focus
+     */
+    function hideDeleteConfirmDialog() {
+        const overlay = document.getElementById('deleteDialogOverlay');
+        if (!overlay) return;
+
+        // Hide dialog
+        overlay.style.display = 'none';
+        isDeleteDialogOpen = false;
+
+        // Restore focus
+        if (dialogPreviousFocus && typeof dialogPreviousFocus.focus === 'function') {
+            dialogPreviousFocus.focus();
+        }
+        dialogPreviousFocus = null;
+
+        console.debug(`${LOG_PREFIX} Delete confirmation dialog hidden`);
+    }
+
+    /**
+     * Handle Cancel button click in delete dialog
+     * Story 5.2: Close dialog, keep row selected
+     */
+    function handleDeleteDialogCancel() {
+        hideDeleteConfirmDialog();
+        announce('Deletion cancelled. Row remains unchanged.');
+    }
+
+    /**
+     * Handle Confirm (Delete) button click in delete dialog
+     * Story 5.2: Close dialog and proceed with deletion
+     */
+    function handleDeleteDialogConfirm() {
+        hideDeleteConfirmDialog();
+        // Story 5.3 will implement the actual DELETE
+        executeDeleteRow();
+    }
+
+    /**
+     * Execute the row deletion
+     * Story 5.3 placeholder - actual implementation in next story
+     */
+    function executeDeleteRow() {
+        if (!state.hasSelectedRow || state.selectedRowIsNew) {
+            return;
+        }
+
+        const rowIndex = state.selectedRowIndex;
+        console.debug(`${LOG_PREFIX} Executing delete for row ${rowIndex}`);
+
+        // Story 5.3 will send the deleteRow command to extension
+        // Placeholder announcement until Story 5.3 is implemented
+        announce(`Deleting row ${rowIndex + 1}...`);
+    }
+
+    /**
+     * Handle keyboard events in delete dialog
+     * Story 5.2: Focus trap and Escape handling
+     * @param {KeyboardEvent} e
+     */
+    function handleDeleteDialogKeydown(e) {
+        // Story 5.2: Use state variable for robust visibility check
+        if (!isDeleteDialogOpen) return;
+
+        const cancelBtn = document.getElementById('deleteDialogCancel');
+        const confirmBtn = document.getElementById('deleteDialogConfirm');
+
+        // Escape closes dialog
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            handleDeleteDialogCancel();
+            return;
+        }
+
+        // Tab: Focus trap between Cancel and Delete
+        if (e.key === 'Tab') {
+            if (!cancelBtn || !confirmBtn) return;
+
+            if (e.shiftKey) {
+                // Shift+Tab: If on Cancel, go to Delete
+                if (document.activeElement === cancelBtn) {
+                    e.preventDefault();
+                    confirmBtn.focus();
+                }
+            } else {
+                // Tab: If on Delete, go to Cancel
+                if (document.activeElement === confirmBtn) {
+                    e.preventDefault();
+                    cancelBtn.focus();
+                }
+            }
+        }
+    }
+
+    /**
+     * Setup delete dialog event listeners
+     * Story 5.2: Initialize dialog handlers
+     */
+    function setupDeleteDialog() {
+        const cancelBtn = document.getElementById('deleteDialogCancel');
+        const confirmBtn = document.getElementById('deleteDialogConfirm');
+        const overlay = document.getElementById('deleteDialogOverlay');
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', handleDeleteDialogCancel);
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', handleDeleteDialogConfirm);
+        }
+
+        // Click on overlay (outside dialog) cancels
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                // Only cancel if clicked directly on overlay, not dialog
+                if (e.target === overlay) {
+                    handleDeleteDialogCancel();
+                }
+            });
+        }
+
+        // Global keydown for focus trap
+        document.addEventListener('keydown', handleDeleteDialogKeydown);
     }
 
     // ========================================================================
@@ -2101,11 +2267,14 @@
             saveRowBtn.addEventListener('click', handleSaveRow);
         }
 
-        // Story 5.1: Setup delete row button (handler will be implemented in Story 5.2/5.3)
+        // Story 5.1: Setup delete row button
         const deleteRowBtn = document.getElementById('deleteRowBtn');
         if (deleteRowBtn) {
             deleteRowBtn.addEventListener('click', handleDeleteRowClick);
         }
+
+        // Story 5.2: Setup delete confirmation dialog
+        setupDeleteDialog();
 
         // Story 2.2: Setup pagination buttons
         const prevPageBtn = document.getElementById('prevPageBtn');

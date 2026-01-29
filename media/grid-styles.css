@@ -933,4 +933,111 @@ body {
         border-color: CanvasText;
         border-top-color: Canvas;
     }
+
+    /* Story 5.2: Dialog in forced colors mode */
+    .ite-dialog {
+        border: 2px solid CanvasText;
+    }
+
+    .ite-dialog__button {
+        border: 1px solid ButtonText;
+    }
+
+    .ite-dialog__button:focus {
+        outline: 2px solid Highlight;
+    }
+}
+
+/* ========================================================================
+   Story 5.2: Delete Confirmation Dialog
+   ======================================================================== */
+
+/* Dialog Overlay */
+.ite-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+/* Dialog Box */
+.ite-dialog {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 6px;
+    padding: 20px;
+    min-width: 300px;
+    max-width: 400px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.ite-dialog__content {
+    margin-bottom: 20px;
+}
+
+.ite-dialog__title {
+    margin: 0 0 8px 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.ite-dialog__message {
+    margin: 0;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+}
+
+.ite-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.ite-dialog__button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-family: inherit;
+    transition: background-color 0.1s ease;
+}
+
+.ite-dialog__button--secondary {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.ite-dialog__button--secondary:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.ite-dialog__button--danger {
+    background-color: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.2));
+    color: var(--vscode-errorForeground, #f48771);
+    border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.ite-dialog__button--danger:hover {
+    background-color: var(--vscode-inputValidation-errorBorder, #be1100);
+    color: var(--vscode-editor-background);
+}
+
+.ite-dialog__button:focus {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* Reduced motion support for dialog */
+@media (prefers-reduced-motion: reduce) {
+    .ite-dialog__button {
+        transition: none;
+    }
 }
