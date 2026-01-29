@@ -2,7 +2,7 @@
   "name": "iris-table-editor",
   "displayName": "IRIS Table Editor",
   "description": "Excel-like grid editing for InterSystems IRIS database tables",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "intersystems-community",
   "repository": {
     "type": "git",
