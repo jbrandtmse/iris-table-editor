@@ -963,7 +963,7 @@ body {
    Story 5.2: Delete Confirmation Dialog
    ======================================================================== */
 
-/* Dialog Overlay */
+/* Dialog Overlay - hidden by default, shown via JS */
 .ite-dialog-overlay {
     position: fixed;
     top: 0;
@@ -971,7 +971,7 @@ body {
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
+    display: none;  /* Hidden by default - JS sets display: flex when showing */
     align-items: center;
     justify-content: center;
     z-index: 1000;
