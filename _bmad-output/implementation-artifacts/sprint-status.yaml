@@ -81,11 +81,11 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Scalability & Advanced Navigation
-  epic-6: in-progress
+  epic-6: done
   6-1-schema-based-table-tree-view: done
   6-2-inline-column-filtering: done
   6-3-filter-panel-advanced-options: done
   6-4-column-sorting: done
   6-5-enhanced-pagination-controls: done
-  6-6-lazy-loading-verification-optimization: backlog
+  6-6-lazy-loading-verification-optimization: done
   epic-6-retrospective: optional
