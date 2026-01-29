@@ -1061,20 +1061,19 @@
             // Show success feedback
             if (row) {
                 row.classList.add('ite-grid__row--save-success');
-                setTimeout(() => {
-                    row.classList.remove('ite-grid__row--save-success');
-                }, 500);
             }
 
             announce(`Row saved successfully`);
 
-            // Re-render grid to update row styling
-            // The row will be re-fetched on next refresh
-            renderGrid();
-
             // Update save button state
             updateSaveButtonState();
             saveState();
+
+            // Refresh data from server to get the new row with server-assigned ID
+            // Brief delay so user sees success feedback
+            setTimeout(() => {
+                sendCommand('refresh', {});
+            }, 300);
         } else {
             console.debug(`${LOG_PREFIX} Row insert failed:`, error?.message);
 
@@ -1107,31 +1106,20 @@
         if (success) {
             console.debug(`${LOG_PREFIX} Row deleted successfully (index: ${rowIndex})`);
 
-            // Code review fix: Validate rowIndex bounds before splice
-            if (rowIndex >= 0 && rowIndex < state.rows.length) {
-                // Remove row from state
-                state.rows.splice(rowIndex, 1);
-                state.totalRows = Math.max(0, state.totalRows - 1);
-            } else {
-                // Row index is stale (grid may have been paginated) - refresh data instead
-                console.warn(`${LOG_PREFIX} Delete rowIndex ${rowIndex} out of bounds (rows: ${state.rows.length}), refreshing data`);
-                sendCommand('refresh', {});
-            }
-
             // Clear row selection
             clearRowSelection();
-
-            // Re-render grid
-            renderGrid();
-
-            // Update pagination info
-            updatePaginationInfo();
 
             // Show success feedback
             showToast('Row deleted successfully', 'success');
             announce('Row deleted successfully');
 
             saveState();
+
+            // Refresh data from server to ensure grid reflects actual database state
+            // Brief delay so user sees success feedback
+            setTimeout(() => {
+                sendCommand('refresh', {});
+            }, 300);
         } else {
             console.debug(`${LOG_PREFIX} Row delete failed:`, error?.message);
 
