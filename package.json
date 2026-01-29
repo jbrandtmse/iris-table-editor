@@ -4,6 +4,10 @@
   "description": "Excel-like grid editing for InterSystems IRIS database tables",
   "version": "0.0.1",
   "publisher": "intersystems-community",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jbrandtmse/iris-table-editor.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
