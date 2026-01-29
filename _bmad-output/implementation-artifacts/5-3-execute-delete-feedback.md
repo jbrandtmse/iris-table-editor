@@ -10,7 +10,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | review |
+| Status | done |
 | Epic | 5 - Row Deletion |
 | Story Points | 3 |
 | Prepared | 2026-01-28 |
