@@ -196,7 +196,7 @@ body {
     background-color: var(--vscode-editorWidget-background);
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 3; /* Higher than filter row to stay on top */
 }
 
 /* Grid Header Cell */
@@ -271,7 +271,7 @@ body {
     background-color: var(--vscode-editorWidget-background);
     position: sticky;
     top: 35px; /* Below header row - approximate height */
-    z-index: 1;
+    z-index: 2; /* Above data rows, below header row */
 }
 
 .ite-grid__filter-row--disabled {
@@ -284,6 +284,8 @@ body {
     border-bottom: 1px solid var(--vscode-widget-border);
     border-right: 1px solid var(--vscode-widget-border);
     vertical-align: middle;
+    /* Fix: Ensure filter cells have solid background to prevent data rows showing through when scrolling */
+    background-color: var(--vscode-editorWidget-background);
 }
 
 .ite-grid__filter-cell:last-child {
