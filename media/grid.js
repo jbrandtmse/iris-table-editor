@@ -2082,11 +2082,12 @@
 
     /**
      * Request data with current filter and sort criteria (Story 6.2, 6.4)
+     * Note: API uses 0-indexed pages, state.currentPage is 1-indexed for UI display
      */
     function requestFilteredData() {
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('requestData', {
-            page: state.currentPage,
+            page: state.currentPage - 1,  // Convert from 1-indexed UI to 0-indexed API
             pageSize: state.pageSize,
             filters: filterCriteria,
             sortColumn: state.sortColumn,
@@ -2587,7 +2588,7 @@
 
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('requestData', {
-            page: 1,
+            page: 0,  // First page is 0-indexed in API
             pageSize: state.pageSize,
             filters: filterCriteria,
             sortColumn: state.sortColumn,
@@ -2618,7 +2619,7 @@
 
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('requestData', {
-            page: state.totalPages,
+            page: state.totalPages - 1,  // Convert from 1-indexed UI to 0-indexed API
             pageSize: state.pageSize,
             filters: filterCriteria,
             sortColumn: state.sortColumn,
@@ -2674,7 +2675,7 @@
 
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
         sendCommand('requestData', {
-            page: pageNum,
+            page: pageNum - 1,  // Convert from 1-indexed UI to 0-indexed API
             pageSize: state.pageSize,
             filters: filterCriteria,
             sortColumn: state.sortColumn,

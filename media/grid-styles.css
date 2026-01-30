@@ -268,7 +268,7 @@ body {
 /* Story 6.2: Filter Row */
 .ite-grid__filter-row {
     display: table-row;
-    background-color: var(--vscode-editorWidget-background);
+    background-color: var(--vscode-editor-background);
     position: sticky;
     top: 35px; /* Below header row - approximate height */
     z-index: 2; /* Above data rows, below header row */
@@ -284,8 +284,10 @@ body {
     border-bottom: 1px solid var(--vscode-widget-border);
     border-right: 1px solid var(--vscode-widget-border);
     vertical-align: middle;
-    /* Fix: Ensure filter cells have solid background to prevent data rows showing through when scrolling */
-    background-color: var(--vscode-editorWidget-background);
+    /* Fix: Use editor background (solid) instead of widget background (may be transparent) */
+    background-color: var(--vscode-editor-background);
+    /* Fallback to ensure solid background */
+    background: var(--vscode-editor-background, var(--vscode-editorWidget-background, #1e1e1e));
 }
 
 .ite-grid__filter-cell:last-child {
