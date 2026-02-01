@@ -93,7 +93,7 @@ development_status:
   # Epic 7: Data Type Polish (Growth Phase)
   epic-7: in-progress
   7-1-boolean-checkbox-control: done
-  7-2-date-picker-control: backlog
+  7-2-date-picker-control: done
   7-3-time-field-polish: backlog
   7-4-numeric-field-polish: backlog
   7-5-null-value-display-entry: backlog

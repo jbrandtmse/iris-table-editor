@@ -510,6 +510,396 @@
     }
 
     /**
+     * Check if a column is a date type (DATE only, not TIME/TIMESTAMP)
+     * Story 7.2: Helper to identify date columns for date picker
+     * @param {number} colIndex - Column index
+     * @returns {boolean}
+     */
+    function isDateColumn(colIndex) {
+        if (colIndex < 0 || colIndex >= state.columns.length) return false;
+        const upperType = state.columns[colIndex].dataType.toUpperCase();
+        // DATE only - TIME, TIMESTAMP, DATETIME are handled by other stories
+        return upperType === 'DATE';
+    }
+
+    // ==========================================
+    // Story 7.2: Date Picker Functions
+    // ==========================================
+
+    /** @type {HTMLElement|null} Current active date picker */
+    let activeDatePicker = null;
+    /** @type {function|null} Current date picker close handler for cleanup */
+    let activeDatePickerCloseHandler = null;
+
+    /**
+     * Parse user date input in various formats
+     * Story 7.2: Support multiple date input formats
+     * @param {string} input - User input string
+     * @returns {Date|null} Parsed date or null if invalid
+     */
+    function parseUserDateInput(input) {
+        if (!input || input.trim() === '') return null;
+
+        const trimmed = input.trim();
+
+        // Try ISO format first: YYYY-MM-DD
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (isoMatch) {
+            const date = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+            if (!isNaN(date.getTime())) return date;
+        }
+
+        // Try DD-MM-YYYY (with dash separator - EU convention)
+        // Must come before slash-based formats since dash is unambiguous EU indicator
+        const euDashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+        if (euDashMatch) {
+            const day = parseInt(euDashMatch[1]);
+            const month = parseInt(euDashMatch[2]);
+            const year = parseInt(euDashMatch[3]);
+            // Validate day/month ranges
+            if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+                const date = new Date(year, month - 1, day);
+                if (!isNaN(date.getTime())) return date;
+            }
+        }
+
+        // Try MM/DD/YYYY (with slash separator - US convention)
+        // Note: For ambiguous dates like 01/02/2026 where both numbers ≤12,
+        // US format (MM/DD) is assumed. Use YYYY-MM-DD or DD-MM-YYYY for clarity.
+        const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (usMatch) {
+            const month = parseInt(usMatch[1]);
+            const day = parseInt(usMatch[2]);
+            const year = parseInt(usMatch[3]);
+            // Validate as MM/DD/YYYY
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                const date = new Date(year, month - 1, day);
+                if (!isNaN(date.getTime())) return date;
+            }
+            // If first number > 12, try as DD/MM/YYYY (must be day-first)
+            if (month > 12 && day >= 1 && day <= 12) {
+                const date = new Date(year, day - 1, month);
+                if (!isNaN(date.getTime())) return date;
+            }
+        }
+
+        // Try natural language via Date.parse
+        const parsed = new Date(trimmed);
+        if (!isNaN(parsed.getTime())) return parsed;
+
+        return null;
+    }
+
+    /**
+     * Format a Date object for IRIS storage (YYYY-MM-DD)
+     * Story 7.2: Ensure consistent date format for database
+     * @param {Date} date - Date object
+     * @returns {string} YYYY-MM-DD formatted string
+     */
+    function formatDateForIRIS(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    /**
+     * Create date picker popup
+     * Story 7.2: Calendar picker component
+     * @param {Date|null} selectedDate - Currently selected date
+     * @param {function(Date):void} onSelect - Callback when date is selected
+     * @param {function():void} onClose - Callback when picker should close
+     * @returns {HTMLElement} Date picker element
+     */
+    function createDatePicker(selectedDate, onSelect, onClose) {
+        const picker = document.createElement('div');
+        picker.className = 'ite-date-picker';
+        picker.setAttribute('role', 'dialog');
+        picker.setAttribute('aria-label', 'Choose date');
+        picker.setAttribute('tabindex', '-1');
+
+        // State for the picker
+        let viewDate = selectedDate ? new Date(selectedDate) : new Date();
+        let focusedDate = selectedDate ? new Date(selectedDate) : new Date();
+
+        function render() {
+            picker.innerHTML = '';
+
+            // Header with month/year and navigation
+            const header = document.createElement('div');
+            header.className = 'ite-date-picker__header';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'ite-date-picker__nav-btn';
+            prevBtn.innerHTML = '◀';
+            prevBtn.type = 'button';
+            prevBtn.setAttribute('aria-label', 'Previous month');
+            prevBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                viewDate.setMonth(viewDate.getMonth() - 1);
+                render();
+            });
+
+            const monthYear = document.createElement('span');
+            monthYear.className = 'ite-date-picker__month-year';
+            monthYear.textContent = viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'ite-date-picker__nav-btn';
+            nextBtn.innerHTML = '▶';
+            nextBtn.type = 'button';
+            nextBtn.setAttribute('aria-label', 'Next month');
+            nextBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                viewDate.setMonth(viewDate.getMonth() + 1);
+                render();
+            });
+
+            header.appendChild(prevBtn);
+            header.appendChild(monthYear);
+            header.appendChild(nextBtn);
+            picker.appendChild(header);
+
+            // Day of week headers
+            const weekHeader = document.createElement('div');
+            weekHeader.className = 'ite-date-picker__week-header';
+            const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+            dayNames.forEach(name => {
+                const dayHeader = document.createElement('span');
+                dayHeader.className = 'ite-date-picker__day-name';
+                dayHeader.textContent = name;
+                weekHeader.appendChild(dayHeader);
+            });
+            picker.appendChild(weekHeader);
+
+            // Days grid
+            const grid = document.createElement('div');
+            grid.className = 'ite-date-picker__grid';
+            grid.setAttribute('role', 'grid');
+            grid.setAttribute('aria-colcount', '7');
+
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+
+            // First day of month
+            const firstDay = new Date(year, month, 1);
+            const startDayOfWeek = firstDay.getDay();
+
+            // Last day of month
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+
+            // Calculate row count: header + ceil((startDayOfWeek + daysInMonth) / 7)
+            const totalCells = startDayOfWeek + daysInMonth;
+            const rowCount = Math.ceil(totalCells / 7);
+            grid.setAttribute('aria-rowcount', String(rowCount));
+
+            // Today for comparison
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Add empty cells for days before first of month
+            for (let i = 0; i < startDayOfWeek; i++) {
+                const empty = document.createElement('span');
+                empty.className = 'ite-date-picker__day ite-date-picker__day--empty';
+                grid.appendChild(empty);
+            }
+
+            // Add day cells
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayDate = new Date(year, month, day);
+                const dayEl = document.createElement('button');
+                dayEl.type = 'button';
+                dayEl.className = 'ite-date-picker__day';
+                dayEl.textContent = String(day);
+                dayEl.setAttribute('data-date', formatDateForIRIS(dayDate));
+
+                // Check if this is today
+                if (dayDate.getTime() === today.getTime()) {
+                    dayEl.classList.add('ite-date-picker__day--today');
+                }
+
+                // Check if this is the selected date
+                if (selectedDate && dayDate.toDateString() === selectedDate.toDateString()) {
+                    dayEl.classList.add('ite-date-picker__day--selected');
+                }
+
+                // Check if this is the focused date
+                if (dayDate.toDateString() === focusedDate.toDateString()) {
+                    dayEl.classList.add('ite-date-picker__day--focused');
+                    dayEl.setAttribute('tabindex', '0');
+                } else {
+                    dayEl.setAttribute('tabindex', '-1');
+                }
+
+                dayEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onSelect(dayDate);
+                });
+
+                grid.appendChild(dayEl);
+            }
+
+            picker.appendChild(grid);
+
+            // Today button
+            const todayBtn = document.createElement('button');
+            todayBtn.type = 'button';
+            todayBtn.className = 'ite-date-picker__today-btn';
+            todayBtn.textContent = 'Today';
+            todayBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onSelect(new Date());
+            });
+            picker.appendChild(todayBtn);
+
+            // Focus the focused day
+            const focusedEl = grid.querySelector('.ite-date-picker__day--focused');
+            if (focusedEl) {
+                setTimeout(() => focusedEl.focus(), 0);
+            }
+        }
+
+        // Keyboard navigation
+        picker.addEventListener('keydown', (e) => {
+            let handled = false;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    focusedDate.setDate(focusedDate.getDate() - 1);
+                    if (focusedDate.getMonth() !== viewDate.getMonth()) {
+                        viewDate.setMonth(viewDate.getMonth() - 1);
+                    }
+                    handled = true;
+                    break;
+                case 'ArrowRight':
+                    focusedDate.setDate(focusedDate.getDate() + 1);
+                    if (focusedDate.getMonth() !== viewDate.getMonth()) {
+                        viewDate.setMonth(viewDate.getMonth() + 1);
+                    }
+                    handled = true;
+                    break;
+                case 'ArrowUp':
+                    focusedDate.setDate(focusedDate.getDate() - 7);
+                    if (focusedDate.getMonth() !== viewDate.getMonth()) {
+                        viewDate.setMonth(viewDate.getMonth() - 1);
+                    }
+                    handled = true;
+                    break;
+                case 'ArrowDown':
+                    focusedDate.setDate(focusedDate.getDate() + 7);
+                    if (focusedDate.getMonth() !== viewDate.getMonth()) {
+                        viewDate.setMonth(viewDate.getMonth() + 1);
+                    }
+                    handled = true;
+                    break;
+                case 'PageUp':
+                    viewDate.setMonth(viewDate.getMonth() - 1);
+                    focusedDate.setMonth(focusedDate.getMonth() - 1);
+                    handled = true;
+                    break;
+                case 'PageDown':
+                    viewDate.setMonth(viewDate.getMonth() + 1);
+                    focusedDate.setMonth(focusedDate.getMonth() + 1);
+                    handled = true;
+                    break;
+                case 'Home':
+                    focusedDate.setDate(1);
+                    handled = true;
+                    break;
+                case 'End':
+                    focusedDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+                    handled = true;
+                    break;
+                case 'Enter':
+                case ' ':
+                    e.preventDefault();
+                    onSelect(new Date(focusedDate));
+                    handled = true;
+                    return;
+                case 'Escape':
+                    e.preventDefault();
+                    onClose();
+                    return;
+            }
+
+            if (handled) {
+                e.preventDefault();
+                e.stopPropagation();
+                render();
+            }
+        });
+
+        render();
+        return picker;
+    }
+
+    /**
+     * Close any active date picker
+     * Story 7.2: Cleanup function - removes picker and event listener
+     */
+    function closeDatePicker() {
+        // Remove the close handler event listener to prevent memory leak
+        if (activeDatePickerCloseHandler) {
+            document.removeEventListener('mousedown', activeDatePickerCloseHandler);
+            activeDatePickerCloseHandler = null;
+        }
+        if (activeDatePicker) {
+            activeDatePicker.remove();
+            activeDatePicker = null;
+        }
+    }
+
+    /**
+     * Open date picker for a cell
+     * Story 7.2: Show date picker positioned near input
+     * @param {HTMLElement} input - The input element
+     * @param {Date|null} currentDate - Current date value
+     * @param {function(Date):void} onSelect - Selection callback
+     */
+    function openDatePicker(input, currentDate, onSelect) {
+        closeDatePicker();
+
+        const picker = createDatePicker(
+            currentDate,
+            (date) => {
+                onSelect(date);
+                closeDatePicker();
+            },
+            () => {
+                closeDatePicker();
+                input.focus();
+            }
+        );
+
+        // Position the picker below the input
+        const inputRect = input.getBoundingClientRect();
+        picker.style.position = 'fixed';
+        picker.style.left = `${inputRect.left}px`;
+        picker.style.top = `${inputRect.bottom + 4}px`;
+
+        // Check if picker would go off screen bottom
+        document.body.appendChild(picker);
+        const pickerRect = picker.getBoundingClientRect();
+        if (pickerRect.bottom > window.innerHeight) {
+            // Position above input instead
+            picker.style.top = `${inputRect.top - pickerRect.height - 4}px`;
+        }
+
+        activeDatePicker = picker;
+
+        // Close on click outside - store handler for cleanup in closeDatePicker()
+        activeDatePickerCloseHandler = (e) => {
+            if (!picker.contains(e.target) && e.target !== input && !input.contains(e.target)) {
+                closeDatePicker();
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('mousedown', activeDatePickerCloseHandler);
+        }, 0);
+    }
+
+    /**
      * Show context menu for boolean cell (Set to NULL option)
      * Story 7.1: Right-click context menu for boolean cells
      * @param {MouseEvent} event - Right-click event
@@ -699,19 +1089,61 @@
         const displayValue = initialValue !== null ? initialValue :
             (currentValue === null || currentValue === undefined) ? '' : String(currentValue);
 
-        // Create input element
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'ite-grid__cell-input';
-        input.value = displayValue;
-        input.setAttribute('aria-label', `Edit ${state.columns[colIndex].name}`);
+        // Story 7.2: Check if this is a date column for special handling
+        const isDate = isDateColumn(colIndex);
 
-        // Replace cell content with input
+        // Replace cell content
         cell.textContent = '';
-        cell.appendChild(input);
         cell.classList.add('ite-grid__cell--editing');
         // Story 3.5: Clear any error state when user starts editing
         cell.classList.remove('ite-grid__cell--error');
+
+        let input;
+
+        if (isDate) {
+            // Story 7.2: Date columns get special editor with calendar icon
+            const container = document.createElement('div');
+            container.className = 'ite-date-editor';
+
+            input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'ite-date-editor__input';
+            input.value = displayValue;
+            input.placeholder = 'YYYY-MM-DD';
+            input.setAttribute('aria-label', `Edit ${state.columns[colIndex].name}`);
+
+            const calendarBtn = document.createElement('button');
+            calendarBtn.type = 'button';
+            calendarBtn.className = 'ite-date-editor__calendar-btn';
+            calendarBtn.innerHTML = '&#128197;'; // Calendar emoji
+            calendarBtn.setAttribute('aria-label', 'Open date picker');
+            calendarBtn.setAttribute('tabindex', '-1');
+
+            // Parse current date for the picker
+            const currentDate = currentValue ? parseUserDateInput(String(currentValue)) : null;
+
+            calendarBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                openDatePicker(input, currentDate || new Date(), (selectedDate) => {
+                    input.value = formatDateForIRIS(selectedDate);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.focus();
+                });
+            });
+
+            container.appendChild(input);
+            container.appendChild(calendarBtn);
+            cell.appendChild(container);
+        } else {
+            // Standard text input for non-date columns
+            input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'ite-grid__cell-input';
+            input.value = displayValue;
+            input.setAttribute('aria-label', `Edit ${state.columns[colIndex].name}`);
+            cell.appendChild(input);
+        }
 
         // Setup input event handlers
         input.addEventListener('keydown', handleEditInputKeydown);
@@ -748,9 +1180,16 @@
     function exitEditMode(saveValue) {
         if (!state.isEditing) return null;
 
+        // Story 7.2: Close any active date picker
+        closeDatePicker();
+
         const { rowIndex, colIndex } = state.editingCell;
         const cell = getCellElement(rowIndex, colIndex);
-        const input = cell?.querySelector('.ite-grid__cell-input');
+        // Story 7.2: Handle both regular input and date editor input
+        let input = cell?.querySelector('.ite-grid__cell-input');
+        if (!input) {
+            input = cell?.querySelector('.ite-date-editor__input');
+        }
 
         let result = null;
 
@@ -771,7 +1210,29 @@
             if (saveValue) {
                 // Update local state with new value (optimistic update)
                 // Convert empty string to null for proper NULL handling
-                const valueToStore = newValue === '' ? null : newValue;
+                let valueToStore = newValue === '' ? null : newValue;
+
+                // Story 7.2: For date columns, validate and normalize the input to IRIS format
+                if (isDateColumn(colIndex) && valueToStore !== null) {
+                    const parsedDate = parseUserDateInput(valueToStore);
+                    if (parsedDate) {
+                        // Normalize to IRIS format (YYYY-MM-DD)
+                        valueToStore = formatDateForIRIS(parsedDate);
+                    } else {
+                        // Invalid date format - show error and cancel save
+                        console.warn(`${LOG_PREFIX} Invalid date format: "${valueToStore}"`);
+                        announce(`Invalid date format. Use YYYY-MM-DD, MM/DD/YYYY, or natural language like "Feb 1, 2026".`);
+                        // Restore original value and keep cell selected
+                        const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
+                        cell.textContent = display;
+                        cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                        cell.title = String(oldValue ?? 'NULL');
+                        cell.classList.add('ite-grid__cell--error');
+                        state.isEditing = false;
+                        state.editingCell = { rowIndex: -1, colIndex: -1 };
+                        return { saved: false, oldValue, newValue: valueToStore, rowIndex, colIndex };
+                    }
+                }
 
                 // Story 4.1: Handle new rows vs existing rows
                 const rowData = getRowData(rowIndex);
