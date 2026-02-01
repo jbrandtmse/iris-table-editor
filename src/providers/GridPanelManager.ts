@@ -727,19 +727,29 @@ export class GridPanelManager {
                 <i class="codicon codicon-list-filter"></i>
                 <span class="ite-toolbar__badge" id="filterBadge" style="display: none;">0</span>
             </button>
-        </div>
-
-        <!-- Story 6.3: Filter Panel (hidden by default) -->
-        <div class="ite-filter-panel" id="filterPanel" style="display: none;">
-            <div class="ite-filter-panel__header">
-                <h4 class="ite-filter-panel__title">Active Filters</h4>
-                <button class="ite-filter-panel__close" id="filterPanelClose" title="Close panel">
-                    <i class="codicon codicon-close"></i>
-                </button>
+            <span class="ite-toolbar__separator"></span>
+            <div class="ite-toolbar__slider-group">
+                <i class="codicon codicon-text-size" title="Column width"></i>
+                <input type="range"
+                       id="columnWidthSlider"
+                       class="ite-toolbar__slider"
+                       min="80"
+                       max="400"
+                       value="150"
+                       title="Adjust column width" />
             </div>
-            <div class="ite-filter-panel__content" id="filterPanelContent">
-                <!-- Filter chips will be rendered here by JavaScript -->
-                <p class="ite-filter-panel__empty">No active filters</p>
+            <!-- Story 6.3: Filter Panel (hidden by default) - inside toolbar for positioning -->
+            <div class="ite-filter-panel" id="filterPanel" style="display: none;">
+                <div class="ite-filter-panel__header">
+                    <h4 class="ite-filter-panel__title">Active Filters</h4>
+                    <button class="ite-filter-panel__close" id="filterPanelClose" title="Close panel">
+                        <i class="codicon codicon-close"></i>
+                    </button>
+                </div>
+                <div class="ite-filter-panel__content" id="filterPanelContent">
+                    <!-- Filter chips will be rendered here by JavaScript -->
+                    <p class="ite-filter-panel__empty">No active filters</p>
+                </div>
             </div>
         </div>
 

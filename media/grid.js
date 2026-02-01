@@ -59,6 +59,8 @@
             this.sortColumn = null;
             /** @type {'asc' | 'desc' | null} - Story 6.4: Current sort direction */
             this.sortDirection = null;
+            /** @type {number} - Column width in pixels for data columns */
+            this.columnWidth = 150;
         }
 
         /**
@@ -1674,6 +1676,12 @@
      * @param {KeyboardEvent} event
      */
     function handleCellKeydown(event) {
+        // Ignore if event originated from an input/textarea (e.g., filter inputs)
+        const target = event.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            return;
+        }
+
         // Only handle if a cell is selected
         if (state.selectedCell.rowIndex === null || state.selectedCell.colIndex === null) {
             return;
@@ -1952,10 +1960,8 @@
             });
 
             input.addEventListener('blur', () => {
-                const currentValue = state.filters.get(col.name) || '';
-                if (input.value !== currentValue) {
-                    applyFilter(col.name, input.value);
-                }
+                // Always apply filter on blur - applyFilter handles unchanged values
+                applyFilter(col.name, input.value);
             });
 
             filterCell.appendChild(input);
@@ -1972,6 +1978,13 @@
      */
     function applyFilter(column, value) {
         const trimmedValue = value.trim();
+        const currentValue = state.filters.get(column) || '';
+
+        // Check if value actually changed to avoid unnecessary requests
+        if (trimmedValue === currentValue) {
+            return;
+        }
+
         if (trimmedValue === '') {
             state.filters.delete(column);
         } else {
@@ -1981,6 +1994,7 @@
         updateFilterInputStyles();
         updateFilterToolbarButtons();
         updateFilterBadge();  // Story 6.3
+        renderFilterPanelContent();  // Story 6.3: Update panel if open
 
         // Reset to page 1 and reload data
         state.currentPage = 1;
@@ -2725,6 +2739,19 @@
     }
 
     /**
+     * Update grid column widths based on state.columnWidth
+     * Called when slider changes or grid renders
+     */
+    function updateGridColumns() {
+        const grid = document.getElementById('dataGrid');
+        if (!grid || state.columns.length === 0) return;
+
+        // Selector column (36px) + data columns with min width from slider
+        const gridColumns = `36px repeat(${state.columns.length}, minmax(${state.columnWidth}px, 1fr))`;
+        grid.style.gridTemplateColumns = gridColumns;
+    }
+
+    /**
      * Render empty state message
      * Story 2.2: Edge case handling for empty tables
      */
@@ -2758,6 +2785,9 @@
         if (state.columns.length === 0) {
             return;
         }
+
+        // Set up CSS Grid columns using current columnWidth setting
+        updateGridColumns();
 
         renderHeader();
 
@@ -3047,6 +3077,18 @@
             filterPanelClose.addEventListener('click', closeFilterPanel);
         }
 
+        // Column width slider
+        const columnWidthSlider = document.getElementById('columnWidthSlider');
+        if (columnWidthSlider) {
+            // Initialize slider value from state
+            columnWidthSlider.value = String(state.columnWidth);
+            columnWidthSlider.addEventListener('input', (e) => {
+                // @ts-ignore
+                state.columnWidth = parseInt(e.target.value, 10);
+                updateGridColumns();
+            });
+        }
+
         // Close filter panel when clicking outside
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('filterPanel');
@@ -3127,6 +3169,12 @@
      * @param {KeyboardEvent} event
      */
     function handleKeyboardNavigation(event) {
+        // Ignore if event originated from an input/textarea (e.g., filter inputs, page input)
+        const target = event.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            return;
+        }
+
         // Story 4.1: Ctrl+N (or Cmd+N on Mac) for new row
         if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
             event.preventDefault();

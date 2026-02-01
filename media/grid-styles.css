@@ -94,6 +94,7 @@ body {
     background-color: var(--vscode-editor-background);
     border-bottom: 1px solid var(--vscode-widget-border);
     flex-shrink: 0;
+    position: relative; /* For filter panel absolute positioning */
 }
 
 .ite-toolbar__button {
@@ -143,6 +144,48 @@ body {
     opacity: 0.5;
 }
 
+/* Column width slider group */
+.ite-toolbar__slider-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--vscode-foreground);
+    opacity: 0.8;
+}
+
+.ite-toolbar__slider-group i {
+    font-size: 14px;
+}
+
+.ite-toolbar__slider {
+    width: 80px;
+    height: 4px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--vscode-scrollbarSlider-background);
+    border-radius: 2px;
+}
+
+.ite-toolbar__slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--vscode-button-background);
+    cursor: pointer;
+}
+
+.ite-toolbar__slider::-webkit-slider-thumb:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.ite-toolbar__slider:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
 /* Loading Overlay */
 .ite-grid-loading {
     display: flex;
@@ -178,30 +221,23 @@ body {
 .ite-grid-wrapper {
     flex: 1;
     overflow: auto;
-    overflow-x: hidden;
     position: relative;
 }
 
-/* Grid */
+/* Grid - using CSS Grid instead of display:table for proper sticky support */
 .ite-grid {
-    display: table;
+    display: grid;
     width: 100%;
-    border-collapse: collapse;
-    table-layout: auto;
+    /* Column template set dynamically via JS based on column count */
 }
 
 /* Grid Header Row */
 .ite-grid__header-row {
-    display: table-row;
-    background-color: var(--vscode-editorWidget-background);
-    position: sticky;
-    top: 0;
-    z-index: 3; /* Higher than filter row to stay on top */
+    display: contents; /* Children become direct grid items */
 }
 
 /* Grid Header Cell */
 .ite-grid__header-cell {
-    display: table-cell;
     padding: 8px 12px;
     text-align: left;
     font-weight: 600;
@@ -209,11 +245,18 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--vscode-foreground);
-    background-color: var(--vscode-editorWidget-background);
+    /* Solid opaque background - critical for sticky */
+    background: var(--vscode-editorWidget-background, #252526);
     border-bottom: 2px solid var(--vscode-widget-border);
     border-right: 1px solid var(--vscode-widget-border);
     white-space: nowrap;
     user-select: none;
+    /* Sticky header cells */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    /* Box shadow creates solid backdrop to hide content scrolling underneath */
+    box-shadow: inset 0 0 0 1000px var(--vscode-editorWidget-background, #252526);
 }
 
 .ite-grid__header-cell:last-child {
@@ -223,7 +266,6 @@ body {
 /* Story 6.4: Sortable Header Cells */
 .ite-grid__header-cell--sortable {
     cursor: pointer;
-    display: table-cell;
 }
 
 .ite-grid__header-cell--sortable:hover {
@@ -267,13 +309,7 @@ body {
 
 /* Story 6.2: Filter Row */
 .ite-grid__filter-row {
-    display: table-row;
-    position: sticky;
-    top: 35px; /* Below header row - approximate height */
-    z-index: 2; /* Above data rows, below header row */
-    /* Force GPU layer to fix sticky background rendering */
-    transform: translate3d(0, 0, 0);
-    -webkit-transform: translate3d(0, 0, 0);
+    display: contents; /* Children become direct grid items */
 }
 
 .ite-grid__filter-row--disabled {
@@ -281,16 +317,19 @@ body {
 }
 
 .ite-grid__filter-cell {
-    display: table-cell;
     padding: 4px 6px;
     border-bottom: 1px solid var(--vscode-widget-border);
     border-right: 1px solid var(--vscode-widget-border);
-    vertical-align: middle;
-    /* Ensure opaque background - use same as header with fallbacks */
-    background: var(--vscode-editorWidget-background, #252526) !important;
-    /* Backup: paint area explicitly */
-    -webkit-background-clip: padding-box;
-    background-clip: padding-box;
+    display: flex;
+    align-items: center;
+    /* Solid opaque background - critical for sticky */
+    background: var(--vscode-editorWidget-background, #252526);
+    /* Sticky filter cells - positioned below header */
+    position: sticky;
+    top: 35px;
+    z-index: 9;
+    /* Box shadow creates solid backdrop to hide content scrolling underneath */
+    box-shadow: inset 0 0 0 1000px var(--vscode-editorWidget-background, #252526);
 }
 
 .ite-grid__filter-cell:last-child {
@@ -489,9 +528,9 @@ body {
     width: 36px;
     min-width: 36px;
     max-width: 36px;
-    display: table-cell;
-    text-align: center;
-    vertical-align: middle;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0;
 }
 
@@ -510,65 +549,44 @@ body {
 
 /* Grid Data Row */
 .ite-grid__row {
-    display: table-row;
-    transition: background-color 0.1s ease;
+    display: contents; /* Children become direct grid items */
 }
 
-.ite-grid__row:nth-child(even) {
+/* Alternating row colors - applied to cells since rows use display:contents */
+.ite-grid__row:nth-child(even) .ite-grid__cell {
     background-color: var(--vscode-list-hoverBackground);
 }
 
-.ite-grid__row:hover {
-    background-color: var(--vscode-list-activeSelectionBackground);
-}
-
+/* Row hover - applied to cells */
 .ite-grid__row:hover .ite-grid__cell {
+    background-color: var(--vscode-list-activeSelectionBackground);
     color: var(--vscode-list-activeSelectionForeground);
 }
 
 /* Story 5.1: Selected Row for Deletion */
-.ite-grid__row--selected {
-    background-color: var(--vscode-list-activeSelectionBackground) !important;
-}
-
 .ite-grid__row--selected .ite-grid__cell {
-    background-color: inherit;
-    color: var(--vscode-list-activeSelectionForeground);
-}
-
-/* Story 5.1: Row selector column in selected row */
-.ite-grid__row--selected .ite-grid__cell--selector {
-    background-color: inherit;
-}
-
-/* Story 5.1: Override even row background for selected rows */
-.ite-grid__row--selected:nth-child(even) {
     background-color: var(--vscode-list-activeSelectionBackground) !important;
+    color: var(--vscode-list-activeSelectionForeground);
 }
 
 /* Story 3.1: Ensure selected cell keeps its styling even on row hover */
-.ite-grid__row:hover .ite-grid__cell--selected {
-    background-color: var(--vscode-list-activeSelectionBackground);
-    color: var(--vscode-list-activeSelectionForeground);
+.ite-grid__cell--selected {
+    background-color: var(--vscode-list-activeSelectionBackground) !important;
+    color: var(--vscode-list-activeSelectionForeground) !important;
 }
 
 /* Story 4.1: New Row (pending INSERT) */
-.ite-grid__row--new {
+.ite-grid__row--new .ite-grid__cell {
     background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15));
 }
 
-/* New row indicator - left border on first cell (::before pseudo-element causes layout issues with table-row) */
-.ite-grid__row--new .ite-grid__cell:first-child {
+/* New row indicator - left border on first cell */
+.ite-grid__row--new .ite-grid__cell:first-of-type {
     border-left: 3px solid var(--vscode-gitDecoration-addedResourceForeground, #73c991);
 }
 
-/* Override even row alternating background for new rows */
-.ite-grid__row--new:nth-child(even) {
-    background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15));
-}
-
 /* New row hover state - slightly more pronounced */
-.ite-grid__row--new:hover {
+.ite-grid__row--new:hover .ite-grid__cell {
     background-color: var(--vscode-diffEditor-insertedTextBackground, rgba(155, 185, 85, 0.25));
 }
 
@@ -609,15 +627,16 @@ body {
 
 /* Grid Cell */
 .ite-grid__cell {
-    display: table-cell;
     padding: 6px 12px;
     border-bottom: 1px solid var(--vscode-widget-border);
     border-right: 1px solid var(--vscode-widget-border);
-    vertical-align: middle;
+    display: flex;
+    align-items: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 300px;
+    background-color: var(--vscode-editor-background);
 }
 
 .ite-grid__cell:last-child {
@@ -1010,11 +1029,11 @@ body {
 
 /* Story 2.2: Empty Row State (for tables with schema but no data) */
 .ite-grid__empty-row {
-    display: table-row;
+    display: contents;
 }
 
 .ite-grid__empty-cell {
-    display: table-cell;
+    grid-column: 1 / -1; /* Span all columns */
     padding: 24px;
     text-align: center;
     color: var(--vscode-descriptionForeground);
