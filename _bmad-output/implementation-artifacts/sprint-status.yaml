@@ -1,4 +1,4 @@
-# generated: 2026-01-27
+# generated: 2026-02-01
 # project: iris-table-editor
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
@@ -32,7 +32,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-01-27
+generated: 2026-02-01
 project: iris-table-editor
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -89,3 +89,32 @@ development_status:
   6-5-enhanced-pagination-controls: done
   6-6-lazy-loading-verification-optimization: done
   epic-6-retrospective: optional
+
+  # Epic 7: Data Type Polish (Growth Phase)
+  epic-7: in-progress
+  7-1-boolean-checkbox-control: done
+  7-2-date-picker-control: backlog
+  7-3-time-field-polish: backlog
+  7-4-numeric-field-polish: backlog
+  7-5-null-value-display-entry: backlog
+  7-6-timestamp-datetime-field-polish: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Keyboard Shortcuts (Growth Phase)
+  epic-8: backlog
+  8-1-grid-navigation-shortcuts: backlog
+  8-2-cell-editing-shortcuts: backlog
+  8-3-row-operation-shortcuts: backlog
+  8-4-data-operation-shortcuts: backlog
+  8-5-shortcut-discovery-help: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: CSV/Excel Export & Import (Growth Phase)
+  epic-9: backlog
+  9-1-export-current-view-to-csv: backlog
+  9-2-export-to-excel-format: backlog
+  9-3-import-from-csv: backlog
+  9-4-import-from-excel: backlog
+  9-5-import-validation-rollback: backlog
+  9-6-export-import-large-datasets: backlog
+  epic-9-retrospective: optional

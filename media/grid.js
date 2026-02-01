@@ -253,20 +253,37 @@
      * Story 2.3: Enhanced with proper date formatting and boolean support
      * @param {unknown} value - Cell value
      * @param {string} dataType - Column data type
-     * @returns {{ display: string; cssClass: string; isNull: boolean }}
+     * @returns {{ display: string; cssClass: string; isNull: boolean; isBoolean?: boolean; boolValue?: boolean|null }}
      */
     function formatCellValue(value, dataType) {
-        // Handle null/undefined
-        if (value === null || value === undefined || value === '') {
-            return { display: 'NULL', cssClass: 'ite-grid__cell--null', isNull: true };
-        }
-
         const upperType = dataType.toUpperCase();
 
-        // Boolean types - display as Yes/No
+        // Story 7.1: Boolean types - handle specially for checkbox rendering
+        // Must check BEFORE general null handling to show indeterminate state
         if (upperType === 'BIT' || upperType === 'BOOLEAN') {
+            // Treat null, undefined, and empty string as NULL for booleans
+            if (value === null || value === undefined || value === '') {
+                return {
+                    display: '', // Checkbox will be rendered by createBooleanCheckbox
+                    cssClass: 'ite-grid__cell--boolean',
+                    isNull: true,
+                    isBoolean: true,
+                    boolValue: null // NULL boolean shows indeterminate state
+                };
+            }
             const boolValue = value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
-            return { display: boolValue ? 'Yes' : 'No', cssClass: 'ite-grid__cell--boolean', isNull: false };
+            return {
+                display: '', // Checkbox will be rendered by createBooleanCheckbox
+                cssClass: 'ite-grid__cell--boolean',
+                isNull: false,
+                isBoolean: true,
+                boolValue: boolValue
+            };
+        }
+
+        // Handle null/undefined for non-boolean types
+        if (value === null || value === undefined || value === '') {
+            return { display: 'NULL', cssClass: 'ite-grid__cell--null', isNull: true };
         }
 
         // Number types - return raw value (will be set via textContent, not innerHTML)
@@ -282,6 +299,343 @@
 
         // Default - text (no escaping needed as we use textContent)
         return { display: String(value), cssClass: '', isNull: false };
+    }
+
+    // ==========================================
+    // Story 7.1: Boolean Checkbox Functions
+    // ==========================================
+
+    /**
+     * Create a boolean checkbox element for a cell
+     * Story 7.1: Render checkboxes for boolean (BIT) columns
+     * @param {boolean|null} value - true, false, or null (indeterminate)
+     * @returns {HTMLElement} Checkbox container element
+     */
+    function createBooleanCheckbox(value) {
+        const container = document.createElement('div');
+        container.className = 'ite-checkbox';
+        container.setAttribute('role', 'checkbox');
+        container.setAttribute('tabindex', '-1'); // Cell itself handles tab navigation
+
+        if (value === null) {
+            container.classList.add('ite-checkbox--null');
+            container.setAttribute('aria-checked', 'mixed');
+            container.textContent = '─'; // Dash for indeterminate/NULL
+        } else if (value) {
+            container.classList.add('ite-checkbox--checked');
+            container.setAttribute('aria-checked', 'true');
+            container.textContent = '☑'; // Checked checkbox
+        } else {
+            container.classList.add('ite-checkbox--unchecked');
+            container.setAttribute('aria-checked', 'false');
+            container.textContent = '☐'; // Unchecked checkbox
+        }
+
+        return container;
+    }
+
+    /**
+     * Update checkbox visual state
+     * Story 7.1: Helper to update checkbox appearance after toggle
+     * @param {HTMLElement} checkbox - The checkbox element
+     * @param {number|null} value - 1 (checked), 0 (unchecked), or null
+     */
+    function updateCheckboxVisual(checkbox, value) {
+        checkbox.classList.remove('ite-checkbox--checked', 'ite-checkbox--unchecked', 'ite-checkbox--null');
+
+        if (value === null) {
+            checkbox.classList.add('ite-checkbox--null');
+            checkbox.setAttribute('aria-checked', 'mixed');
+            checkbox.textContent = '─';
+        } else if (value === 1 || value === true) {
+            checkbox.classList.add('ite-checkbox--checked');
+            checkbox.setAttribute('aria-checked', 'true');
+            checkbox.textContent = '☑';
+        } else {
+            checkbox.classList.add('ite-checkbox--unchecked');
+            checkbox.setAttribute('aria-checked', 'false');
+            checkbox.textContent = '☐';
+        }
+    }
+
+    /**
+     * Toggle boolean checkbox value and save to database
+     * Story 7.1: Handle checkbox toggle with optimistic update
+     * @param {number} rowIndex - Row index
+     * @param {number} colIndex - Column index
+     */
+    function toggleBooleanCheckbox(rowIndex, colIndex) {
+        const column = state.columns[colIndex];
+        const row = getRowData(rowIndex);
+        if (!row) return;
+
+        const currentValue = row[column.name];
+
+        // Determine new value: null -> true (1), true -> false (0), false -> true (1)
+        let newValue;
+        if (currentValue === null || currentValue === undefined) {
+            newValue = 1; // NULL -> checked
+        } else {
+            const boolValue = currentValue === true || currentValue === 1 || currentValue === '1';
+            newValue = boolValue ? 0 : 1; // Toggle
+        }
+
+        // Update local state immediately (optimistic update)
+        row[column.name] = newValue;
+
+        // Update cell display
+        const cell = getCellElement(rowIndex, colIndex);
+        if (cell) {
+            cell.classList.add('ite-checkbox--saving');
+            const checkbox = cell.querySelector('.ite-checkbox');
+            if (checkbox) {
+                updateCheckboxVisual(checkbox, newValue);
+            }
+            // Remove saving class after animation
+            setTimeout(() => {
+                cell.classList.remove('ite-checkbox--saving');
+            }, 150);
+        }
+
+        // Find primary key column and value for the save
+        const pkColumn = findPrimaryKeyColumn();
+        const pkValue = row[pkColumn];
+
+        // Track the pending save
+        const saveKey = `${pkValue}:${column.name}`;
+        state.pendingSaves.set(saveKey, {
+            rowIndex,
+            colIndex,
+            columnName: column.name,
+            oldValue: currentValue,
+            newValue,
+            primaryKeyValue: pkValue
+        });
+
+        // Send save command
+        sendCommand('saveCell', {
+            rowIndex: rowIndex,
+            colIndex: colIndex,
+            columnName: column.name,
+            tableName: state.context.tableName,
+            namespace: state.context.namespace,
+            value: newValue,
+            pkColumn: pkColumn,
+            pkValue: pkValue
+        });
+
+        console.debug(`${LOG_PREFIX} Boolean toggle: ${column.name} from ${currentValue} to ${newValue}`);
+    }
+
+    /**
+     * Set boolean cell to NULL
+     * Story 7.1: Context menu action to set boolean to NULL
+     * @param {number} rowIndex - Row index
+     * @param {number} colIndex - Column index
+     */
+    function setBooleanToNull(rowIndex, colIndex) {
+        const column = state.columns[colIndex];
+        const row = getRowData(rowIndex);
+        if (!row) return;
+
+        // Check if column is nullable
+        if (!column.nullable) {
+            showToast('This column does not allow NULL values', 'warning');
+            return;
+        }
+
+        const currentValue = row[column.name];
+
+        // Don't send save if already NULL
+        if (currentValue === null || currentValue === undefined) {
+            return;
+        }
+
+        // Update local state immediately (optimistic update)
+        row[column.name] = null;
+
+        // Update cell display
+        const cell = getCellElement(rowIndex, colIndex);
+        if (cell) {
+            cell.classList.add('ite-checkbox--saving');
+            const checkbox = cell.querySelector('.ite-checkbox');
+            if (checkbox) {
+                updateCheckboxVisual(checkbox, null);
+            }
+            setTimeout(() => {
+                cell.classList.remove('ite-checkbox--saving');
+            }, 150);
+        }
+
+        // Find primary key column and value for the save
+        const pkColumn = findPrimaryKeyColumn();
+        const pkValue = row[pkColumn];
+
+        // Track the pending save
+        const saveKey = `${pkValue}:${column.name}`;
+        state.pendingSaves.set(saveKey, {
+            rowIndex,
+            colIndex,
+            columnName: column.name,
+            oldValue: currentValue,
+            newValue: null,
+            primaryKeyValue: pkValue
+        });
+
+        // Send save command with null value
+        sendCommand('saveCell', {
+            rowIndex: rowIndex,
+            colIndex: colIndex,
+            columnName: column.name,
+            tableName: state.context.tableName,
+            namespace: state.context.namespace,
+            value: null,
+            pkColumn: pkColumn,
+            pkValue: pkValue
+        });
+
+        console.debug(`${LOG_PREFIX} Boolean set to NULL: ${column.name}`);
+    }
+
+    /**
+     * Check if a column is boolean type
+     * Story 7.1: Helper to identify boolean columns
+     * @param {number} colIndex - Column index
+     * @returns {boolean}
+     */
+    function isBooleanColumn(colIndex) {
+        if (colIndex < 0 || colIndex >= state.columns.length) return false;
+        const upperType = state.columns[colIndex].dataType.toUpperCase();
+        return upperType === 'BIT' || upperType === 'BOOLEAN';
+    }
+
+    /**
+     * Show context menu for boolean cell (Set to NULL option)
+     * Story 7.1: Right-click context menu for boolean cells
+     * @param {MouseEvent} event - Right-click event
+     * @param {number} rowIndex - Row index
+     * @param {number} colIndex - Column index
+     */
+    function showBooleanContextMenu(event, rowIndex, colIndex) {
+        event.preventDefault();
+
+        const column = state.columns[colIndex];
+        if (!column.nullable) {
+            // Don't show NULL option for non-nullable columns
+            return;
+        }
+
+        // Remove any existing context menu
+        const existingMenu = document.querySelector('.ite-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.className = 'ite-context-menu';
+
+        const menuItem = document.createElement('div');
+        menuItem.className = 'ite-context-menu__item';
+        menuItem.textContent = 'Set to NULL';
+        menuItem.setAttribute('role', 'menuitem');
+        menuItem.setAttribute('tabindex', '0');
+
+        menu.appendChild(menuItem);
+        menu.setAttribute('role', 'menu');
+
+        // Position at mouse pointer
+        menu.style.left = `${event.clientX}px`;
+        menu.style.top = `${event.clientY}px`;
+
+        // Cleanup function to remove all event listeners
+        const cleanupMenu = () => {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+            document.removeEventListener('keydown', handleEscape);
+        };
+
+        // Handle menu item click
+        const handleMenuClick = () => {
+            setBooleanToNull(rowIndex, colIndex);
+            cleanupMenu();
+        };
+
+        // Close on click outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                cleanupMenu();
+            }
+        };
+
+        // Close on Escape
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                cleanupMenu();
+            }
+        };
+
+        menuItem.addEventListener('click', handleMenuClick);
+        menuItem.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleMenuClick();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                cleanupMenu();
+            }
+        });
+
+        // Use setTimeout to avoid immediate trigger from the contextmenu event
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 0);
+
+        document.addEventListener('keydown', handleEscape);
+
+        document.body.appendChild(menu);
+
+        // Focus the menu item for keyboard accessibility
+        menuItem.focus();
+    }
+
+    /**
+     * Handle right-click on cells (context menu)
+     * Story 7.1: Show context menu for boolean cells
+     * @param {MouseEvent} event
+     */
+    function handleCellContextMenu(event) {
+        const target = /** @type {HTMLElement} */ (event.target);
+
+        const cell = target.closest('.ite-grid__cell');
+        if (!cell) return;
+
+        // Don't show context menu for header cells
+        if (cell.closest('.ite-grid__header-row')) return;
+
+        // Don't show context menu for selector cells
+        if (cell.classList.contains('ite-grid__cell--selector')) return;
+
+        // Find row and column index
+        const row = cell.closest('.ite-grid__row');
+        if (!row) return;
+
+        const grid = document.getElementById('dataGrid');
+        if (!grid) return;
+
+        const rows = Array.from(grid.querySelectorAll('.ite-grid__row'));
+        const rowIndex = rows.indexOf(row);
+        if (rowIndex < 0) return;
+
+        const cells = Array.from(row.querySelectorAll('.ite-grid__cell:not(.ite-grid__cell--selector)'));
+        const colIndex = cells.indexOf(cell);
+        if (colIndex < 0) return;
+
+        // Only show context menu for boolean columns
+        if (isBooleanColumn(colIndex)) {
+            showBooleanContextMenu(event, rowIndex, colIndex);
+        }
     }
 
     // ==========================================
@@ -558,16 +912,28 @@
         // Update display
         const cell = getCellElement(rowIndex, colIndex);
         if (cell) {
-            const { display, cssClass } = formatCellValue(originalValue, state.columns[colIndex].dataType);
-            cell.textContent = display;
-            cell.title = String(originalValue ?? 'NULL');
+            const formatted = formatCellValue(originalValue, state.columns[colIndex].dataType);
             cell.classList.remove('ite-grid__cell--saving');
             cell.classList.remove('ite-grid__cell--save-success');
+            cell.classList.remove('ite-checkbox--saving');
+
+            // Story 7.1: Handle boolean cell rollback specially
+            if (formatted.isBoolean) {
+                // Clear existing content and create new checkbox
+                cell.textContent = '';
+                const checkboxEl = createBooleanCheckbox(formatted.boolValue);
+                cell.appendChild(checkboxEl);
+                cell.title = formatted.boolValue === null ? 'NULL' : (formatted.boolValue ? 'True' : 'False');
+            } else {
+                cell.textContent = formatted.display;
+                cell.title = String(originalValue ?? 'NULL');
+            }
+
             // Keep selected state if this cell is selected
             if (state.selectedCell.rowIndex === rowIndex && state.selectedCell.colIndex === colIndex) {
-                cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                cell.className = `ite-grid__cell ${formatted.cssClass} ite-grid__cell--selected`.trim();
             } else {
-                cell.className = `ite-grid__cell ${cssClass}`.trim();
+                cell.className = `ite-grid__cell ${formatted.cssClass}`.trim();
             }
         }
 
@@ -584,6 +950,8 @@
         const cell = getCellElement(rowIndex, colIndex);
         if (cell) {
             cell.classList.remove('ite-grid__cell--saving');
+            // Story 7.1: Also remove checkbox-specific saving class
+            cell.classList.remove('ite-checkbox--saving');
             cell.classList.add('ite-grid__cell--save-success');
 
             // Remove success class after animation completes (matches 500ms CSS animation)
@@ -1537,6 +1905,12 @@
         const colIndex = cells.indexOf(cell);
         if (colIndex < 0) return;
 
+        // Story 7.1: Boolean cells toggle on double-click (same as single click)
+        if (isBooleanColumn(colIndex)) {
+            toggleBooleanCheckbox(rowIndex, colIndex);
+            return;
+        }
+
         enterEditMode(rowIndex, colIndex, null, 'select');
     }
 
@@ -1666,6 +2040,13 @@
             }
         }
 
+        // Story 7.1: Boolean cells toggle on click instead of entering edit mode
+        if (isBooleanColumn(colIndex)) {
+            selectCell(rowIndex, colIndex);
+            toggleBooleanCheckbox(rowIndex, colIndex);
+            return;
+        }
+
         selectCell(rowIndex, colIndex);
     }
 
@@ -1697,10 +2078,33 @@
         const maxRow = state.totalDisplayRows - 1;
         const maxCol = state.columns.length - 1;
 
+        // Story 7.1: Ctrl+Shift+N sets boolean to NULL
+        if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'n') {
+            if (isBooleanColumn(colIndex)) {
+                event.preventDefault();
+                setBooleanToNull(rowIndex, colIndex);
+                return;
+            }
+        }
+
         switch (event.key) {
-            // Story 3.2: F2 to enter edit mode
+            // Story 7.1: Space toggles boolean checkbox
+            case ' ':
+                if (isBooleanColumn(colIndex)) {
+                    event.preventDefault();
+                    toggleBooleanCheckbox(rowIndex, colIndex);
+                    return;
+                }
+                break;
+
+            // Story 3.2: F2 to enter edit mode (except for boolean columns)
             case 'F2':
                 event.preventDefault();
+                // Story 7.1: F2 on boolean just toggles
+                if (isBooleanColumn(colIndex)) {
+                    toggleBooleanCheckbox(rowIndex, colIndex);
+                    return;
+                }
                 enterEditMode(rowIndex, colIndex, null, 'end');
                 return;
 
@@ -1787,8 +2191,13 @@
 
             default:
                 // Story 3.2: Printable characters start edit mode (overwrite)
+                // Story 7.1: Except for boolean columns which don't support text entry
                 // Check if it's a single printable character and no modifier keys
                 if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+                    if (isBooleanColumn(colIndex)) {
+                        // Boolean columns don't support text entry
+                        return;
+                    }
                     event.preventDefault();
                     enterEditMode(rowIndex, colIndex, event.key, 'end');
                 }
@@ -2363,9 +2772,9 @@
 
         state.columns.forEach((col, colIndex) => {
             const cell = document.createElement('div');
-            const { display, cssClass } = formatCellValue(row[col.name], col.dataType);
+            const formatted = formatCellValue(row[col.name], col.dataType);
 
-            cell.className = `ite-grid__cell ${cssClass}`.trim();
+            cell.className = `ite-grid__cell ${formatted.cssClass}`.trim();
             cell.setAttribute('role', 'gridcell');
             cell.setAttribute('aria-colindex', String(colIndex + 2)); // +2 because selector is column 1
 
@@ -2386,9 +2795,16 @@
                 cell.setAttribute('tabindex', (!hasSelection && isFirstCell) ? '0' : '-1');
             }
 
-            // SECURITY: Use textContent instead of innerHTML to prevent XSS
-            cell.textContent = display;
-            cell.title = String(row[col.name] ?? 'NULL');
+            // Story 7.1: Boolean cells render as checkboxes
+            if (formatted.isBoolean) {
+                const checkboxEl = createBooleanCheckbox(formatted.boolValue);
+                cell.appendChild(checkboxEl);
+                cell.title = formatted.boolValue === null ? 'NULL' : (formatted.boolValue ? 'True' : 'False');
+            } else {
+                // SECURITY: Use textContent instead of innerHTML to prevent XSS
+                cell.textContent = formatted.display;
+                cell.title = String(row[col.name] ?? 'NULL');
+            }
 
             dataRow.appendChild(cell);
         });
@@ -3147,6 +3563,8 @@
             grid.addEventListener('click', handleCellClick);
             grid.addEventListener('dblclick', handleCellDoubleClick);
             grid.addEventListener('keydown', handleCellKeydown);
+            // Story 7.1: Context menu for boolean cells (right-click)
+            grid.addEventListener('contextmenu', handleCellContextMenu);
             grid.dataset.listenersAttached = 'true';
         }
 

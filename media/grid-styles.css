@@ -686,6 +686,84 @@ body {
     text-align: center;
 }
 
+/* ==========================================
+   Story 7.1: Boolean Checkbox Styles
+   ========================================== */
+
+.ite-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 3px;
+    transition: background-color 0.1s ease, transform 0.1s ease;
+}
+
+.ite-checkbox:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-checkbox--checked {
+    color: var(--vscode-checkbox-foreground, var(--vscode-foreground));
+}
+
+.ite-checkbox--unchecked {
+    color: var(--vscode-checkbox-foreground, var(--vscode-foreground));
+    opacity: 0.6;
+}
+
+.ite-checkbox--null {
+    color: var(--vscode-descriptionForeground);
+    font-style: normal;
+    opacity: 0.8;
+}
+
+/* Saving state animation - pulse effect */
+.ite-checkbox--saving .ite-checkbox {
+    animation: checkbox-pulse 150ms ease-out;
+}
+
+@keyframes checkbox-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+/* ==========================================
+   Story 7.1: Context Menu Styles
+   ========================================== */
+
+.ite-context-menu {
+    position: fixed;
+    background-color: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
+    border-radius: 4px;
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.2));
+    z-index: 1000;
+    min-width: 120px;
+    padding: 4px 0;
+    outline: none;
+}
+
+.ite-context-menu__item {
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--vscode-menu-foreground);
+    font-size: 13px;
+    outline: none;
+}
+
+.ite-context-menu__item:hover,
+.ite-context-menu__item:focus {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
+}
+
 /* Story 3.2: Cell Editing Styles */
 .ite-grid__cell--editing {
     padding: 0;
