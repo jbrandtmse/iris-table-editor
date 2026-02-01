@@ -522,6 +522,90 @@
         return upperType === 'DATE';
     }
 
+    /**
+     * Check if column is a TIME type (not TIMESTAMP/DATETIME)
+     * Story 7.3: Time field polish
+     * @param {number} colIndex - Column index
+     * @returns {boolean}
+     */
+    function isTimeColumn(colIndex) {
+        if (colIndex < 0 || colIndex >= state.columns.length) return false;
+        const upperType = state.columns[colIndex].dataType.toUpperCase();
+        // TIME only - not TIMESTAMP or DATETIME
+        return upperType === 'TIME' || (upperType.includes('TIME') && !upperType.includes('TIMESTAMP') && !upperType.includes('DATETIME'));
+    }
+
+    // ==========================================
+    // Story 7.3: Time Field Functions
+    // ==========================================
+
+    /**
+     * Parse user time input in various formats
+     * Story 7.3: Support multiple time input formats
+     * @param {string} input - User input string
+     * @returns {{ hours: number; minutes: number; seconds: number }|null} Parsed time or null if invalid
+     */
+    function parseUserTimeInput(input) {
+        if (!input || input.trim() === '') return null;
+
+        const trimmed = input.trim();
+
+        // Try HH:MM:SS (24-hour with seconds)
+        const fullMatch = trimmed.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+        if (fullMatch) {
+            const hours = parseInt(fullMatch[1]);
+            const minutes = parseInt(fullMatch[2]);
+            const seconds = parseInt(fullMatch[3]);
+            if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59 && seconds >= 0 && seconds <= 59) {
+                return { hours, minutes, seconds };
+            }
+        }
+
+        // Try HH:MM (24-hour, no seconds)
+        const shortMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+        if (shortMatch) {
+            const hours = parseInt(shortMatch[1]);
+            const minutes = parseInt(shortMatch[2]);
+            if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+                return { hours, minutes, seconds: 0 };
+            }
+        }
+
+        // Try 12-hour format with AM/PM (optional seconds)
+        const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm|a|p)\.?$/i);
+        if (ampmMatch) {
+            let hours = parseInt(ampmMatch[1]);
+            const minutes = parseInt(ampmMatch[2]);
+            const seconds = ampmMatch[3] ? parseInt(ampmMatch[3]) : 0;
+            const meridian = ampmMatch[4].toUpperCase();
+            const isPM = meridian === 'PM' || meridian === 'P';
+
+            // Validate 12-hour range
+            if (hours < 1 || hours > 12) return null;
+
+            // Convert to 24-hour
+            if (isPM && hours !== 12) hours += 12;
+            if (!isPM && hours === 12) hours = 0;
+
+            if (minutes >= 0 && minutes <= 59 && seconds >= 0 && seconds <= 59) {
+                return { hours, minutes, seconds };
+            }
+        }
+
+        return null; // Invalid format
+    }
+
+    /**
+     * Format time object for IRIS storage (HH:MM:SS)
+     * Story 7.3: Ensure consistent time format for database
+     * @param {{ hours: number; minutes: number; seconds: number }} time - Time object
+     * @returns {string} HH:MM:SS formatted string
+     */
+    function formatTimeForIRIS(time) {
+        const { hours, minutes, seconds } = time;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
     // ==========================================
     // Story 7.2: Date Picker Functions
     // ==========================================
@@ -1222,6 +1306,28 @@
                         // Invalid date format - show error and cancel save
                         console.warn(`${LOG_PREFIX} Invalid date format: "${valueToStore}"`);
                         announce(`Invalid date format. Use YYYY-MM-DD, MM/DD/YYYY, or natural language like "Feb 1, 2026".`);
+                        // Restore original value and keep cell selected
+                        const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
+                        cell.textContent = display;
+                        cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                        cell.title = String(oldValue ?? 'NULL');
+                        cell.classList.add('ite-grid__cell--error');
+                        state.isEditing = false;
+                        state.editingCell = { rowIndex: -1, colIndex: -1 };
+                        return { saved: false, oldValue, newValue: valueToStore, rowIndex, colIndex };
+                    }
+                }
+
+                // Story 7.3: For time columns, validate and normalize the input to IRIS format
+                if (isTimeColumn(colIndex) && valueToStore !== null) {
+                    const parsedTime = parseUserTimeInput(valueToStore);
+                    if (parsedTime) {
+                        // Normalize to IRIS format (HH:MM:SS)
+                        valueToStore = formatTimeForIRIS(parsedTime);
+                    } else {
+                        // Invalid time format - show error and cancel save
+                        console.warn(`${LOG_PREFIX} Invalid time format: "${valueToStore}"`);
+                        announce(`Invalid time format. Use HH:MM, HH:MM:SS, or 12-hour like "2:30 PM".`);
                         // Restore original value and keep cell selected
                         const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
                         cell.textContent = display;
