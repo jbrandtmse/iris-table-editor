@@ -91,13 +91,13 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Data Type Polish (Growth Phase)
-  epic-7: in-progress
+  epic-7: done
   7-1-boolean-checkbox-control: done
   7-2-date-picker-control: done
   7-3-time-field-polish: done
   7-4-numeric-field-polish: done
   7-5-null-value-display-entry: done
-  7-6-timestamp-datetime-field-polish: backlog
+  7-6-timestamp-datetime-field-polish: done
   epic-7-retrospective: optional
 
   # Epic 8: Keyboard Shortcuts (Growth Phase)

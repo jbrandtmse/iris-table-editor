@@ -692,6 +692,90 @@
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
+    /**
+     * Check if column is a TIMESTAMP/DATETIME type
+     * Story 7.6: Timestamp field polish
+     * @param {number} colIndex - Column index
+     * @returns {boolean}
+     */
+    function isTimestampColumn(colIndex) {
+        if (colIndex < 0 || colIndex >= state.columns.length) return false;
+        const upperType = state.columns[colIndex].dataType.toUpperCase();
+        return upperType.includes('TIMESTAMP') || upperType.includes('DATETIME');
+    }
+
+    /**
+     * Parse user timestamp input in various formats
+     * Story 7.6: Support multiple timestamp input formats
+     * @param {string} input - User input string
+     * @returns {{ date: Date; time: { hours: number; minutes: number; seconds: number } }|null} Parsed timestamp or null if invalid
+     */
+    function parseUserTimestampInput(input) {
+        if (!input || input.trim() === '') return null;
+
+        const trimmed = input.trim();
+
+        // Try ISO format with T separator: YYYY-MM-DDTHH:MM:SS
+        const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}:\d{2}(?::\d{2})?)$/);
+        if (isoMatch) {
+            const date = parseUserDateInput(isoMatch[1]);
+            const time = parseUserTimeInput(isoMatch[2]);
+            if (date && time) {
+                return { date, time };
+            }
+        }
+
+        // Try space-separated: YYYY-MM-DD HH:MM:SS or YYYY-MM-DD HH:MM
+        const spaceSplit = trimmed.split(/\s+/);
+        if (spaceSplit.length >= 2) {
+            // Check if last part looks like time (contains colon)
+            const lastPart = spaceSplit[spaceSplit.length - 1];
+            const secondLastPart = spaceSplit.length >= 3 ? spaceSplit[spaceSplit.length - 2] : null;
+
+            // Handle "Feb 1, 2026 2:30 PM" style
+            if (lastPart.match(/^(AM|PM|am|pm|a|p)\.?$/i) && secondLastPart && secondLastPart.includes(':')) {
+                // Natural language with AM/PM
+                const timePart = secondLastPart + ' ' + lastPart;
+                const datePart = spaceSplit.slice(0, -2).join(' ');
+                const date = parseUserDateInput(datePart);
+                const time = parseUserTimeInput(timePart);
+                if (date && time) {
+                    return { date, time };
+                }
+            } else if (lastPart.includes(':')) {
+                // Last part is time
+                const timePart = lastPart;
+                const datePart = spaceSplit.slice(0, -1).join(' ');
+                const date = parseUserDateInput(datePart);
+                const time = parseUserTimeInput(timePart);
+                if (date && time) {
+                    return { date, time };
+                }
+            }
+        }
+
+        // Try date-only input - default time to 00:00:00
+        const dateOnly = parseUserDateInput(trimmed);
+        if (dateOnly) {
+            return { date: dateOnly, time: { hours: 0, minutes: 0, seconds: 0 } };
+        }
+
+        return null; // Invalid format
+    }
+
+    /**
+     * Format timestamp for IRIS storage (YYYY-MM-DD HH:MM:SS)
+     * Story 7.6: Ensure consistent timestamp format for database
+     * @param {Date} date - Date object
+     * @param {{ hours: number; minutes: number; seconds: number }} time - Time object
+     * @returns {string} YYYY-MM-DD HH:MM:SS formatted string
+     */
+    function formatTimestampForIRIS(date, time) {
+        const datePart = formatDateForIRIS(date);
+        const timePart = formatTimeForIRIS(time);
+        return `${datePart} ${timePart}`;
+    }
+
     // ==========================================
     // Story 7.4: Numeric Field Functions
     // ==========================================
@@ -1531,6 +1615,28 @@
                         // Invalid number format - show error and cancel save
                         console.warn(`${LOG_PREFIX} Invalid number format: "${valueToStore}"`);
                         announce(`Invalid number format. Please enter a valid number.`);
+                        // Restore original value and keep cell selected
+                        const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
+                        cell.textContent = display;
+                        cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                        cell.title = String(oldValue ?? 'NULL');
+                        cell.classList.add('ite-grid__cell--error');
+                        state.isEditing = false;
+                        state.editingCell = { rowIndex: -1, colIndex: -1 };
+                        return { saved: false, oldValue, newValue: valueToStore, rowIndex, colIndex };
+                    }
+                }
+
+                // Story 7.6: For timestamp columns, validate and normalize the input to IRIS format
+                if (isTimestampColumn(colIndex) && valueToStore !== null) {
+                    const parsedTimestamp = parseUserTimestampInput(valueToStore);
+                    if (parsedTimestamp) {
+                        // Normalize to IRIS format (YYYY-MM-DD HH:MM:SS)
+                        valueToStore = formatTimestampForIRIS(parsedTimestamp.date, parsedTimestamp.time);
+                    } else {
+                        // Invalid timestamp format - show error and cancel save
+                        console.warn(`${LOG_PREFIX} Invalid timestamp format: "${valueToStore}"`);
+                        announce(`Invalid timestamp format. Use "YYYY-MM-DD HH:MM:SS" or "Feb 1, 2026 2:30 PM".`);
                         // Restore original value and keep cell selected
                         const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
                         cell.textContent = display;
