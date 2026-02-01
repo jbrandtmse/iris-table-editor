@@ -286,9 +286,11 @@
             return { display: 'NULL', cssClass: 'ite-grid__cell--null', isNull: true };
         }
 
-        // Number types - return raw value (will be set via textContent, not innerHTML)
+        // Number types - format with thousands separators for readability
+        // Story 7.4: Enhanced numeric formatting
         if (['INTEGER', 'SMALLINT', 'BIGINT', 'TINYINT', 'NUMERIC', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL', 'MONEY'].some(t => upperType.includes(t))) {
-            return { display: String(value), cssClass: 'ite-grid__cell--number', isNull: false };
+            const formatted = formatNumericValue(value, dataType);
+            return { display: formatted, cssClass: 'ite-grid__cell--number', isNull: false, rawValue: value };
         }
 
         // Date/time types - format for readability
@@ -604,6 +606,83 @@
     function formatTimeForIRIS(time) {
         const { hours, minutes, seconds } = time;
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    // ==========================================
+    // Story 7.4: Numeric Field Functions
+    // ==========================================
+
+    /**
+     * Check if column is a numeric type
+     * Story 7.4: Numeric field polish
+     * @param {number} colIndex - Column index
+     * @returns {boolean}
+     */
+    function isNumericColumn(colIndex) {
+        if (colIndex < 0 || colIndex >= state.columns.length) return false;
+        const upperType = state.columns[colIndex].dataType.toUpperCase();
+        return ['INTEGER', 'SMALLINT', 'BIGINT', 'TINYINT', 'NUMERIC', 'DECIMAL', 'FLOAT', 'DOUBLE', 'REAL', 'MONEY'].some(t => upperType.includes(t));
+    }
+
+    /**
+     * Check if column is an integer type (no decimals allowed)
+     * Story 7.4: Numeric field polish
+     * @param {number} colIndex - Column index
+     * @returns {boolean}
+     */
+    function isIntegerColumn(colIndex) {
+        if (colIndex < 0 || colIndex >= state.columns.length) return false;
+        const upperType = state.columns[colIndex].dataType.toUpperCase();
+        return ['INTEGER', 'SMALLINT', 'BIGINT', 'TINYINT'].some(t => upperType.includes(t));
+    }
+
+    /**
+     * Format a numeric value for display with thousands separators
+     * Story 7.4: Locale-aware number formatting
+     * @param {unknown} value - Numeric value
+     * @param {string} dataType - Column data type
+     * @returns {string} Formatted number string
+     */
+    function formatNumericValue(value, dataType) {
+        const num = Number(value);
+        if (isNaN(num)) return String(value);
+
+        const upperType = dataType.toUpperCase();
+
+        // Integer types - no decimal places
+        if (['INTEGER', 'SMALLINT', 'BIGINT', 'TINYINT'].some(t => upperType.includes(t))) {
+            return Math.round(num).toLocaleString();
+        }
+
+        // Decimal/float types - preserve decimal places but use locale formatting
+        // Limit to reasonable precision to avoid floating point artifacts
+        return num.toLocaleString(undefined, { maximumFractionDigits: 10 });
+    }
+
+    /**
+     * Parse and validate numeric input
+     * Story 7.4: Numeric validation
+     * @param {string} input - User input string
+     * @param {boolean} isInteger - Whether integer type
+     * @returns {{ valid: boolean; value?: number; error?: string; rounded?: boolean }|null}
+     */
+    function parseNumericInput(input, isInteger) {
+        if (!input || input.trim() === '') return null;
+
+        // Remove any existing thousands separators (in case user pastes formatted number)
+        const cleaned = input.trim().replace(/,/g, '');
+
+        const num = Number(cleaned);
+        if (isNaN(num)) {
+            return { valid: false, error: 'Invalid number' };
+        }
+
+        if (isInteger && !Number.isInteger(num)) {
+            // Round to nearest integer
+            return { valid: true, value: Math.round(num), rounded: true };
+        }
+
+        return { valid: true, value: num };
     }
 
     // ==========================================
@@ -1170,8 +1249,18 @@
         if (!cell) return;
 
         // Determine the value to show in input
-        const displayValue = initialValue !== null ? initialValue :
-            (currentValue === null || currentValue === undefined) ? '' : String(currentValue);
+        // Story 7.4: For numeric columns, show raw value without formatting (no thousands separators)
+        let displayValue;
+        if (initialValue !== null) {
+            displayValue = initialValue;
+        } else if (currentValue === null || currentValue === undefined) {
+            displayValue = '';
+        } else if (isNumericColumn(colIndex)) {
+            // Strip any formatting - show raw number
+            displayValue = String(currentValue).replace(/,/g, '');
+        } else {
+            displayValue = String(currentValue);
+        }
 
         // Story 7.2: Check if this is a date column for special handling
         const isDate = isDateColumn(colIndex);
@@ -1328,6 +1417,34 @@
                         // Invalid time format - show error and cancel save
                         console.warn(`${LOG_PREFIX} Invalid time format: "${valueToStore}"`);
                         announce(`Invalid time format. Use HH:MM, HH:MM:SS, or 12-hour like "2:30 PM".`);
+                        // Restore original value and keep cell selected
+                        const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
+                        cell.textContent = display;
+                        cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                        cell.title = String(oldValue ?? 'NULL');
+                        cell.classList.add('ite-grid__cell--error');
+                        state.isEditing = false;
+                        state.editingCell = { rowIndex: -1, colIndex: -1 };
+                        return { saved: false, oldValue, newValue: valueToStore, rowIndex, colIndex };
+                    }
+                }
+
+                // Story 7.4: For numeric columns, validate and normalize the input
+                if (isNumericColumn(colIndex) && valueToStore !== null) {
+                    const isInteger = isIntegerColumn(colIndex);
+                    const parsed = parseNumericInput(valueToStore, isInteger);
+                    if (parsed === null) {
+                        // Empty input is handled by null check above
+                        valueToStore = null;
+                    } else if (parsed.valid) {
+                        valueToStore = parsed.value;
+                        if (parsed.rounded) {
+                            announce(`Value rounded to integer: ${parsed.value}`);
+                        }
+                    } else {
+                        // Invalid number format - show error and cancel save
+                        console.warn(`${LOG_PREFIX} Invalid number format: "${valueToStore}"`);
+                        announce(`Invalid number format. Please enter a valid number.`);
                         // Restore original value and keep cell selected
                         const { display, cssClass } = formatCellValue(oldValue, state.columns[colIndex].dataType);
                         cell.textContent = display;
