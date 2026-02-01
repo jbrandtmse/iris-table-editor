@@ -96,7 +96,7 @@ development_status:
   7-2-date-picker-control: done
   7-3-time-field-polish: done
   7-4-numeric-field-polish: done
-  7-5-null-value-display-entry: backlog
+  7-5-null-value-display-entry: done
   7-6-timestamp-datetime-field-polish: backlog
   epic-7-retrospective: optional
 

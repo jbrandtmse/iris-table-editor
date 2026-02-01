@@ -281,9 +281,14 @@
             };
         }
 
-        // Handle null/undefined for non-boolean types
-        if (value === null || value === undefined || value === '') {
+        // Story 7.5: Handle null/undefined for non-boolean types - show "NULL" placeholder
+        if (value === null || value === undefined) {
             return { display: 'NULL', cssClass: 'ite-grid__cell--null', isNull: true };
+        }
+
+        // Story 7.5: Handle empty string - show blank cell (distinct from NULL)
+        if (value === '') {
+            return { display: '', cssClass: '', isNull: false, isEmpty: true };
         }
 
         // Number types - format with thousands separators for readability
@@ -497,6 +502,85 @@
         });
 
         console.debug(`${LOG_PREFIX} Boolean set to NULL: ${column.name}`);
+    }
+
+    /**
+     * Set any cell to NULL value
+     * Story 7.5: Generic set to NULL for all nullable columns
+     * @param {number} rowIndex - Row index
+     * @param {number} colIndex - Column index
+     */
+    function setCellToNull(rowIndex, colIndex) {
+        const column = state.columns[colIndex];
+        const row = getRowData(rowIndex);
+        if (!row) return;
+
+        // Check if column is nullable
+        if (!column.nullable) {
+            showToast('This column does not allow NULL values', 'warning');
+            announce('This column does not allow NULL values');
+            return;
+        }
+
+        const currentValue = row[column.name];
+
+        // Don't send save if already NULL
+        if (currentValue === null || currentValue === undefined) {
+            announce('Value is already NULL');
+            return;
+        }
+
+        // For boolean columns, use the specialized function
+        if (isBooleanColumn(colIndex)) {
+            setBooleanToNull(rowIndex, colIndex);
+            return;
+        }
+
+        // Update local state immediately (optimistic update)
+        row[column.name] = null;
+
+        // Update cell display
+        const cell = getCellElement(rowIndex, colIndex);
+        if (cell) {
+            cell.classList.add('ite-grid__cell--saving');
+            const { display, cssClass } = formatCellValue(null, column.dataType);
+            cell.textContent = display;
+            cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+            cell.title = 'NULL';
+            setTimeout(() => {
+                cell.classList.remove('ite-grid__cell--saving');
+            }, 150);
+        }
+
+        // Find primary key column and value for the save
+        const pkColumn = findPrimaryKeyColumn();
+        const pkValue = row[pkColumn];
+
+        // Track the pending save
+        const saveKey = `${pkValue}:${column.name}`;
+        state.pendingSaves.set(saveKey, {
+            rowIndex,
+            colIndex,
+            columnName: column.name,
+            oldValue: currentValue,
+            newValue: null,
+            primaryKeyValue: pkValue
+        });
+
+        // Send save command with null value
+        sendCommand('saveCell', {
+            rowIndex: rowIndex,
+            colIndex: colIndex,
+            columnName: column.name,
+            tableName: state.context.tableName,
+            namespace: state.context.namespace,
+            value: null,
+            pkColumn: pkColumn,
+            pkValue: pkValue
+        });
+
+        announce(`${column.name} set to NULL`);
+        console.debug(`${LOG_PREFIX} Cell set to NULL: ${column.name}`);
     }
 
     /**
@@ -1063,13 +1147,14 @@
     }
 
     /**
-     * Show context menu for boolean cell (Set to NULL option)
+     * Show context menu for cell (Set to NULL option)
      * Story 7.1: Right-click context menu for boolean cells
+     * Story 7.5: Extended to work for all nullable cells
      * @param {MouseEvent} event - Right-click event
      * @param {number} rowIndex - Row index
      * @param {number} colIndex - Column index
      */
-    function showBooleanContextMenu(event, rowIndex, colIndex) {
+    function showCellContextMenu(event, rowIndex, colIndex) {
         event.preventDefault();
 
         const column = state.columns[colIndex];
@@ -1108,9 +1193,9 @@
             document.removeEventListener('keydown', handleEscape);
         };
 
-        // Handle menu item click
+        // Handle menu item click - use generic setCellToNull for all cells
         const handleMenuClick = () => {
-            setBooleanToNull(rowIndex, colIndex);
+            setCellToNull(rowIndex, colIndex);
             cleanupMenu();
         };
 
@@ -1185,9 +1270,10 @@
         const colIndex = cells.indexOf(cell);
         if (colIndex < 0) return;
 
-        // Only show context menu for boolean columns
-        if (isBooleanColumn(colIndex)) {
-            showBooleanContextMenu(event, rowIndex, colIndex);
+        // Story 7.5: Show context menu for all nullable columns (not just booleans)
+        const column = state.columns[colIndex];
+        if (column && column.nullable) {
+            showCellContextMenu(event, rowIndex, colIndex);
         }
     }
 
@@ -2762,13 +2848,11 @@
         const maxRow = state.totalDisplayRows - 1;
         const maxCol = state.columns.length - 1;
 
-        // Story 7.1: Ctrl+Shift+N sets boolean to NULL
+        // Story 7.1/7.5: Ctrl+Shift+N sets cell to NULL (works for all nullable columns)
         if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'n') {
-            if (isBooleanColumn(colIndex)) {
-                event.preventDefault();
-                setBooleanToNull(rowIndex, colIndex);
-                return;
-            }
+            event.preventDefault();
+            setCellToNull(rowIndex, colIndex);
+            return;
         }
 
         switch (event.key) {
