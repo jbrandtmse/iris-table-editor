@@ -177,12 +177,142 @@ npx --package yo --package generator-code -- yo code
 | `distinctValues` | `{ column: string, values: string[], hasMore: boolean }` | Distinct values for filter checklist |
 | `dataFiltered` | `{ rows: [], totalFiltered: number, page: number }` | Filtered/sorted data response |
 
+**Growth Phase Commands (Epic 7 - Data Type Polish):**
+
+| Command | Payload | Description |
+|---------|---------|-------------|
+| `toggleBoolean` | `{ tableName: string, primaryKey: Record<string, unknown>, column: string, newValue: boolean }` | Toggle boolean checkbox |
+| `setNull` | `{ tableName: string, primaryKey: Record<string, unknown>, column: string }` | Explicitly set cell to NULL |
+
+**Growth Phase Commands (Epic 8 - Keyboard Shortcuts):**
+
+| Command | Payload | Description |
+|---------|---------|-------------|
+| `copyCell` | `{ value: unknown }` | Copy cell value to clipboard |
+| `pasteCell` | `{ tableName: string, primaryKey: Record<string, unknown>, column: string }` | Request paste into cell |
+| `duplicateRow` | `{ tableName: string, primaryKey: Record<string, unknown> }` | Duplicate current row |
+
+**Growth Phase Events (Epic 8 - Keyboard Shortcuts):**
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `clipboardContent` | `{ value: string }` | Clipboard content for paste operation |
+| `rowDuplicated` | `{ newRow: Record<string, unknown>, newPrimaryKey: Record<string, unknown> }` | Duplicated row data |
+
+**Growth Phase Commands (Epic 9 - Export/Import):**
+
+| Command | Payload | Description |
+|---------|---------|-------------|
+| `exportData` | `{ format: 'csv' \| 'xlsx', scope: 'page' \| 'all' \| 'filtered' }` | Export table data |
+| `importData` | `{ format: 'csv' \| 'xlsx', data: string, columnMapping: Record<string, string> }` | Import data from file |
+| `getImportTemplate` | `{ tableName: string }` | Download import template |
+| `validateImport` | `{ data: string, columnMapping: Record<string, string> }` | Validate before import |
+| `cancelImport` | `{}` | Cancel in-progress import |
+
+**Growth Phase Events (Epic 9 - Export/Import):**
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `exportReady` | `{ filename: string, data: Blob }` | Export file ready for download |
+| `exportProgress` | `{ percent: number, rowsProcessed: number }` | Export progress update |
+| `importPreview` | `{ columns: string[], sampleRows: unknown[][], suggestedMapping: Record<string, string> }` | Import preview data |
+| `importProgress` | `{ percent: number, rowsImported: number, rowsFailed: number }` | Import progress update |
+| `importComplete` | `{ totalImported: number, failed: ImportError[] }` | Import completion summary |
+| `importValidation` | `{ valid: boolean, errors: ValidationError[], warnings: ValidationWarning[] }` | Pre-import validation results |
+
 **Filter Criteria Interface:**
 ```typescript
 interface FilterCriteria {
   column: string;
   operator: 'contains' | 'startsWith' | 'endsWith' | 'equals' | 'notEquals' | 'gt' | 'lt' | 'isEmpty' | 'isNotEmpty';
   value: string;
+}
+```
+
+**Growth Phase Interfaces (Epic 7 - Data Type Polish):**
+
+```typescript
+// Column type information for type-appropriate rendering
+interface ColumnTypeInfo {
+  name: string;
+  sqlType: string;           // IRIS SQL type (BIT, DATE, TIME, TIMESTAMP, INTEGER, DECIMAL, VARCHAR, etc.)
+  displayType: 'boolean' | 'date' | 'time' | 'timestamp' | 'integer' | 'decimal' | 'text';
+  nullable: boolean;
+  precision?: number;        // For DECIMAL types
+  scale?: number;            // For DECIMAL types
+}
+
+// Type mapping from IRIS SQL types to display types
+const IRIS_TYPE_MAP: Record<string, ColumnTypeInfo['displayType']> = {
+  'BIT': 'boolean',
+  'TINYINT': 'boolean',      // When used as boolean
+  'DATE': 'date',
+  'TIME': 'time',
+  'TIMESTAMP': 'timestamp',
+  'DATETIME': 'timestamp',
+  'INTEGER': 'integer',
+  'BIGINT': 'integer',
+  'SMALLINT': 'integer',
+  'DECIMAL': 'decimal',
+  'NUMERIC': 'decimal',
+  'DOUBLE': 'decimal',
+  'FLOAT': 'decimal',
+  'VARCHAR': 'text',
+  'CHAR': 'text',
+  'LONGVARCHAR': 'text'
+};
+```
+
+**Growth Phase Interfaces (Epic 9 - Export/Import):**
+
+```typescript
+// Export configuration
+interface ExportConfig {
+  format: 'csv' | 'xlsx';
+  scope: 'page' | 'all' | 'filtered';
+  includeHeaders: boolean;
+  dateFormat?: string;       // e.g., 'YYYY-MM-DD'
+  booleanFormat?: 'true/false' | 'yes/no' | '1/0';
+}
+
+// Import preview data
+interface ImportPreviewData {
+  sourceColumns: string[];
+  sampleRows: unknown[][];   // First 10 rows
+  suggestedMapping: Record<string, string>;  // sourceColumn -> tableColumn
+  detectedFormat: 'csv' | 'xlsx';
+  totalRows: number;
+}
+
+// Import configuration
+interface ImportConfig {
+  columnMapping: Record<string, string>;  // sourceColumn -> tableColumn
+  skipHeaderRow: boolean;
+  validateBeforeImport: boolean;
+  onError: 'skip' | 'abort';
+}
+
+// Import error details
+interface ImportError {
+  rowNumber: number;
+  sourceData: Record<string, unknown>;
+  error: string;
+  column?: string;
+}
+
+// Validation results
+interface ValidationError {
+  rowNumber: number;
+  column: string;
+  value: unknown;
+  expectedType: string;
+  message: string;
+}
+
+interface ValidationWarning {
+  rowNumber: number;
+  column: string;
+  message: string;
 }
 ```
 
@@ -207,6 +337,22 @@ interface FilterCriteria {
 | `currentPage` | `number` | Current page number (1-based) |
 | `totalRows` | `number` | Total rows (may differ from filtered count) |
 | `totalFilteredRows` | `number` | Total rows matching current filters |
+
+**Growth Phase State Properties (Epic 7 - Data Type Polish):**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `columnTypes` | `Map<string, ColumnTypeInfo>` | Column data type metadata for rendering |
+
+**Growth Phase State Properties (Epic 9 - Export/Import):**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `exportInProgress` | `boolean` | Export operation running |
+| `exportProgress` | `number` | Export progress percentage (0-100) |
+| `importInProgress` | `boolean` | Import operation running |
+| `importProgress` | `number` | Import progress percentage (0-100) |
+| `importPreview` | `ImportPreviewData \| null` | Preview data for import mapping |
 
 ### Error Handling Strategy
 
@@ -495,6 +641,250 @@ SELECT DISTINCT TOP 11 column_name FROM Schema.Table
 -- If 11 returned, hasMore=true, show text input instead of checklist
 ```
 
+**Growth Phase: Data Type Formatting Patterns (Epic 7)**
+
+```typescript
+// DataTypeFormatter.ts - Type-specific display and input formatting
+
+// Boolean display/input
+interface BooleanFormatter {
+  toDisplay(value: unknown): 'checked' | 'unchecked' | 'indeterminate';
+  toDatabase(checked: boolean): number;  // Returns 1 or 0
+  isBoolean(sqlType: string): boolean;
+}
+
+// Date/Time parsing and formatting
+interface DateFormatter {
+  // Flexible parsing - accepts multiple formats
+  parse(input: string): Date | null;
+  // Standard display format
+  toDisplay(value: unknown, type: 'date' | 'time' | 'timestamp'): string;
+  // IRIS-compatible format for database
+  toDatabase(date: Date, type: 'date' | 'time' | 'timestamp'): string;
+}
+
+// Supported date input formats (auto-detected)
+const DATE_FORMATS = [
+  'YYYY-MM-DD',      // ISO
+  'MM/DD/YYYY',      // US
+  'DD/MM/YYYY',      // EU
+  'MMM D, YYYY',     // "Feb 1, 2026"
+  'D MMM YYYY',      // "1 Feb 2026"
+];
+
+const TIME_FORMATS = [
+  'HH:mm',           // 24-hour
+  'HH:mm:ss',        // 24-hour with seconds
+  'h:mm A',          // 12-hour "2:30 PM"
+  'h:mm:ss A',       // 12-hour with seconds
+];
+
+// Numeric formatting
+interface NumericFormatter {
+  toDisplay(value: number, options?: { thousandsSeparator?: boolean }): string;
+  toInput(value: number): string;  // Raw number for editing
+  parse(input: string): number | null;
+  validate(input: string, type: 'integer' | 'decimal', precision?: number): ValidationResult;
+}
+
+// NULL handling
+interface NullFormatter {
+  isNull(value: unknown): boolean;
+  toDisplay(): string;  // Returns italic "NULL" placeholder
+  cssClass: string;     // 'ite-cell--null'
+}
+```
+
+**Growth Phase: Keyboard Shortcut Patterns (Epic 8)**
+
+```typescript
+// KeyboardShortcuts.ts - Centralized shortcut definitions
+
+interface KeyboardShortcut {
+  key: string;           // e.g., 'F2', 'Enter', 'ArrowDown'
+  modifiers?: ('ctrl' | 'shift' | 'alt')[];
+  action: string;        // Action identifier
+  context: 'grid' | 'editing' | 'global';
+  description: string;   // For help display
+}
+
+const SHORTCUTS: KeyboardShortcut[] = [
+  // Navigation
+  { key: 'ArrowUp', action: 'moveUp', context: 'grid', description: 'Move to cell above' },
+  { key: 'ArrowDown', action: 'moveDown', context: 'grid', description: 'Move to cell below' },
+  { key: 'ArrowLeft', action: 'moveLeft', context: 'grid', description: 'Move to cell left' },
+  { key: 'ArrowRight', action: 'moveRight', context: 'grid', description: 'Move to cell right' },
+  { key: 'Tab', action: 'moveNextCell', context: 'grid', description: 'Move to next cell' },
+  { key: 'Tab', modifiers: ['shift'], action: 'movePrevCell', context: 'grid', description: 'Move to previous cell' },
+  { key: 'Home', action: 'moveRowStart', context: 'grid', description: 'Move to first cell in row' },
+  { key: 'End', action: 'moveRowEnd', context: 'grid', description: 'Move to last cell in row' },
+  { key: 'Home', modifiers: ['ctrl'], action: 'moveGridStart', context: 'grid', description: 'Move to first cell' },
+  { key: 'End', modifiers: ['ctrl'], action: 'moveGridEnd', context: 'grid', description: 'Move to last cell' },
+  { key: 'PageDown', action: 'pageDown', context: 'grid', description: 'Move down one page' },
+  { key: 'PageUp', action: 'pageUp', context: 'grid', description: 'Move up one page' },
+
+  // Editing
+  { key: 'F2', action: 'startEdit', context: 'grid', description: 'Edit selected cell' },
+  { key: 'Enter', action: 'startEdit', context: 'grid', description: 'Edit selected cell' },
+  { key: 'Delete', action: 'clearCell', context: 'grid', description: 'Clear cell content' },
+  { key: 'Backspace', action: 'clearAndEdit', context: 'grid', description: 'Clear and edit cell' },
+  { key: 'Escape', action: 'cancelEdit', context: 'editing', description: 'Cancel edit' },
+  { key: 'Enter', action: 'saveAndMoveDown', context: 'editing', description: 'Save and move down' },
+  { key: 'Tab', action: 'saveAndMoveRight', context: 'editing', description: 'Save and move right' },
+  { key: 'Enter', modifiers: ['ctrl'], action: 'saveAndStay', context: 'editing', description: 'Save and stay' },
+  { key: 'z', modifiers: ['ctrl'], action: 'undoEdit', context: 'editing', description: 'Undo edit' },
+
+  // Row operations
+  { key: '=', modifiers: ['ctrl', 'shift'], action: 'insertRow', context: 'grid', description: 'Insert new row' },
+  { key: '-', modifiers: ['ctrl'], action: 'deleteRow', context: 'grid', description: 'Delete row' },
+  { key: 'd', modifiers: ['ctrl'], action: 'duplicateRow', context: 'grid', description: 'Duplicate row' },
+
+  // Data operations
+  { key: 'F5', action: 'refresh', context: 'global', description: 'Refresh data' },
+  { key: 'r', modifiers: ['ctrl'], action: 'refresh', context: 'global', description: 'Refresh data' },
+  { key: 'c', modifiers: ['ctrl'], action: 'copyCell', context: 'grid', description: 'Copy cell value' },
+  { key: 'v', modifiers: ['ctrl'], action: 'pasteCell', context: 'grid', description: 'Paste into cell' },
+  { key: 'f', modifiers: ['ctrl'], action: 'focusFilter', context: 'global', description: 'Focus filter' },
+
+  // Help
+  { key: '/', modifiers: ['ctrl'], action: 'showHelp', context: 'global', description: 'Show keyboard shortcuts' },
+  { key: 'F1', action: 'showHelp', context: 'global', description: 'Show keyboard shortcuts' },
+
+  // NULL handling (Epic 7)
+  { key: 'n', modifiers: ['ctrl', 'shift'], action: 'setNull', context: 'editing', description: 'Set cell to NULL' },
+];
+
+// Shortcut handler in webview
+function handleKeyDown(event: KeyboardEvent, context: 'grid' | 'editing'): void {
+  const shortcut = findMatchingShortcut(event, context);
+  if (shortcut) {
+    event.preventDefault();
+    executeAction(shortcut.action);
+  }
+}
+```
+
+**Growth Phase: Export/Import Patterns (Epic 9)**
+
+```typescript
+// ExportService.ts - Streaming export for large datasets
+
+interface ExportOptions {
+  format: 'csv' | 'xlsx';
+  scope: 'page' | 'all' | 'filtered';
+  onProgress?: (percent: number, rowsProcessed: number) => void;
+}
+
+// Chunked export to avoid memory issues
+async function exportData(
+  table: string,
+  columns: ColumnTypeInfo[],
+  options: ExportOptions
+): Promise<Blob> {
+  const CHUNK_SIZE = 1000;
+  let offset = 0;
+  const chunks: string[] = [];
+
+  // Add headers
+  chunks.push(columns.map(c => c.name).join(',') + '\n');
+
+  while (true) {
+    const rows = await fetchChunk(table, offset, CHUNK_SIZE, options.scope);
+    if (rows.length === 0) break;
+
+    // Format and add rows
+    for (const row of rows) {
+      chunks.push(formatRowForExport(row, columns, options.format));
+    }
+
+    offset += rows.length;
+    options.onProgress?.(Math.round((offset / totalRows) * 100), offset);
+  }
+
+  return new Blob(chunks, { type: getMimeType(options.format) });
+}
+
+// CSV formatting with proper escaping
+function formatCsvValue(value: unknown, columnType: ColumnTypeInfo): string {
+  if (value === null) return '';
+  if (columnType.displayType === 'boolean') return value ? 'TRUE' : 'FALSE';
+  if (columnType.displayType === 'date') return formatDate(value as Date, 'YYYY-MM-DD');
+
+  const str = String(value);
+  // Escape values containing comma, quote, or newline
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+// ImportService.ts - Validated import with preview
+
+interface ImportResult {
+  success: boolean;
+  rowsImported: number;
+  rowsFailed: number;
+  errors: ImportError[];
+}
+
+async function importData(
+  table: string,
+  data: ParsedImportData,
+  mapping: Record<string, string>,
+  options: { validateFirst: boolean; onProgress?: (percent: number) => void }
+): Promise<ImportResult> {
+  const BATCH_SIZE = 100;
+  const errors: ImportError[] = [];
+  let rowsImported = 0;
+
+  // Validation phase (if enabled)
+  if (options.validateFirst) {
+    const validationErrors = await validateAllRows(data, mapping, table);
+    if (validationErrors.length > 0) {
+      return { success: false, rowsImported: 0, rowsFailed: validationErrors.length, errors: validationErrors };
+    }
+  }
+
+  // Import in batches
+  for (let i = 0; i < data.rows.length; i += BATCH_SIZE) {
+    const batch = data.rows.slice(i, i + BATCH_SIZE);
+    const batchResult = await insertBatch(table, batch, mapping);
+
+    rowsImported += batchResult.success;
+    errors.push(...batchResult.errors);
+
+    options.onProgress?.(Math.round(((i + batch.length) / data.rows.length) * 100));
+  }
+
+  return {
+    success: errors.length === 0,
+    rowsImported,
+    rowsFailed: errors.length,
+    errors
+  };
+}
+
+// CSV Parser with auto-detection
+function parseCsv(content: string): ParsedImportData {
+  // Detect delimiter (comma, semicolon, tab)
+  const delimiter = detectDelimiter(content);
+  // Parse with proper quote handling
+  // Return { columns: string[], rows: unknown[][] }
+}
+```
+
+**Dependencies for Export/Import (Epic 9):**
+
+```json
+{
+  "dependencies": {
+    "xlsx": "^0.18.5"  // For Excel export/import
+  }
+}
+```
+
+Note: CSV parsing/generation uses custom implementation (no external dependency) to keep bundle size small.
+
 ### Communication Patterns
 
 **Message Flow Pattern:**
@@ -687,23 +1077,35 @@ iris-table-editor/
 │   ├── services/
 │   │   ├── AtelierApiService.ts    # HTTP client for Atelier REST API
 │   │   ├── QueryExecutor.ts        # CRUD operations (SELECT, INSERT, UPDATE, DELETE)
-│   │   └── TableMetadataService.ts # Schema retrieval with TTL caching
+│   │   ├── TableMetadataService.ts # Schema retrieval with TTL caching
+│   │   ├── ExportService.ts        # (Epic 9) CSV/Excel export with streaming
+│   │   └── ImportService.ts        # (Epic 9) CSV/Excel import with validation
 │   ├── models/
 │   │   ├── IServerSpec.ts          # Server connection interface
 │   │   ├── ITableData.ts           # Table row data interface
 │   │   ├── ITableSchema.ts         # Column metadata interface
 │   │   ├── IAtelierResponse.ts     # Atelier API response interface
 │   │   ├── IMessages.ts            # Command/Event type definitions
-│   │   └── IUserError.ts           # Error payload interface
+│   │   ├── IUserError.ts           # Error payload interface
+│   │   ├── IColumnTypes.ts         # (Epic 7) Column type mapping interfaces
+│   │   └── IExportImport.ts        # (Epic 9) Export/Import interfaces
 │   ├── utils/
 │   │   ├── ErrorHandler.ts         # Error parsing and user message mapping
 │   │   ├── SqlBuilder.ts           # Parameterized query generation
-│   │   └── UrlBuilder.ts           # Atelier URL construction with encoding
+│   │   ├── UrlBuilder.ts           # Atelier URL construction with encoding
+│   │   ├── DataTypeFormatter.ts    # (Epic 7) Type-specific display/input formatting
+│   │   ├── DateParser.ts           # (Epic 7) Flexible date/time parsing
+│   │   ├── CsvParser.ts            # (Epic 9) CSV parsing and generation
+│   │   └── KeyboardShortcuts.ts    # (Epic 8) Keyboard shortcut definitions
 │   └── test/
 │       ├── AtelierApiService.test.ts
 │       ├── QueryExecutor.test.ts
 │       ├── SqlBuilder.test.ts
 │       ├── ErrorHandler.test.ts
+│       ├── DataTypeFormatter.test.ts  # (Epic 7)
+│       ├── DateParser.test.ts         # (Epic 7)
+│       ├── ExportService.test.ts      # (Epic 9)
+│       ├── ImportService.test.ts      # (Epic 9)
 │       └── mocks/
 │           └── atelierResponses.ts # Mock API responses for testing
 ├── media/
@@ -1064,7 +1466,11 @@ No blocking issues found during validation. The architecture is coherent and com
 - Virtual scrolling for very large datasets (1000+ rows)
 - Offline mode / connection recovery
 - Query builder for custom SELECT statements
-- Export functionality (CSV, Excel)
+
+**Growth Phase Features (Now Planned):**
+- Data Type Polish (Epic 7): Type-appropriate controls for boolean, date, time, numeric, NULL
+- Keyboard Shortcuts (Epic 8): Full keyboard navigation and editing
+- Export/Import (Epic 9): CSV/Excel export and import with validation
 
 ### Implementation Handoff
 

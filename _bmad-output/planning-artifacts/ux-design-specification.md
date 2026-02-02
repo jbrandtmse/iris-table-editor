@@ -1374,3 +1374,822 @@ This section defines UX components for handling namespaces with thousands of tab
 .ite-toolbar__filter-toggle--disabled { opacity: 0.7; }
 .ite-toolbar__clear-filters { }
 ```
+
+---
+
+## Growth Phase: Data Type Polish Components (Epic 7)
+
+This section defines UX components for type-appropriate data entry, matching Microsoft Access and Excel patterns for intuitive editing.
+
+### Boolean Checkbox Control
+
+**Purpose:** Single-click toggle for boolean (BIT) columns instead of typing 1/0
+
+**Layout:**
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ ID   │ Name        │ Active    │ Verified  │ Status       │
+├──────┼─────────────┼───────────┼───────────┼──────────────┤
+│ 1    │ John Smith  │    ☑      │    ☐      │ Pending      │
+│ 2    │ Jane Doe    │    ☑      │    ☑      │ Active       │
+│ 3    │ Bob Wilson  │    ─      │    ☐      │ Inactive     │  ← NULL (dash)
+└────────────────────────────────────────────────────────────┘
+```
+
+**Visual States:**
+
+| State | Visual | Database Value |
+|-------|--------|----------------|
+| Checked | ☑ (filled checkbox) | 1 |
+| Unchecked | ☐ (empty checkbox) | 0 |
+| NULL/Indeterminate | ─ (dash in box) | NULL |
+
+**Interaction:**
+
+| Action | Result |
+|--------|--------|
+| Single click | Toggle checked ↔ unchecked, auto-save |
+| Space (when selected) | Toggle checked ↔ unchecked, auto-save |
+| Click on NULL | Set to checked (1) |
+| Right-click → "Set to NULL" | Set to NULL (indeterminate) |
+| Ctrl+Shift+N | Set to NULL |
+
+**Visual Feedback:**
+
+| Event | Visual |
+|-------|--------|
+| Toggle initiated | Brief pulse animation |
+| Save success | Green flash (200ms) on cell |
+| Save error | Red border + tooltip with error |
+
+**CSS Classes:**
+
+```css
+.ite-cell--boolean { text-align: center; }
+.ite-checkbox { }
+.ite-checkbox--checked { }
+.ite-checkbox--unchecked { }
+.ite-checkbox--null { }  /* Indeterminate/dash state */
+.ite-checkbox:hover { cursor: pointer; }
+.ite-checkbox--saving { animation: pulse 150ms; }
+```
+
+**Accessibility:**
+- `role="checkbox"`
+- `aria-checked="true"`, `"false"`, or `"mixed"` (for NULL)
+- `aria-label="Active: checked"` for screen readers
+- Space key toggles value
+
+---
+
+### Date Picker Control
+
+**Purpose:** Calendar-based date selection with flexible format input
+
+**Layout - Display Mode:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ID   │ Name        │ Created       │ Due Date      │
+├──────┼─────────────┼───────────────┼───────────────┤
+│ 1    │ John Smith  │ 2026-01-15    │ 2026-03-01    │
+│ 2    │ Jane Doe    │ 2026-01-20    │ NULL          │  ← Italic gray
+└──────────────────────────────────────────────────────────┘
+```
+
+**Layout - Edit Mode:**
+
+```
+┌───────────────────────────────────────────────────────────┐
+│ Created       │
+│ ┌─────────────────────────┐                               │
+│ │ 2026-01-15          📅  │  ← Input with calendar icon  │
+│ └─────────────────────────┘                               │
+│                                                           │
+│ ┌─────────────────────────────┐                           │
+│ │    ◀  January 2026  ▶       │  ← Calendar popup        │
+│ ├─────────────────────────────┤                           │
+│ │ Su  Mo  Tu  We  Th  Fr  Sa  │                           │
+│ │             1   2   3   4   │                           │
+│ │  5   6   7   8   9  10  11  │                           │
+│ │ 12  13  14 [15] 16  17  18  │  ← [15] = selected       │
+│ │ 19  20  21  22  23  24  25  │                           │
+│ │ 26  27  28  29  30  31      │                           │
+│ └─────────────────────────────┘                           │
+│ [Today]                   [Clear]                         │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Input Formats Accepted:**
+
+| Format | Example | Notes |
+|--------|---------|-------|
+| ISO | 2026-01-15 | Primary/preferred |
+| US | 01/15/2026 | MM/DD/YYYY |
+| EU | 15/01/2026 | DD/MM/YYYY (context-aware) |
+| Short | Jan 15, 2026 | Natural language |
+| Relative | today, tomorrow | Quick entry |
+
+**Interaction:**
+
+| Action | Result |
+|--------|--------|
+| Click cell | Enter edit mode, show input + calendar icon |
+| Click calendar icon | Open date picker popup |
+| Type date | Live parsing, show interpreted date |
+| Click day in picker | Select date, close picker, focus input |
+| Press Enter | Save and move down |
+| Press Tab | Save and move right |
+| Press Escape | Cancel, restore original |
+| Click "Today" | Set to current date |
+| Click "Clear" | Set to NULL (if nullable) |
+
+**Calendar Navigation:**
+
+| Action | Result |
+|--------|--------|
+| ◀ / ▶ buttons | Previous/next month |
+| Click month/year header | Show month/year picker |
+| Arrow keys (in picker) | Navigate days |
+| Enter (in picker) | Select focused day |
+| Escape (in picker) | Close picker, keep focus in input |
+
+**CSS Classes:**
+
+```css
+.ite-cell--date { }
+.ite-date-input { }
+.ite-date-input__icon { cursor: pointer; }
+.ite-datepicker { position: absolute; z-index: 100; }
+.ite-datepicker__header { }
+.ite-datepicker__nav { }
+.ite-datepicker__grid { }
+.ite-datepicker__day { }
+.ite-datepicker__day--selected { background: var(--vscode-button-background); }
+.ite-datepicker__day--today { border: 1px solid var(--vscode-focusBorder); }
+.ite-datepicker__day--other-month { opacity: 0.5; }
+.ite-datepicker__actions { }
+```
+
+**Accessibility:**
+- `role="dialog"` on picker popup
+- `aria-label="Choose date"` on calendar icon
+- Arrow key navigation within calendar grid
+- Escape closes picker
+- Screen reader announces selected date
+
+---
+
+### Time Field Polish
+
+**Purpose:** Flexible time entry accepting common formats
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ID   │ Name        │ Start Time    │ End Time      │
+├──────┼─────────────┼───────────────┼───────────────┤
+│ 1    │ Meeting     │ 14:30         │ 15:30         │
+│ 2    │ Lunch       │ 12:00         │ 13:00         │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Input Formats Accepted:**
+
+| Format | Example | Interpretation |
+|--------|---------|----------------|
+| 24-hour | 14:30 | 14:30:00 |
+| 24-hour with seconds | 14:30:45 | 14:30:45 |
+| 12-hour | 2:30 PM | 14:30:00 |
+| 12-hour with seconds | 2:30:45 PM | 14:30:45 |
+| No colon | 1430 | 14:30:00 |
+
+**Validation:**
+
+| Input | Result |
+|-------|--------|
+| Valid time | Accept, show in display format |
+| "25:00" | Error: "Invalid hour (0-23)" |
+| "14:60" | Error: "Invalid minute (0-59)" |
+| Non-parseable | Error: "Invalid time format" |
+
+**CSS Classes:**
+
+```css
+.ite-cell--time { }
+.ite-time-input { font-family: monospace; }
+.ite-time-input--invalid { border-color: var(--vscode-inputValidation-errorBorder); }
+```
+
+---
+
+### Timestamp/DateTime Field
+
+**Purpose:** Combined date and time editing for TIMESTAMP columns
+
+**Layout - Edit Mode:**
+
+```
+┌───────────────────────────────────────────────────────────┐
+│ Created At                                                │
+│ ┌─────────────────────────────────────────┐               │
+│ │ 2026-01-15 14:30:45                 📅  │               │
+│ └─────────────────────────────────────────┘               │
+│                                                           │
+│ ┌─────────────────────────────────────────┐               │
+│ │    ◀  January 2026  ▶                   │               │
+│ ├─────────────────────────────────────────┤               │
+│ │ [Calendar grid as above]                │               │
+│ └─────────────────────────────────────────┘               │
+│ Time: [14] : [30] : [45]                                  │
+│                                                           │
+│ [Now]                                [Clear]              │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Interaction:**
+- Same as date picker, plus time spinners below calendar
+- "Now" button sets to current date and time
+- Time can be edited independently without reopening picker
+
+---
+
+### Numeric Field Polish
+
+**Purpose:** Right-aligned numeric display with thousands separators
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ID   │ Name        │ Quantity   │ Price        │ Total  │
+├──────┼─────────────┼────────────┼──────────────┼────────┤
+│ 1    │ Widget A    │      1,234 │     $  45.99 │ 56,751 │
+│ 2    │ Widget B    │        567 │     $ 123.00 │ 69,741 │
+│ 3    │ Widget C    │     12,345 │     $   9.99 │123,332 │
+└──────────────────────────────────────────────────────────┘
+         └── Right-aligned with thousands separators ──┘
+```
+
+**Display vs Edit Mode:**
+
+| Mode | Appearance |
+|------|------------|
+| Display | Right-aligned, thousands separators (1,234,567) |
+| Edit | Raw number, no separators (1234567), left-aligned input |
+
+**Validation:**
+
+| Column Type | Validation |
+|-------------|------------|
+| INTEGER | Reject decimal input or round |
+| DECIMAL(10,2) | Allow up to 2 decimal places |
+| Negative | Allow minus sign at start |
+
+**Input Filtering:**
+- Only allow: digits, minus (at start), decimal point
+- Reject letters and special characters immediately
+- Show inline validation error for type mismatches
+
+**CSS Classes:**
+
+```css
+.ite-cell--numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.ite-cell--numeric .ite-cell__value { padding-right: 8px; }
+.ite-numeric-input { text-align: left; }  /* Raw number for editing */
+.ite-numeric-input--invalid { }
+```
+
+---
+
+### NULL Value Display
+
+**Purpose:** Visually distinguish NULL from empty string
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ID   │ Name        │ Email              │ Notes         │
+├──────┼─────────────┼────────────────────┼───────────────┤
+│ 1    │ John Smith  │ john@example.com   │               │  ← Empty string
+│ 2    │ Jane Doe    │ NULL               │ NULL          │  ← NULL (italic gray)
+│ 3    │ Bob Wilson  │                    │ Some notes    │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Visual Distinction:**
+
+| Value | Display | Styling |
+|-------|---------|---------|
+| NULL | "NULL" text | Italic, gray (`--vscode-disabledForeground`) |
+| Empty string | (blank) | Normal cell, no text |
+| Whitespace only | (appears blank) | Normal cell |
+
+**Setting NULL:**
+
+| Method | Action |
+|--------|--------|
+| Context menu | Right-click → "Set to NULL" |
+| Keyboard | Ctrl+Shift+N while editing |
+| Clear + save | Does NOT set NULL (sets empty string) |
+
+**CSS Classes:**
+
+```css
+.ite-cell--null {
+  color: var(--vscode-disabledForeground);
+  font-style: italic;
+}
+.ite-cell--null::before {
+  content: 'NULL';
+}
+```
+
+**Accessibility:**
+- Screen reader: "Value is NULL" vs "Value is empty"
+- Different announcement for NULL and empty
+
+---
+
+## Growth Phase: Keyboard Shortcuts Components (Epic 8)
+
+This section defines UX components for comprehensive keyboard navigation and operation.
+
+### Keyboard Shortcut Reference
+
+**Shortcut Categories:**
+
+| Category | Shortcuts |
+|----------|-----------|
+| **Navigation** | Arrow keys, Tab, Home/End, Page Up/Down |
+| **Editing** | F2, Enter, Escape, Delete, Backspace |
+| **Row Operations** | Ctrl+Shift+=, Ctrl+-, Ctrl+D |
+| **Data Operations** | F5, Ctrl+C, Ctrl+V, Ctrl+F |
+| **Help** | Ctrl+/, F1 |
+
+### Shortcut Help Panel
+
+**Purpose:** Discoverable reference for all keyboard shortcuts
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Keyboard Shortcuts                                    [✕]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ NAVIGATION                                                  │
+│ ─────────────────────────────────────────────────────────── │
+│ Arrow Keys        Move to adjacent cell                     │
+│ Tab / Shift+Tab   Move right/left, save if editing         │
+│ Home / End        Move to first/last cell in row           │
+│ Ctrl+Home/End     Move to first/last cell in grid          │
+│ Page Up/Down      Move up/down one page                     │
+│                                                             │
+│ EDITING                                                     │
+│ ─────────────────────────────────────────────────────────── │
+│ F2 or Enter       Edit selected cell                        │
+│ Escape            Cancel edit, restore value                │
+│ Delete            Clear cell content                        │
+│ Backspace         Clear cell and enter edit mode            │
+│ Ctrl+Enter        Save and stay on current cell            │
+│ Ctrl+Z            Undo current edit                         │
+│ Ctrl+Shift+N      Set cell to NULL                          │
+│                                                             │
+│ ROW OPERATIONS                                              │
+│ ─────────────────────────────────────────────────────────── │
+│ Ctrl+Shift+=      Insert new row                            │
+│ Ctrl+-            Delete selected row                       │
+│ Ctrl+D            Duplicate selected row                    │
+│                                                             │
+│ DATA OPERATIONS                                             │
+│ ─────────────────────────────────────────────────────────── │
+│ F5 or Ctrl+R      Refresh data                              │
+│ Ctrl+C            Copy cell value                           │
+│ Ctrl+V            Paste into cell                           │
+│ Ctrl+F            Focus filter input                        │
+│                                                             │
+│                              Press Escape or Ctrl+/ to close │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Trigger:**
+- Keyboard icon in toolbar
+- Ctrl+/ or F1
+
+**Behavior:**
+- Modal overlay, centered
+- Close with Escape, click outside, or Ctrl+/
+- Does not interrupt current edit mode
+
+**CSS Classes:**
+
+```css
+.ite-shortcut-panel { }
+.ite-shortcut-panel__header { }
+.ite-shortcut-panel__section { }
+.ite-shortcut-panel__section-title { font-weight: bold; }
+.ite-shortcut-panel__row { display: flex; }
+.ite-shortcut-panel__key {
+  font-family: monospace;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 2px 6px;
+  border-radius: 3px;
+  min-width: 100px;
+}
+.ite-shortcut-panel__description { flex: 1; }
+```
+
+**Accessibility:**
+- `role="dialog"`
+- `aria-label="Keyboard shortcuts"`
+- Focus trap within panel
+- Escape closes
+
+---
+
+### Toolbar Tooltips with Shortcuts
+
+**Purpose:** Discover shortcuts via button tooltips
+
+**Layout:**
+
+```
+┌───────────────────────────────────────────────────────────┐
+│ [🔄]  [➕]  [🗑️]  [⌨️]                                      │
+│  │      │      │      └─ Keyboard Shortcuts (Ctrl+/)      │
+│  │      │      └─ Delete Row (Ctrl+-)                     │
+│  │      └─ Add Row (Ctrl+Shift+=)                         │
+│  └─ Refresh (F5)                                          │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Tooltip Format:**
+```
+Action Name (Shortcut)
+```
+
+**Examples:**
+- "Refresh (F5)"
+- "Add Row (Ctrl+Shift+=)"
+- "Delete Row (Ctrl+-)"
+- "Keyboard Shortcuts (Ctrl+/)"
+
+---
+
+### Focus Indicator Enhancement
+
+**Purpose:** Clear visual indicator for keyboard navigation
+
+**Layout:**
+
+```
+┌──────┬─────────────┬────────────────────┬───────────┐
+│ ID   │ Name        │ Email              │ Status    │
+├──────┼─────────────┼────────────────────┼───────────┤
+│ 1    │ John Smith  │┌──────────────────┐│ Active    │
+│      │             ││john@example.com  ││           │  ← 2px focus ring
+│      │             │└──────────────────┘│           │
+│ 2    │ Jane Doe    │ jane@example.com   │ Pending   │
+└──────┴─────────────┴────────────────────┴───────────┘
+```
+
+**Visual Specification:**
+- 2px solid border using `--vscode-focusBorder`
+- Inset (does not shift cell size)
+- High contrast in all themes
+
+**CSS:**
+
+```css
+.ite-cell:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: -2px;
+}
+```
+
+---
+
+## Growth Phase: Export/Import Components (Epic 9)
+
+This section defines UX components for CSV/Excel data exchange.
+
+### Export Menu
+
+**Purpose:** Choose export format and scope
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [🔄] [➕] [🗑️] [📥 Export ▼] [📤 Import]                     │
+│                     │                                       │
+│                     ▼                                       │
+│              ┌──────────────────────────────┐               │
+│              │ Export Current Page (CSV)    │               │
+│              │ Export Current Page (Excel)  │               │
+│              ├──────────────────────────────┤               │
+│              │ Export All Data (CSV)        │               │
+│              │ Export All Data (Excel)      │               │
+│              ├──────────────────────────────┤               │
+│              │ Export Filtered Results (CSV)│  ← If filter │
+│              │ Export Filtered Results (Excel)│    active   │
+│              └──────────────────────────────┘               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Menu Options:**
+
+| Option | Scope | Available |
+|--------|-------|-----------|
+| Current Page | Visible rows only | Always |
+| All Data | Complete table | Always |
+| Filtered Results | Filtered rows | When filter active |
+
+**Format Options:**
+- CSV: Comma-separated, UTF-8 with BOM
+- Excel: .xlsx with formatting
+
+---
+
+### Export Progress Indicator
+
+**Purpose:** Feedback during large exports
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Exporting to CSV...                      │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │████████████████████░░░░░░░░░░░░░░░░░░░░░░│ 45%          │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Processing row 45,000 of 100,000                            │
+│                                                             │
+│                                           [Cancel]          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Behavior:**
+- Shows for exports > 1 second
+- Updates every 1000 rows or 1 second
+- Cancel button stops export immediately
+- On complete: triggers browser download
+
+**CSS Classes:**
+
+```css
+.ite-export-progress { }
+.ite-export-progress__bar { }
+.ite-export-progress__fill { background: var(--vscode-progressBar-background); }
+.ite-export-progress__text { }
+.ite-export-progress__cancel { }
+```
+
+---
+
+### Import Dialog
+
+**Purpose:** File selection and preview for import
+
+**Layout - Step 1: File Selection:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Import Data                                           [✕]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                                                     │    │
+│  │           📄 Drop CSV or Excel file here            │    │
+│  │                                                     │    │
+│  │                  or click to browse                 │    │
+│  │                                                     │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│  [📥 Download Template]  ← CSV with column headers          │
+│                                                             │
+│  ☑ First row contains headers                               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Layout - Step 2: Column Mapping:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Import Data - Column Mapping                          [✕]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ File: customers.csv (5,000 rows)                            │
+│                                                             │
+│ Map CSV columns to table columns:                           │
+│                                                             │
+│ CSV Column          →    Table Column                       │
+│ ─────────────────────────────────────────────────────────   │
+│ [customer_name  ▼]  →    [Name         ▼]   ✓ Matched      │
+│ [email_address  ▼]  →    [Email        ▼]   ✓ Matched      │
+│ [created_date   ▼]  →    [CreatedAt    ▼]   ✓ Matched      │
+│ [is_active      ▼]  →    [(Skip)       ▼]   ⚠ Not mapped   │
+│ [customer_id    ▼]  →    [ID           ▼]   ✓ Matched      │
+│                                                             │
+│ ⚠ 1 column will be skipped                                  │
+│                                                             │
+│ Preview (first 5 rows):                                     │
+│ ┌──────────┬─────────────────────┬─────────────┐            │
+│ │ Name     │ Email               │ CreatedAt   │            │
+│ ├──────────┼─────────────────────┼─────────────┤            │
+│ │ John Doe │ john@example.com    │ 2026-01-15  │            │
+│ │ Jane Doe │ jane@example.com    │ 2026-01-16  │            │
+│ │ ...      │ ...                 │ ...         │            │
+│ └──────────┴─────────────────────┴─────────────┘            │
+│                                                             │
+│ ☑ Validate all rows before importing                        │
+│                                                             │
+│ [Back]                              [Cancel]  [Import]      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Auto-Mapping Logic:**
+1. Exact column name match (case-insensitive)
+2. Column name contains table column name
+3. User can override all mappings
+
+**Validation Indicators:**
+- ✓ Green check: Mapped successfully
+- ⚠ Yellow warning: Not mapped (will skip)
+- ❌ Red error: Required column not mapped (blocks import)
+
+---
+
+### Import Progress & Results
+
+**Layout - Progress:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Importing Data...                                           │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │████████████████████░░░░░░░░░░░░░░░░░░░░░░│ 45%          │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Imported: 2,250 / 5,000 rows                                │
+│ Failed: 3 rows                                              │
+│                                                             │
+│                                           [Cancel]          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Layout - Results:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Import Complete                                       [✕]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ ✓ Successfully imported: 4,997 rows                         │
+│ ✕ Failed: 3 rows                                            │
+│                                                             │
+│ Failed rows:                                                │
+│ ┌────────┬──────────────────────────────────────────────┐   │
+│ │ Row    │ Error                                        │   │
+│ ├────────┼──────────────────────────────────────────────┤   │
+│ │ 127    │ Email format invalid: "not-an-email"        │   │
+│ │ 2,459  │ Duplicate key: ID 12345 already exists      │   │
+│ │ 4,901  │ Name cannot be empty                        │   │
+│ └────────┴──────────────────────────────────────────────┘   │
+│                                                             │
+│ [📥 Download Error Report]                                  │
+│                                                             │
+│                                                    [Close]  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Error Report CSV Format:**
+
+```csv
+Row,OriginalData,Error
+127,"not-an-email,John Doe,2026-01-15","Email format invalid"
+2459,"12345,Jane Doe,jane@example.com","Duplicate key: ID 12345 already exists"
+4901,",Bob Wilson,bob@example.com","Name cannot be empty"
+```
+
+---
+
+### Excel Sheet Selector
+
+**Purpose:** Choose which sheet to import from multi-sheet Excel files
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Select Sheet                                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ File: data.xlsx contains 3 sheets:                          │
+│                                                             │
+│ ○ Customers (5,000 rows)                                    │
+│ ● Orders (12,456 rows)  ← Selected                          │
+│ ○ Products (234 rows)                                       │
+│                                                             │
+│                                           [Cancel] [Next]   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Updated Toolbar with Export/Import
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ [🔄] [➕] [🗑️]  │  [🔽] [🧹]  │  [📥 Export ▼] [📤 Import]  │  server > NS > Table │
+│ Refresh Add Del   Filters      Export/Import buttons         Context breadcrumb   │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**CSS Classes:**
+
+```css
+.ite-toolbar__export { }
+.ite-toolbar__export-menu { }
+.ite-toolbar__import { }
+.ite-import-dialog { }
+.ite-import-dialog__dropzone { }
+.ite-import-dialog__dropzone--active { border: 2px dashed var(--vscode-focusBorder); }
+.ite-import-dialog__mapping { }
+.ite-import-dialog__preview { }
+.ite-import-dialog__progress { }
+.ite-import-dialog__results { }
+```
+
+---
+
+## User Journey: Bulk Data Migration (Epic 9)
+
+**Persona:** Marcus (Developer)
+**Goal:** Load 5,000 test records from Excel
+**Success:** Data imported with validation in < 5 minutes
+
+```mermaid
+flowchart TD
+    A[Has Excel file with test data] --> B[Open target table]
+    B --> C[Click Import button]
+    C --> D[Drop Excel file]
+    D --> E{Multiple sheets?}
+    E -->|Yes| F[Select sheet]
+    E -->|No| G[See preview + mapping]
+    F --> G
+    G --> H{Mapping correct?}
+    H -->|No| I[Adjust column mappings]
+    I --> G
+    H -->|Yes| J[Click Import]
+    J --> K[See progress bar]
+    K --> L{Errors?}
+    L -->|Yes| M[Review error summary]
+    M --> N[Download error report]
+    N --> O[Fix errors in Excel, retry]
+    O --> C
+    L -->|No| P[Import complete]
+    P --> Q[Refresh grid to see data]
+```
+
+---
+
+## User Journey: Keyboard-First Workflow (Epic 8)
+
+**Persona:** Sarah (Power User)
+**Goal:** Update 20 records without using mouse
+**Success:** Complete edits in half the usual time
+
+```mermaid
+flowchart TD
+    A[Table open, hands on keyboard] --> B[Ctrl+F to focus filter]
+    B --> C[Type filter criteria, Enter]
+    C --> D[Arrow keys to navigate to row]
+    D --> E[F2 to edit cell]
+    E --> F[Type new value]
+    F --> G[Tab to save + move right]
+    G --> H{More cells to edit?}
+    H -->|Yes| I[Arrow/Tab to next cell]
+    I --> E
+    H -->|No| J{More rows?}
+    J -->|Yes| K[Arrow down to next row]
+    K --> E
+    J -->|No| L[Ctrl+/ to check shortcuts learned]
+    L --> M[F5 to refresh and verify]
+    M --> N[Done - never touched mouse]
+```
+
+---
+
+*Updated: 2026-02-01*
+*Added UX specifications for Epics 7, 8, and 9*

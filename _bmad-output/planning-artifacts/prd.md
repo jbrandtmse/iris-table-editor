@@ -72,16 +72,23 @@ classification:
 - SQL injection prevention through parameterized queries
 - Responsive performance with tables up to 1000+ rows (MVP)
 - Full support for VS Code light and dark themes
-- **(Growth)** Scalable navigation for namespaces with thousands of tables
-- **(Growth)** Efficient handling of tables with millions of rows via server-side operations
+- **(Growth - Epic 6)** Scalable navigation for namespaces with thousands of tables
+- **(Growth - Epic 6)** Efficient handling of tables with millions of rows via server-side operations
+- **(Growth - Epic 7)** Type-appropriate controls for boolean, date, time, numeric, and NULL values
+- **(Growth - Epic 8)** Full keyboard navigation and editing without mouse dependency
+- **(Growth - Epic 9)** Reliable CSV/Excel export and import for bulk data operations
 
 ### Measurable Outcomes
 
 - Users can complete a data edit in under 30 seconds (vs. minutes writing SQL)
 - Zero credential exposure in logs or extension state
 - Extension loads table data within 2 seconds for typical tables (<500 rows)
-- **(Growth)** Page navigation completes within 1 second for tables with millions of rows
-- **(Growth)** Filter and sort operations complete within 2 seconds
+- **(Growth - Epic 6)** Page navigation completes within 1 second for tables with millions of rows
+- **(Growth - Epic 6)** Filter and sort operations complete within 2 seconds
+- **(Growth - Epic 7)** Boolean edits complete with single click (no typing required)
+- **(Growth - Epic 8)** Power users can perform common operations without leaving keyboard
+- **(Growth - Epic 9)** Export 10,000 rows to CSV in under 10 seconds
+- **(Growth - Epic 9)** Import 10,000 rows from CSV in under 30 seconds
 
 ## Product Scope
 
@@ -98,7 +105,7 @@ classification:
 
 ### Growth Features (Post-MVP)
 
-**Scalability & Advanced Navigation (Epic 6):**
+**Scalability & Advanced Navigation (Epic 6) - COMPLETE:**
 - Schema-based table tree view with collapsible folder hierarchy for namespaces with thousands of tables
 - Inline column filtering with smart UI: checklist for low-cardinality columns (≤10 values), text input with wildcard support (* and ?) for high-cardinality columns
 - Filter panel with advanced operators (contains, starts with, equals, greater than, less than, is empty, etc.)
@@ -108,17 +115,37 @@ classification:
 - Server-side filtering, sorting, and pagination for tables with millions of rows
 - Lazy loading verification ensuring only current page is fetched
 
-**Additional Growth Features:**
-- Keyboard shortcuts for common operations
-- Multiple namespace support
-- Auto-refresh capability
+**Data Type Polish (Epic 7):**
+- Boolean fields display as clickable checkboxes (toggle with single click, no typing 1/0)
+- Date fields with calendar picker popup and flexible format recognition (YYYY-MM-DD, MM/DD/YYYY, etc.)
+- Time fields accepting common formats (HH:MM, 2:30 PM, HH:MM:SS)
+- Timestamp/DateTime fields with combined date-time picker
+- Numeric fields with right-alignment, thousands separators display, and input validation
+- NULL values displayed distinctly (italic gray "NULL") vs. empty strings (blank)
+- Explicit NULL entry via context menu or keyboard shortcut (Ctrl+Shift+N)
+
+**Keyboard Shortcuts (Epic 8):**
+- Grid navigation: Arrow keys, Tab/Shift+Tab, Home/End, Ctrl+Home/End, Page Up/Down
+- Cell editing: F2 to edit, Enter/Tab to save+move, Escape to cancel, Ctrl+Enter to save+stay
+- Row operations: Ctrl+Plus to insert, Ctrl+Minus to delete, Ctrl+D to duplicate
+- Data operations: F5 to refresh, Ctrl+C/V to copy/paste, Ctrl+F to focus filter
+- Shortcut discovery: Help panel, tooltips showing shortcuts on toolbar buttons
+
+**CSV/Excel Export & Import (Epic 9):**
+- Export current page, all data, or filtered results to CSV
+- Export to Excel format (.xlsx) with proper data types and formatting
+- Import from CSV with column mapping, preview, and validation
+- Import from Excel with sheet selection
+- Pre-import validation with error reporting and partial import options
+- Large dataset handling with streaming, progress indicators, and cancellation support
 
 ### Vision (Future)
 
 - Query builder UI for custom SELECT queries
-- Export to CSV/Excel
 - Schema/relationship visualization
 - Custom SQL execution panel
+- Multiple namespace support
+- Auto-refresh capability
 
 ## User Journeys
 
@@ -165,6 +192,36 @@ Sarah gets a support ticket: "Customer record has wrong email address, causing n
 
 ---
 
+### Journey 4: Developer - Bulk Data Migration (Growth)
+
+**Persona: Marcus needs to load test data**
+
+Marcus is setting up a test environment and needs to load 5,000 patient records from an Excel spreadsheet provided by the QA team.
+
+- **Opening Scene**: Marcus has an Excel file with test data. The old way: write an import script, handle data type conversions, deal with errors one by one...
+- **Rising Action**: Marcus opens the target table in IRIS Table Editor. He clicks "Import" and selects the Excel file. The extension shows a preview with column mapping.
+- **Climax**: The import validates all rows upfront, showing 3 rows with date format issues. Marcus fixes those in Excel and re-imports. All 5,000 rows load successfully with a progress bar.
+- **Resolution**: Test environment populated in 5 minutes instead of an hour writing import code.
+
+**Capabilities Revealed**: Excel import, column mapping, bulk validation, progress feedback, error reporting
+
+---
+
+### Journey 5: Power User - Keyboard-First Workflow (Growth)
+
+**Persona: Sarah becomes a power user**
+
+After using IRIS Table Editor daily, Sarah wants to work faster without constantly switching between keyboard and mouse.
+
+- **Opening Scene**: Sarah needs to update 20 records quickly. She knows where they are but reaching for the mouse each time is slowing her down.
+- **Rising Action**: Sarah uses Ctrl+F to filter, arrow keys to navigate, F2 to edit, Tab to save and move. She never touches the mouse.
+- **Climax**: She presses Ctrl+/ to see the shortcut help, learns Ctrl+D to duplicate a row, and completes her updates in half the usual time.
+- **Resolution**: Sarah's productivity doubles. She exports the updated data to CSV for her report using Ctrl+E (shortcut for export).
+
+**Capabilities Revealed**: Keyboard navigation, keyboard shortcuts, shortcut discovery, keyboard-driven export
+
+---
+
 ### Journey Requirements Summary
 
 | Capability | Revealed By Journey |
@@ -172,10 +229,17 @@ Sarah gets a support ticket: "Customer record has wrong email address, causing n
 | Server selection & connection | Marcus (J1), Sarah (J2) |
 | Table browsing & selection | Marcus (J1), Sarah (J2) |
 | Grid data display | All journeys |
-| Inline cell editing | Marcus (J1), Sarah (J2) |
+| Inline cell editing | Marcus (J1), Sarah (J2), Sarah Power (J5) |
 | Quick save (UPDATE) | Marcus (J1), Sarah (J2) |
 | User-friendly error messages | Marcus - Error (J3) |
 | Change confirmation | Sarah (J2) |
+| **(Growth)** Excel/CSV import | Marcus Bulk (J4) |
+| **(Growth)** Column mapping & validation | Marcus Bulk (J4) |
+| **(Growth)** Progress feedback | Marcus Bulk (J4) |
+| **(Growth)** Keyboard navigation | Sarah Power (J5) |
+| **(Growth)** Keyboard shortcuts | Sarah Power (J5) |
+| **(Growth)** Shortcut discovery | Sarah Power (J5) |
+| **(Growth)** CSV/Excel export | Sarah Power (J5) |
 
 ## Developer Tool Specific Requirements
 

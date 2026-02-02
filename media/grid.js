@@ -2861,6 +2861,8 @@
             if (focus) {
                 newCell.focus();
             }
+            // Story 8.1: Scroll cell into view when navigating
+            newCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
 
         // Announce for screen readers
@@ -3056,6 +3058,25 @@
                 }
                 break;
 
+            // Story 8.1: Page Up/Down - move by visible page of rows
+            case 'PageUp':
+                event.preventDefault();
+                {
+                    const visibleRows = getVisibleRowCount();
+                    const newRow = Math.max(0, rowIndex - visibleRows);
+                    selectCell(newRow, colIndex);
+                }
+                break;
+
+            case 'PageDown':
+                event.preventDefault();
+                {
+                    const visibleRows = getVisibleRowCount();
+                    const newRow = Math.min(maxRow, rowIndex + visibleRows);
+                    selectCell(newRow, colIndex);
+                }
+                break;
+
             // Story 3.2: Delete/Backspace to clear and edit
             case 'Delete':
             case 'Backspace':
@@ -3077,6 +3098,25 @@
                 }
                 break;
         }
+    }
+
+    /**
+     * Story 8.1: Calculate number of visible rows in the grid viewport
+     * Used for Page Up/Down navigation to move by a screen's worth of rows
+     * @returns {number} Approximate number of rows visible in the viewport
+     */
+    function getVisibleRowCount() {
+        const gridBody = document.getElementById('dataGrid');
+        if (!gridBody) return 10; // Default fallback
+
+        const row = gridBody.querySelector('.ite-grid__row');
+        if (!row) return 10;
+
+        const rowHeight = row.offsetHeight;
+        if (rowHeight === 0) return 10;
+
+        const viewportHeight = gridBody.clientHeight;
+        return Math.max(1, Math.floor(viewportHeight / rowHeight));
     }
 
     /**

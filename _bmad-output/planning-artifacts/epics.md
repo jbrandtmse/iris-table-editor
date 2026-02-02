@@ -1257,3 +1257,724 @@ So that **performance remains fast even with tables containing millions of rows*
 | Page navigation | < 1 second |
 | Filter apply | < 2 seconds |
 | Sort apply | < 2 seconds |
+
+---
+
+## Epic 7: Data Type Polish
+
+**Goal:** Users experience intuitive, type-appropriate data entry controls that match familiar patterns from Microsoft Access and Excel, eliminating friction when entering boolean, date, numeric, and null values.
+
+**Phase:** Growth (Post-MVP)
+**Dependencies:** Requires Epic 3 (inline cell editing) to be complete.
+
+**FRs addressed:** FR14 (enhanced - data formatted appropriately for its type), FR16 (enhanced - type-specific editing)
+**NFRs addressed:** NFR2 (cell edit save operations complete within 1 second)
+**UX improvement:** Matches user mental model from Access/Excel for data entry
+
+---
+
+### Story 7.1: Boolean Checkbox Control
+
+As a **user**,
+I want **boolean columns to display as clickable checkboxes**,
+So that **I can toggle true/false values with a single click instead of typing 1/0**.
+
+**Acceptance Criteria:**
+
+**Given** a table has a boolean column (BIT type in IRIS)
+**When** the grid displays
+**Then** boolean cells show as checkboxes (checked = true/1, unchecked = false/0)
+**And** the checkbox is centered in the cell
+
+**Given** a boolean cell displays a checkbox
+**When** I click the checkbox
+**Then** the value toggles immediately (checked ↔ unchecked)
+**And** the change is saved to the database
+**And** I see the save confirmation flash (green 200ms)
+
+**Given** a boolean cell displays a checkbox
+**When** I press Space while the cell is selected
+**Then** the checkbox toggles (keyboard accessibility)
+
+**Given** a boolean column contains NULL
+**When** the grid displays
+**Then** the checkbox shows an indeterminate state (dash or empty)
+**And** clicking it sets the value to true (checked)
+
+**Given** I need to set a boolean to NULL
+**When** I right-click the checkbox cell
+**Then** I see a context option "Set to NULL"
+**And** selecting it clears the checkbox to indeterminate state
+
+**Given** the database stores 1/0 for booleans
+**When** I toggle a checkbox
+**Then** the UPDATE query sends 1 (checked) or 0 (unchecked)
+**And** the display remains as a checkbox (not raw 1/0)
+
+---
+
+### Story 7.2: Date Picker Control
+
+As a **user**,
+I want **date columns to offer a calendar picker for easy date selection**,
+So that **I can select dates visually without memorizing the exact format required**.
+
+**Acceptance Criteria:**
+
+**Given** a table has a date column (%Date, DATE type)
+**When** I click or double-click to edit the cell
+**Then** I see a calendar icon appear next to the input field
+**And** I can type a date directly in the input field
+
+**Given** I am editing a date cell
+**When** I click the calendar icon
+**Then** a date picker popup opens
+**And** it shows the current month with selectable days
+**And** I can navigate between months using arrow buttons
+**And** the currently selected date (if any) is highlighted
+
+**Given** the date picker is open
+**When** I click on a day
+**Then** the date is selected and inserted into the cell
+**And** the picker closes
+**And** the date displays in readable format (e.g., "2026-02-01" or locale-appropriate)
+
+**Given** I am editing a date cell
+**When** I type a date in common formats (YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, "Feb 1, 2026")
+**Then** the input is recognized and accepted
+**And** dates are stored in IRIS-compatible format
+
+**Given** a date cell contains NULL
+**When** the cell displays
+**Then** it shows the NULL placeholder (italic gray "NULL")
+**And** clicking opens the date picker starting at today's date
+
+**Given** I am editing a date cell
+**When** I press Escape
+**Then** the date picker closes (if open)
+**And** the edit is cancelled
+
+**Given** keyboard navigation
+**When** the date picker is open and I press Arrow keys
+**Then** I can navigate between days
+**And** pressing Enter selects the focused day
+
+---
+
+### Story 7.3: Time Field Polish
+
+As a **user**,
+I want **time columns to accept common time formats and display readably**,
+So that **I can enter times naturally without strict format requirements**.
+
+**Acceptance Criteria:**
+
+**Given** a table has a time column (%Time, TIME type)
+**When** I edit the cell
+**Then** I see a text input that accepts time values
+
+**Given** I am editing a time cell
+**When** I type time in common formats:
+- "14:30" (HH:MM)
+- "2:30 PM" (12-hour with AM/PM)
+- "14:30:45" (HH:MM:SS)
+- "2:30:45 PM"
+**Then** the input is recognized and accepted
+**And** the value is stored in IRIS-compatible format
+
+**Given** a time cell contains a value
+**When** the grid displays
+**Then** the time shows in readable format (e.g., "14:30" or "2:30 PM" based on locale)
+
+**Given** I enter an invalid time (e.g., "25:00", "abc")
+**When** I try to save
+**Then** I see a validation error: "Invalid time format"
+**And** the cell remains in edit mode for correction
+
+**Given** a time cell contains NULL
+**When** the cell displays
+**Then** it shows the NULL placeholder
+
+---
+
+### Story 7.4: Numeric Field Polish
+
+As a **user**,
+I want **numeric columns to display with proper alignment and formatting**,
+So that **numbers are easy to read and compare visually**.
+
+**Acceptance Criteria:**
+
+**Given** a table has a numeric column (INTEGER, DECIMAL, NUMERIC types)
+**When** the grid displays
+**Then** numeric values are right-aligned in their cells
+**And** large numbers display with thousands separators (e.g., "1,234,567")
+
+**Given** I am editing a numeric cell
+**When** the cell enters edit mode
+**Then** the input shows the raw number without formatting (e.g., "1234567")
+**And** I can edit the digits directly
+
+**Given** I am editing a numeric cell
+**When** I type non-numeric characters (except minus sign and decimal point)
+**Then** the invalid characters are rejected (not entered)
+**Or** I see immediate inline validation feedback
+
+**Given** a column is defined as INTEGER
+**When** I enter a decimal value (e.g., "123.45")
+**Then** the value is either:
+- Rounded to nearest integer on save, OR
+- Rejected with validation error "Integer value required"
+
+**Given** a column is defined as DECIMAL with specific precision
+**When** I enter a value exceeding the precision
+**Then** the value is rounded appropriately
+**And** I see a subtle warning if significant digits are lost
+
+**Given** I save a numeric cell
+**When** the save completes
+**Then** the display returns to formatted view (right-aligned, thousands separators)
+
+---
+
+### Story 7.5: NULL Value Display & Entry
+
+As a **user**,
+I want **NULL values to be visually distinct from empty strings**,
+So that **I can clearly see which cells have no data vs. intentionally blank data**.
+
+**Acceptance Criteria:**
+
+**Given** a cell contains a NULL value
+**When** the grid displays
+**Then** the cell shows "NULL" in italic gray text
+**And** the text is visually distinct from regular cell content (lighter color, italic)
+
+**Given** a cell contains an empty string ("")
+**When** the grid displays
+**Then** the cell appears blank (no text)
+**And** this is visually different from NULL (no italic "NULL" placeholder)
+
+**Given** a NULL cell is displayed
+**When** I click or double-click to edit
+**Then** the "NULL" placeholder disappears
+**And** I see an empty input field ready for entry
+**And** the cursor is positioned in the input
+
+**Given** I am editing a cell with content
+**When** I want to set the value to NULL
+**Then** I can:
+- Clear all content and press a designated key (Ctrl+Shift+N), OR
+- Right-click and select "Set to NULL" from context menu
+**And** the cell value becomes NULL (not empty string)
+
+**Given** I clear a cell's content and press Tab/Enter to save
+**When** the column allows NULLs
+**Then** the saved value is empty string (""), not NULL
+**And** to explicitly set NULL, I must use the designated action
+
+**Given** I try to set NULL on a column that doesn't allow NULLs
+**When** I attempt the NULL action
+**Then** I see an error: "This column does not allow NULL values"
+
+**Given** the grid is in light or dark theme
+**When** NULL values display
+**Then** the italic gray "NULL" text has appropriate contrast for readability
+**And** respects the current VS Code theme
+
+---
+
+### Story 7.6: Timestamp/DateTime Field Polish
+
+As a **user**,
+I want **timestamp columns to display readably and allow flexible entry**,
+So that **I can work with date-time values naturally**.
+
+**Acceptance Criteria:**
+
+**Given** a table has a timestamp/datetime column (%TimeStamp, TIMESTAMP type)
+**When** the grid displays
+**Then** timestamps show in readable format (e.g., "2026-02-01 14:30:45")
+
+**Given** I am editing a timestamp cell
+**When** I click the calendar icon
+**Then** a date picker opens
+**And** after selecting a date, I can also set the time component
+**Or** a combined date-time picker is available
+
+**Given** I am editing a timestamp cell
+**When** I type a datetime in common formats:
+- "2026-02-01 14:30"
+- "2026-02-01 14:30:45"
+- "Feb 1, 2026 2:30 PM"
+**Then** the input is recognized and accepted
+
+**Given** I enter only a date (no time) in a timestamp field
+**When** I save
+**Then** the time component defaults to 00:00:00
+**Or** the current time is used (implementation choice - document behavior)
+
+---
+
+## Epic 8: Keyboard Shortcuts
+
+**Goal:** Power users can perform all common operations efficiently using keyboard shortcuts, matching the muscle memory patterns from Excel and standard data grid applications.
+
+**Phase:** Growth (Post-MVP)
+**Dependencies:** Requires Epic 3 (cell editing) and Epic 5 (row deletion) to be complete.
+
+**PRD reference:** "Keyboard shortcuts for common operations" listed as Growth feature
+**UX improvement:** Enables keyboard-centric workflow for developer users
+
+---
+
+### Story 8.1: Grid Navigation Shortcuts
+
+As a **user**,
+I want **to navigate the grid entirely with my keyboard**,
+So that **I can move quickly without reaching for the mouse**.
+
+**Acceptance Criteria:**
+
+**Given** a cell is selected in the grid
+**When** I press the following keys
+**Then** navigation occurs as specified:
+
+| Key | Action |
+|-----|--------|
+| Arrow Up/Down/Left/Right | Move to adjacent cell |
+| Tab | Move to next cell (right, then wrap to next row) |
+| Shift+Tab | Move to previous cell (left, then wrap to previous row) |
+| Home | Move to first cell in current row |
+| End | Move to last cell in current row |
+| Ctrl+Home | Move to first cell in grid (A1 equivalent) |
+| Ctrl+End | Move to last cell with data |
+| Page Down | Move down one visible page of rows |
+| Page Up | Move up one visible page of rows |
+
+**Given** I am at the edge of the grid
+**When** I press an arrow key toward the edge
+**Then** the selection does not wrap (stays at edge)
+**Or** wraps to next/previous row (configurable behavior)
+
+**Given** I navigate with keyboard
+**When** the selection moves
+**Then** the newly selected cell is scrolled into view if needed
+**And** the focus indicator (2px border) is clearly visible
+
+---
+
+### Story 8.2: Cell Editing Shortcuts
+
+As a **user**,
+I want **keyboard shortcuts to enter and exit edit mode quickly**,
+So that **I can edit data efficiently without mouse clicks**.
+
+**Acceptance Criteria:**
+
+**Given** a cell is selected (not in edit mode)
+**When** I press the following keys
+**Then** actions occur as specified:
+
+| Key | Action |
+|-----|--------|
+| F2 | Enter edit mode, cursor at end of content |
+| Enter | Enter edit mode, cursor at end of content |
+| Any printable character | Enter edit mode, replacing content with typed character |
+| Delete | Clear cell content (set to empty string) |
+| Backspace | Enter edit mode, clear content, ready to type |
+
+**Given** a cell is in edit mode
+**When** I press the following keys
+**Then** actions occur as specified:
+
+| Key | Action |
+|-----|--------|
+| Enter | Save and move down one cell |
+| Tab | Save and move right one cell |
+| Shift+Enter | Save and move up one cell |
+| Shift+Tab | Save and move left one cell |
+| Escape | Cancel edit, restore original value, stay on cell |
+| Ctrl+Enter | Save and stay on current cell (no movement) |
+
+**Given** I am editing a cell
+**When** I press Ctrl+Z
+**Then** the edit is undone (restores original value)
+**And** the cell remains in edit mode
+
+---
+
+### Story 8.3: Row Operation Shortcuts
+
+As a **user**,
+I want **keyboard shortcuts for row-level operations**,
+So that **I can add and delete rows without using the toolbar**.
+
+**Acceptance Criteria:**
+
+**Given** a cell is selected in the grid
+**When** I press the following keys
+**Then** row operations occur:
+
+| Key | Action |
+|-----|--------|
+| Ctrl+Shift+= (Ctrl+Plus) | Insert new row (same as Add Row button) |
+| Ctrl+- (Ctrl+Minus) | Delete current row (with confirmation) |
+| Ctrl+D | Duplicate current row (insert copy below) |
+
+**Given** I press Ctrl+- to delete a row
+**When** the delete confirmation dialog appears
+**Then** I can press Enter to confirm or Escape to cancel
+**And** keyboard focus is on the "Delete" button by default
+
+**Given** I insert a new row with Ctrl+Shift+=
+**When** the new row appears
+**Then** focus moves to the first editable cell of the new row
+**And** the cell enters edit mode automatically
+
+---
+
+### Story 8.4: Data Operation Shortcuts
+
+As a **user**,
+I want **keyboard shortcuts for common data operations**,
+So that **I can refresh, copy, and manage data quickly**.
+
+**Acceptance Criteria:**
+
+**Given** the grid is focused
+**When** I press the following keys
+**Then** data operations occur:
+
+| Key | Action |
+|-----|--------|
+| F5 or Ctrl+R | Refresh table data |
+| Ctrl+C | Copy selected cell value to clipboard |
+| Ctrl+V | Paste clipboard value into selected cell (enters edit mode) |
+| Ctrl+F | Focus filter input for current column (if filtering enabled) |
+| Escape (when not editing) | Clear current filter OR deselect row |
+
+**Given** I press Ctrl+C on a cell
+**When** the cell content is copied
+**Then** I see a brief visual feedback (flash or tooltip "Copied")
+**And** the value is in system clipboard
+
+**Given** I press Ctrl+V on a cell
+**When** clipboard has content
+**Then** the cell enters edit mode with clipboard content
+**And** I can modify before saving with Tab/Enter
+
+**Given** I press F5 to refresh
+**When** data is refreshing
+**Then** I see a loading indicator
+**And** my current selection position is preserved after refresh (if possible)
+
+---
+
+### Story 8.5: Shortcut Discovery & Help
+
+As a **user**,
+I want **to easily discover available keyboard shortcuts**,
+So that **I can learn the shortcuts without memorizing documentation**.
+
+**Acceptance Criteria:**
+
+**Given** the grid toolbar is visible
+**When** I look for keyboard help
+**Then** I see a keyboard icon or "?" that opens shortcut reference
+
+**Given** I click the keyboard shortcut help
+**When** the help panel opens
+**Then** I see a list of all available shortcuts organized by category:
+- Navigation
+- Editing
+- Row Operations
+- Data Operations
+**And** each shortcut shows the key combination and description
+
+**Given** I hover over a toolbar button
+**When** the tooltip appears
+**Then** it includes the keyboard shortcut (e.g., "Refresh (F5)")
+
+**Given** I press Ctrl+/ or F1 while grid is focused
+**When** the shortcut help is triggered
+**Then** the keyboard shortcut reference panel opens
+
+**Given** the shortcut help is open
+**When** I press Escape
+**Then** the help panel closes
+**And** focus returns to the grid
+
+---
+
+## Epic 9: CSV/Excel Export & Import
+
+**Goal:** Users can export table data to CSV/Excel formats for offline analysis and import data from files for bulk operations, enabling seamless data exchange with other tools.
+
+**Phase:** Growth (Post-MVP)
+**Dependencies:** Requires Epic 2 (data display) to be complete for export; Epic 4 (row creation) for import.
+
+**PRD reference:** "Export to CSV/Excel" listed as Vision feature (accelerated to Growth)
+**Differentiator:** Bulk data operations not available in standard IRIS tools
+
+---
+
+### Story 9.1: Export Current View to CSV
+
+As a **user**,
+I want **to export the current table view to a CSV file**,
+So that **I can analyze data in Excel or share it with colleagues**.
+
+**Acceptance Criteria:**
+
+**Given** a table is displayed in the grid
+**When** I look at the toolbar
+**Then** I see an "Export" button (download icon)
+
+**Given** I click the Export button
+**When** the export menu opens
+**Then** I see options:
+- "Export Current Page (CSV)"
+- "Export All Data (CSV)"
+- "Export Filtered Results (CSV)" (if filters active)
+
+**Given** I select "Export Current Page (CSV)"
+**When** the export executes
+**Then** a CSV file is generated containing only the currently visible rows
+**And** the file download dialog opens (or saves to Downloads)
+**And** the filename is "{tablename}_{timestamp}.csv"
+
+**Given** I select "Export All Data (CSV)"
+**When** the table has many rows
+**Then** I see a progress indicator ("Exporting... 50%")
+**And** data is streamed/chunked to avoid memory issues
+**And** the export completes even for tables with 100k+ rows
+
+**Given** I have filters and/or sort applied
+**When** I select "Export Filtered Results (CSV)"
+**Then** only the filtered/sorted data is exported
+**And** the export respects the current sort order
+
+**Given** the CSV is generated
+**When** I open it in Excel
+**Then** columns are properly separated
+**And** values containing commas are quoted
+**And** the file uses UTF-8 encoding with BOM for Excel compatibility
+
+**Given** the table has columns with special characters or commas
+**When** exported to CSV
+**Then** values are properly escaped/quoted per RFC 4180
+
+---
+
+### Story 9.2: Export to Excel Format
+
+As a **user**,
+I want **to export directly to Excel format (.xlsx)**,
+So that **I get formatted spreadsheets ready for analysis**.
+
+**Acceptance Criteria:**
+
+**Given** I click the Export button
+**When** the export menu opens
+**Then** I also see options:
+- "Export Current Page (Excel)"
+- "Export All Data (Excel)"
+- "Export Filtered Results (Excel)" (if filters active)
+
+**Given** I select an Excel export option
+**When** the export executes
+**Then** an .xlsx file is generated
+**And** column headers are bold/styled
+**And** columns have appropriate widths based on content
+**And** data types are preserved (numbers as numbers, dates as dates)
+
+**Given** the table has date columns
+**When** exported to Excel
+**Then** dates are formatted as Excel dates (not text)
+**And** Excel can sort/filter them as dates
+
+**Given** the table has numeric columns
+**When** exported to Excel
+**Then** numbers are stored as numeric values
+**And** right-aligned by default in Excel
+
+**Given** the table has boolean columns
+**When** exported to Excel
+**Then** values export as TRUE/FALSE (Excel boolean)
+**Or** as "Yes"/"No" text (configurable preference)
+
+---
+
+### Story 9.3: Import from CSV
+
+As a **user**,
+I want **to import data from a CSV file into the current table**,
+So that **I can bulk-load data without manually entering rows**.
+
+**Acceptance Criteria:**
+
+**Given** a table is displayed in the grid
+**When** I look at the toolbar
+**Then** I see an "Import" button (upload icon)
+
+**Given** I click the Import button
+**When** the import dialog opens
+**Then** I see:
+- File selection (drag-and-drop zone + browse button)
+- Link to "Download sample CSV template"
+- Import options (header row yes/no)
+
+**Given** I click "Download sample CSV template"
+**When** the template downloads
+**Then** it contains column headers matching the current table
+**And** includes one sample row showing expected formats
+**And** the filename is "{tablename}_template.csv"
+
+**Given** I select a CSV file to import
+**When** the file is parsed
+**Then** I see a preview of the first 10 rows
+**And** I see column mapping: CSV columns → Table columns
+**And** I can adjust mappings if column names don't match exactly
+
+**Given** the preview shows data
+**When** I review the mapping
+**Then** I see warnings for:
+- Unmapped CSV columns (will be ignored)
+- Required table columns with no mapping (blocking)
+- Data type mismatches detected in preview
+
+**Given** the mapping is valid
+**When** I click "Import"
+**Then** data is inserted row by row
+**And** I see progress: "Importing... 50/100 rows"
+**And** the import uses parameterized queries (SQL injection safe)
+
+**Given** some rows fail validation during import
+**When** the import completes
+**Then** I see a summary:
+- "Successfully imported: 95 rows"
+- "Failed: 5 rows"
+- Option to "Download error report" (CSV with failed rows + error reasons)
+
+**Given** I review the error report
+**When** I open it
+**Then** each failed row shows the original data + specific error message
+**And** I can fix the data and re-import just the failed rows
+
+---
+
+### Story 9.4: Import from Excel
+
+As a **user**,
+I want **to import data from an Excel file**,
+So that **I can transfer data directly from spreadsheets without CSV conversion**.
+
+**Acceptance Criteria:**
+
+**Given** I click the Import button
+**When** the import dialog opens
+**Then** I can select .xlsx or .xls files in addition to .csv
+
+**Given** I select an Excel file with multiple sheets
+**When** the file is parsed
+**Then** I see a sheet selector dropdown
+**And** I can choose which sheet to import from
+
+**Given** I select a sheet
+**When** the preview loads
+**Then** I see the same preview/mapping interface as CSV import
+**And** Excel data types (dates, numbers) are recognized
+
+**Given** the Excel file has formatted dates
+**When** imported
+**Then** dates are correctly converted to IRIS date format
+**And** not imported as text strings
+
+**Given** the Excel file has formulas
+**When** imported
+**Then** the calculated values are imported (not the formulas)
+
+---
+
+### Story 9.5: Import Validation & Rollback
+
+As a **user**,
+I want **import operations to validate data before committing**,
+So that **I don't end up with partial imports or corrupted data**.
+
+**Acceptance Criteria:**
+
+**Given** I start an import
+**When** the import settings show
+**Then** I see an option: "Validate all rows before importing" (default: on)
+
+**Given** "Validate all rows before importing" is enabled
+**When** I click Import
+**Then** all rows are validated first (dry run)
+**And** if any row would fail, I see all errors upfront
+**And** no data is inserted until I confirm
+
+**Given** validation finds errors
+**When** I review the validation report
+**Then** I can choose:
+- "Import valid rows only" (skip errors)
+- "Cancel" (import nothing)
+- "Download errors and fix" (abort, fix file, retry)
+
+**Given** I choose "Import valid rows only"
+**When** the import proceeds
+**Then** only valid rows are inserted
+**And** I receive the error report for failed rows
+
+**Given** an import is in progress
+**When** a database error occurs mid-import (connection lost, constraint violation)
+**Then** I see clear error messaging
+**And** I'm told how many rows succeeded before the error
+**And** I can retry from where it stopped (if possible) or start over
+
+**Given** I need to undo an import
+**When** I realize I imported wrong data
+**Then** I can use existing delete functionality row-by-row
+**Or** (future enhancement) bulk delete by import batch ID
+
+---
+
+### Story 9.6: Export/Import Large Datasets
+
+As a **user**,
+I want **export and import to handle large datasets efficiently**,
+So that **I can work with tables containing hundreds of thousands of rows**.
+
+**Acceptance Criteria:**
+
+**Given** I export a table with 100,000+ rows
+**When** the export runs
+**Then** data is streamed in chunks (not loaded all into memory)
+**And** the UI remains responsive (non-blocking)
+**And** I see progress updates every few seconds
+
+**Given** I import a CSV with 50,000+ rows
+**When** the import runs
+**Then** rows are processed in batches (e.g., 1000 at a time)
+**And** progress updates show: "Imported 10,000 / 50,000 rows"
+**And** the import can be cancelled mid-operation
+
+**Given** I cancel a large import mid-operation
+**When** the cancellation processes
+**Then** rows already imported remain in the database
+**And** I'm told "Import cancelled. 12,345 rows were imported before cancellation."
+
+**Given** export/import operations take more than a few seconds
+**When** the operation is running
+**Then** I can continue viewing (but not editing) the grid
+**And** a status indicator shows the operation is in progress
+
+**Performance Targets:**
+
+| Scenario | Target |
+|----------|--------|
+| Export 10,000 rows to CSV | < 10 seconds |
+| Export 10,000 rows to Excel | < 15 seconds |
+| Import 10,000 rows from CSV | < 30 seconds |
+| Import 10,000 rows from Excel | < 45 seconds |

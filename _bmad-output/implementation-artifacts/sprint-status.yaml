@@ -101,9 +101,9 @@ development_status:
   epic-7-retrospective: optional
 
   # Epic 8: Keyboard Shortcuts (Growth Phase)
-  epic-8: backlog
-  8-1-grid-navigation-shortcuts: backlog
-  8-2-cell-editing-shortcuts: backlog
+  epic-8: in-progress
+  8-1-grid-navigation-shortcuts: done
+  8-2-cell-editing-shortcuts: ready-for-dev
   8-3-row-operation-shortcuts: backlog
   8-4-data-operation-shortcuts: backlog
   8-5-shortcut-discovery-help: backlog
