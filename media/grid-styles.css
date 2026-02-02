@@ -1649,6 +1649,39 @@ body {
     outline-offset: 2px;
 }
 
+/* Story 8.4: Go to Row dialog input styles */
+.ite-dialog__label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--vscode-foreground);
+    font-size: 13px;
+}
+
+.ite-dialog__input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    border-radius: 4px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.ite-dialog__input:focus {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+}
+
+.ite-dialog__input--error {
+    border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+    background-color: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.1));
+}
+
+.ite-dialog__input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}
+
 /* Reduced motion support for dialog */
 @media (prefers-reduced-motion: reduce) {
     .ite-dialog__button {

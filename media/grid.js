@@ -2286,6 +2286,138 @@
     }
 
     // ========================================================================
+    // Story 8.4: Data Operation Helpers
+    // ========================================================================
+
+    /**
+     * Focus the filter input for a specific column
+     * Story 8.4: Used by Ctrl+F shortcut
+     * @param {number} colIndex - Column index
+     */
+    function focusColumnFilter(colIndex) {
+        const filterRow = document.querySelector('.ite-grid__filter-row');
+        if (!filterRow) {
+            announce('No filter row available');
+            return;
+        }
+
+        // Filter inputs are in order, matching column indexes
+        const filterInputs = filterRow.querySelectorAll('.ite-grid__filter-input');
+        if (colIndex >= 0 && colIndex < filterInputs.length) {
+            const input = /** @type {HTMLInputElement} */ (filterInputs[colIndex]);
+            input.focus();
+            input.select();
+            const colName = state.columns[colIndex]?.name || `Column ${colIndex + 1}`;
+            announce(`Filter for ${colName}`);
+        }
+    }
+
+    /**
+     * Show "Go to Row" dialog
+     * Story 8.4: Used by Ctrl+G shortcut
+     */
+    function showGoToRowDialog() {
+        // Don't show if no data
+        if (state.totalDisplayRows === 0) {
+            announce('No rows to navigate to');
+            return;
+        }
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'ite-dialog-overlay';
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'ite-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'goto-dialog-title');
+
+        dialog.innerHTML = `
+            <h3 id="goto-dialog-title" class="ite-dialog__title">Go to Row</h3>
+            <div class="ite-dialog__content">
+                <label class="ite-dialog__label" for="goto-row-input">
+                    Enter row number (1-${state.totalDisplayRows}):
+                </label>
+                <input type="number"
+                    id="goto-row-input"
+                    class="ite-dialog__input"
+                    min="1"
+                    max="${state.totalDisplayRows}"
+                    placeholder="Row number"
+                    autofocus>
+            </div>
+            <div class="ite-dialog__actions">
+                <button id="goto-cancel-btn" class="ite-btn ite-btn--secondary">Cancel</button>
+                <button id="goto-confirm-btn" class="ite-btn ite-btn--primary">Go</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const input = /** @type {HTMLInputElement} */ (document.getElementById('goto-row-input'));
+        const confirmBtn = document.getElementById('goto-confirm-btn');
+        const cancelBtn = document.getElementById('goto-cancel-btn');
+
+        // Store previous selection for restoration
+        const previousCell = { ...state.selectedCell };
+
+        function closeDialog() {
+            overlay.remove();
+        }
+
+        function handleConfirm() {
+            const rowNum = parseInt(input.value, 10);
+            if (isNaN(rowNum) || rowNum < 1 || rowNum > state.totalDisplayRows) {
+                input.classList.add('ite-dialog__input--error');
+                announce(`Invalid row number. Enter 1 to ${state.totalDisplayRows}`);
+                input.focus();
+                return;
+            }
+
+            closeDialog();
+            // Navigate to the row (convert to 0-indexed)
+            const rowIndex = rowNum - 1;
+            selectCell(rowIndex, previousCell.colIndex ?? 0);
+            announce(`Navigated to row ${rowNum}`);
+        }
+
+        function handleCancel() {
+            closeDialog();
+            // Restore focus to previous cell
+            if (previousCell.rowIndex !== null && previousCell.colIndex !== null) {
+                selectCell(previousCell.rowIndex, previousCell.colIndex);
+            }
+        }
+
+        // Event handlers
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleConfirm();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleCancel();
+            }
+        });
+
+        // Click on overlay closes dialog
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                handleCancel();
+            }
+        });
+
+        // Focus input
+        setTimeout(() => input.focus(), 50);
+    }
+
+    // ========================================================================
     // Story 4.1: New Row Functions
     // ========================================================================
 
@@ -4756,6 +4888,37 @@
                 handleCancelNewRow();
                 return;
             }
+        }
+
+        // Story 8.4: Ctrl+R or F5 for refresh
+        if (event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key === 'r')) {
+            event.preventDefault();
+            handleRefresh();
+            return;
+        }
+
+        // Story 8.4: Ctrl+Shift+F to clear all filters
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f') {
+            event.preventDefault();
+            clearAllFilters();
+            announce('All filters cleared');
+            return;
+        }
+
+        // Story 8.4: Ctrl+F to focus filter input for current column
+        if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+            event.preventDefault();
+            if (state.selectedCell.colIndex !== null) {
+                focusColumnFilter(state.selectedCell.colIndex);
+            }
+            return;
+        }
+
+        // Story 8.4: Ctrl+G for "Go to Row" dialog
+        if ((event.ctrlKey || event.metaKey) && event.key === 'g') {
+            event.preventDefault();
+            showGoToRowDialog();
+            return;
         }
 
         // Ctrl+PageDown or Alt+Right for next page
