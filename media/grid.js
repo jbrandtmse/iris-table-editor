@@ -584,6 +584,87 @@
     }
 
     /**
+     * Save a value to a cell directly (without entering edit mode)
+     * Story 8.2: Used by Delete key to clear cell content immediately
+     * @param {number} rowIndex - Row index
+     * @param {number} colIndex - Column index
+     * @param {unknown} newValue - Value to save
+     */
+    function saveCellValue(rowIndex, colIndex, newValue) {
+        const column = state.columns[colIndex];
+        const row = getRowData(rowIndex);
+        if (!row) return;
+
+        const currentValue = row[column.name];
+
+        // Don't send save if value hasn't changed
+        if (String(currentValue ?? '') === String(newValue ?? '')) {
+            announce('No changes');
+            return;
+        }
+
+        // Handle new rows - just update locally
+        if (isNewRow(rowIndex)) {
+            row[column.name] = newValue;
+            const cell = getCellElement(rowIndex, colIndex);
+            if (cell) {
+                const { display, cssClass } = formatCellValue(newValue, column.dataType);
+                cell.textContent = display;
+                cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+                cell.title = String(newValue ?? 'NULL');
+            }
+            announce(`${column.name} cleared`);
+            return;
+        }
+
+        // Update local state immediately (optimistic update)
+        row[column.name] = newValue;
+
+        // Update cell display
+        const cell = getCellElement(rowIndex, colIndex);
+        if (cell) {
+            cell.classList.add('ite-grid__cell--saving');
+            const { display, cssClass } = formatCellValue(newValue, column.dataType);
+            cell.textContent = display;
+            cell.className = `ite-grid__cell ${cssClass} ite-grid__cell--selected`.trim();
+            cell.title = String(newValue ?? 'NULL');
+            setTimeout(() => {
+                cell.classList.remove('ite-grid__cell--saving');
+            }, 150);
+        }
+
+        // Find primary key column and value for the save
+        const pkColumn = findPrimaryKeyColumn();
+        const pkValue = state.rows[rowIndex][pkColumn];
+
+        // Track the pending save
+        const saveKey = `${pkValue}:${column.name}`;
+        state.pendingSaves.set(saveKey, {
+            rowIndex,
+            colIndex,
+            columnName: column.name,
+            oldValue: currentValue,
+            newValue: newValue,
+            primaryKeyValue: pkValue
+        });
+
+        // Send save command
+        sendCommand('saveCell', {
+            rowIndex: rowIndex,
+            colIndex: colIndex,
+            columnName: column.name,
+            tableName: state.context.tableName,
+            namespace: state.context.namespace,
+            value: newValue,
+            pkColumn: pkColumn,
+            pkValue: pkValue
+        });
+
+        announce(`${column.name} cleared`);
+        console.debug(`${LOG_PREFIX} Cell value saved directly: ${column.name} = "${newValue}"`);
+    }
+
+    /**
      * Check if a column is boolean type
      * Story 7.1: Helper to identify boolean columns
      * @param {number} colIndex - Column index
@@ -2664,14 +2745,52 @@
     /**
      * Handle keydown events on the edit input
      * Story 3.2: Edit input keyboard handling
+     * Story 8.2: Added Shift+Enter (move up), Ctrl+Enter (stay), Ctrl+Z (undo)
      * @param {KeyboardEvent} event
      */
     function handleEditInputKeydown(event) {
+        // Story 8.2: Ctrl+Z to undo (restore original value while staying in edit mode)
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            const input = /** @type {HTMLInputElement} */ (event.target);
+            // Restore original value
+            const originalValue = state.editOriginalValue;
+            input.value = originalValue === null || originalValue === undefined ? '' : String(originalValue);
+            // Update modified state indicator
+            const cell = getCellElement(state.editingCell.rowIndex, state.editingCell.colIndex);
+            if (cell) {
+                cell.classList.remove('ite-grid__cell--modified');
+            }
+            announce('Edit undone');
+            return;
+        }
+
         switch (event.key) {
             case 'Enter':
-                // Save and exit edit mode
+                // Story 8.2: Enter with modifiers for directional movement
                 event.preventDefault();
-                exitEditMode(true);
+                {
+                    const { rowIndex, colIndex } = state.selectedCell;
+                    const maxRow = state.totalDisplayRows - 1;
+
+                    exitEditMode(true);
+
+                    if (event.ctrlKey || event.metaKey) {
+                        // Ctrl+Enter: Save and stay on current cell
+                        // Cell already selected, just announce
+                        announce('Saved');
+                    } else if (event.shiftKey) {
+                        // Shift+Enter: Save and move UP
+                        if (rowIndex > 0) {
+                            selectCell(rowIndex - 1, colIndex);
+                        }
+                    } else {
+                        // Enter: Save and move DOWN
+                        if (rowIndex < maxRow) {
+                            selectCell(rowIndex + 1, colIndex);
+                        }
+                    }
+                }
                 break;
 
             case 'Escape':
@@ -2984,6 +3103,16 @@
                 enterEditMode(rowIndex, colIndex, null, 'end');
                 return;
 
+            // Story 8.2: Enter to enter edit mode (same as F2)
+            case 'Enter':
+                event.preventDefault();
+                if (isBooleanColumn(colIndex)) {
+                    toggleBooleanCheckbox(rowIndex, colIndex);
+                    return;
+                }
+                enterEditMode(rowIndex, colIndex, null, 'end');
+                return;
+
             case 'ArrowUp':
                 event.preventDefault();
                 if (rowIndex > 0) {
@@ -3077,10 +3206,24 @@
                 }
                 break;
 
-            // Story 3.2: Delete/Backspace to clear and edit
+            // Story 8.2: Delete clears cell immediately (saves empty string)
             case 'Delete':
+                event.preventDefault();
+                if (isBooleanColumn(colIndex)) {
+                    // For boolean, Delete sets to NULL
+                    setCellToNull(rowIndex, colIndex);
+                    return;
+                }
+                // Save empty string immediately without entering edit mode
+                saveCellValue(rowIndex, colIndex, '');
+                break;
+
+            // Story 3.2: Backspace enters edit mode with cleared content
             case 'Backspace':
                 event.preventDefault();
+                if (isBooleanColumn(colIndex)) {
+                    return; // No backspace action for boolean
+                }
                 enterEditMode(rowIndex, colIndex, '', 'start');
                 break;
 
