@@ -2352,6 +2352,58 @@
     }
 
     /**
+     * Duplicate the current row
+     * Story 8.3: Copy row data (excluding primary key) and create new row
+     */
+    function handleDuplicateRow() {
+        const rowIndex = state.selectedCell.rowIndex;
+        if (rowIndex === null) {
+            announce('No row selected');
+            return;
+        }
+
+        // Can only duplicate server rows (not new unsaved rows)
+        if (isNewRow(rowIndex)) {
+            announce('Cannot duplicate unsaved rows. Save the row first.');
+            return;
+        }
+
+        // Copy the current row data
+        const currentRow = state.rows[rowIndex];
+        const newRow = {};
+
+        // Copy all fields except primary key
+        const pkColumn = findPrimaryKeyColumn();
+        state.columns.forEach(col => {
+            if (col.name === pkColumn || col.name.toUpperCase() === 'ID' || col.name === '%ID') {
+                // Skip primary key - will be auto-generated
+                newRow[col.name] = null;
+            } else {
+                // Copy the value
+                newRow[col.name] = currentRow[col.name];
+            }
+        });
+
+        // Add to newRows array
+        state.newRows.push(newRow);
+
+        // Re-render grid to show new row
+        renderGrid();
+
+        // Calculate the index of the new row
+        const newRowIndex = state.totalDisplayRows - 1;
+
+        // Focus first editable cell of new row
+        selectCell(newRowIndex, 0);
+
+        announce(`Row duplicated. New row ${newRowIndex + 1} of ${state.totalDisplayRows}`);
+
+        // Update UI state
+        updateSaveButtonState();
+        saveState();
+    }
+
+    /**
      * Save the selected new row to the database
      * Story 4.3: INSERT new row
      */
@@ -4654,6 +4706,36 @@
         if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
             event.preventDefault();
             handleAddRow();
+            return;
+        }
+
+        // Story 8.3: Ctrl+Shift+= (Ctrl+Plus) for new row - alias for Ctrl+N
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === '=' || event.key === '+')) {
+            event.preventDefault();
+            handleAddRow();
+            return;
+        }
+
+        // Story 8.3: Ctrl+- (Ctrl+Minus) to delete current row
+        if ((event.ctrlKey || event.metaKey) && event.key === '-') {
+            event.preventDefault();
+            const rowIndex = state.selectedCell.rowIndex;
+            if (rowIndex !== null && !isNewRow(rowIndex)) {
+                // Select the row for deletion, then trigger delete dialog
+                state.selectedRowIndex = rowIndex;
+                updateDeleteButtonState();
+                handleDeleteRowClick();
+            } else if (rowIndex !== null && isNewRow(rowIndex)) {
+                // For new rows, just discard them
+                handleCancelNewRow();
+            }
+            return;
+        }
+
+        // Story 8.3: Ctrl+D to duplicate current row
+        if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
+            event.preventDefault();
+            handleDuplicateRow();
             return;
         }
 
