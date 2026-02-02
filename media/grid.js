@@ -2417,6 +2417,123 @@
         setTimeout(() => input.focus(), 50);
     }
 
+    /**
+     * Show keyboard shortcuts help dialog
+     * Story 8.5: Displays all available keyboard shortcuts organized by category
+     */
+    function showKeyboardShortcutsHelp() {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'ite-dialog-overlay';
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'ite-dialog ite-help-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'help-dialog-title');
+
+        dialog.innerHTML = `
+            <h3 id="help-dialog-title" class="ite-dialog__title">Keyboard Shortcuts</h3>
+            <div class="ite-dialog__content ite-help-content">
+                <div class="ite-help-category">
+                    <h4 class="ite-help-category__title">Navigation</h4>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Arrow keys</span>Move to adjacent cell</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Tab</span>Move to next cell</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Shift+Tab</span>Move to previous cell</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Home</span>First cell in row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">End</span>Last cell in row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Home</span>First cell in grid</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+End</span>Last cell in grid</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Page Up/Down</span>Move one page</div>
+                </div>
+
+                <div class="ite-help-category">
+                    <h4 class="ite-help-category__title">Editing</h4>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Enter</span>Edit cell / Save and move down</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">F2</span>Enter edit mode</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Escape</span>Cancel edit</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Shift+Enter</span>Save and move up</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Enter</span>Save and stay</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Z</span>Undo edit</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Delete</span>Clear cell</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Backspace</span>Clear and edit</div>
+                </div>
+
+                <div class="ite-help-category">
+                    <h4 class="ite-help-category__title">Row Operations</h4>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+N</span>New row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+D</span>Duplicate row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+-</span>Delete row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+S</span>Save new row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Shift+N</span>Set cell to NULL</div>
+                </div>
+
+                <div class="ite-help-category">
+                    <h4 class="ite-help-category__title">Data Operations</h4>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+R / F5</span>Refresh data</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+G</span>Go to row</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+F</span>Focus column filter</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Shift+F</span>Clear all filters</div>
+                </div>
+
+                <div class="ite-help-category">
+                    <h4 class="ite-help-category__title">Pagination</h4>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Page Down</span>Next page</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Page Up</span>Previous page</div>
+                </div>
+            </div>
+            <div class="ite-dialog__actions">
+                <button id="help-close-btn" class="ite-btn ite-btn--primary">Close</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const closeBtn = document.getElementById('help-close-btn');
+        const previousCell = { ...state.selectedCell };
+
+        function closeDialog() {
+            overlay.remove();
+            // Restore focus to previous cell
+            if (previousCell.rowIndex !== null && previousCell.colIndex !== null) {
+                selectCell(previousCell.rowIndex, previousCell.colIndex);
+            }
+        }
+
+        // Event handlers
+        closeBtn.addEventListener('click', closeDialog);
+
+        // Keyboard handler
+        function handleKeydown(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeDialog();
+            }
+        }
+        document.addEventListener('keydown', handleKeydown);
+
+        // Click on overlay closes dialog
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeDialog();
+            }
+        });
+
+        // Remove keydown listener when dialog closes
+        const observer = new MutationObserver((mutations) => {
+            if (!document.body.contains(overlay)) {
+                document.removeEventListener('keydown', handleKeydown);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true });
+
+        // Focus close button
+        setTimeout(() => closeBtn.focus(), 50);
+    }
+
     // ========================================================================
     // Story 4.1: New Row Functions
     // ========================================================================
@@ -4918,6 +5035,13 @@
         if ((event.ctrlKey || event.metaKey) && event.key === 'g') {
             event.preventDefault();
             showGoToRowDialog();
+            return;
+        }
+
+        // Story 8.5: ? (Shift+/) or F1 for keyboard shortcuts help
+        if (event.key === 'F1' || (event.shiftKey && event.key === '?')) {
+            event.preventDefault();
+            showKeyboardShortcutsHelp();
             return;
         }
 
