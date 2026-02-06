@@ -3690,49 +3690,102 @@
         selectorFilterCell.className = 'ite-grid__filter-cell ite-grid__filter-cell--selector';
         filterRow.appendChild(selectorFilterCell);
 
-        state.columns.forEach((col) => {
+        state.columns.forEach((col, colIndex) => {
             const filterCell = document.createElement('div');
             filterCell.className = 'ite-grid__filter-cell';
 
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'ite-grid__filter-input';
-            input.placeholder = 'Filter...';
-            input.setAttribute('aria-label', `Filter ${col.name}`);
-            input.setAttribute('data-column', col.name);
+            // Check if this is a boolean column - use dropdown instead of text input
+            const isBool = isBooleanColumn(colIndex);
 
-            // Restore filter value if exists
-            const existingValue = state.filters.get(col.name) || '';
-            input.value = existingValue;
-            if (existingValue.trim() !== '') {
-                input.classList.add('ite-grid__filter-input--active');
-            }
+            if (isBool) {
+                // Create dropdown for boolean filter
+                const select = document.createElement('select');
+                select.className = 'ite-grid__filter-input ite-grid__filter-select';
+                select.setAttribute('aria-label', `Filter ${col.name}`);
+                select.setAttribute('data-column', col.name);
 
-            // Disable input if filters are disabled
-            if (!state.filtersEnabled) {
-                input.disabled = true;
-            }
+                // Add options: All, True, False
+                const optAll = document.createElement('option');
+                optAll.value = '';
+                optAll.textContent = 'All';
+                select.appendChild(optAll);
 
-            // Apply filter on Enter or blur
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
+                const optTrue = document.createElement('option');
+                optTrue.value = '1';
+                optTrue.textContent = 'True';
+                select.appendChild(optTrue);
+
+                const optFalse = document.createElement('option');
+                optFalse.value = '0';
+                optFalse.textContent = 'False';
+                select.appendChild(optFalse);
+
+                // Restore filter value if exists
+                const existingValue = state.filters.get(col.name) || '';
+                select.value = existingValue;
+                if (existingValue !== '') {
+                    select.classList.add('ite-grid__filter-input--active');
+                }
+
+                // Disable if filters are disabled
+                if (!state.filtersEnabled) {
+                    select.disabled = true;
+                }
+
+                // Apply filter on change
+                select.addEventListener('change', () => {
+                    applyFilter(col.name, select.value);
+                });
+
+                filterCell.appendChild(select);
+            } else {
+                // Create text input for non-boolean columns
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'ite-grid__filter-input';
+                input.placeholder = 'Filter...';
+                input.setAttribute('aria-label', `Filter ${col.name}`);
+                input.setAttribute('data-column', col.name);
+
+                // Restore filter value if exists
+                const existingValue = state.filters.get(col.name) || '';
+                input.value = existingValue;
+                if (existingValue.trim() !== '') {
+                    input.classList.add('ite-grid__filter-input--active');
+                }
+
+                // Disable input if filters are disabled
+                if (!state.filtersEnabled) {
+                    input.disabled = true;
+                }
+
+                // Apply filter on Enter or blur
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyFilter(col.name, input.value);
+                    }
+                    // Escape clears the current input
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        input.value = '';
+                        applyFilter(col.name, '');
+                    }
+                });
+
+                // Apply filter on blur (when tabbing out or clicking away)
+                input.addEventListener('blur', () => {
                     applyFilter(col.name, input.value);
-                }
-                // Escape clears the current input
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    input.value = '';
-                    applyFilter(col.name, '');
-                }
-            });
+                });
 
-            input.addEventListener('blur', () => {
-                // Always apply filter on blur - applyFilter handles unchanged values
-                applyFilter(col.name, input.value);
-            });
+                // Also apply on change as backup for blur issues
+                input.addEventListener('change', () => {
+                    applyFilter(col.name, input.value);
+                });
 
-            filterCell.appendChild(input);
+                filterCell.appendChild(input);
+            }
+
             filterRow.appendChild(filterCell);
         });
 
@@ -3771,13 +3824,15 @@
 
     /**
      * Update filter input styles based on active filters (Story 6.2)
+     * Updated to handle both text inputs and select dropdowns
      */
     function updateFilterInputStyles() {
         const inputs = document.querySelectorAll('.ite-grid__filter-input');
         inputs.forEach(input => {
             const column = input.getAttribute('data-column');
             const value = state.filters.get(column) || '';
-            if (value.trim() !== '' && state.filtersEnabled) {
+            // Use String() to safely handle any value type
+            if (String(value).trim() !== '' && state.filtersEnabled) {
                 input.classList.add('ite-grid__filter-input--active');
             } else {
                 input.classList.remove('ite-grid__filter-input--active');

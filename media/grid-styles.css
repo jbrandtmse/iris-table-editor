@@ -375,6 +375,18 @@ body {
     cursor: not-allowed;
 }
 
+/* Boolean filter dropdown */
+.ite-grid__filter-select {
+    appearance: auto;
+    cursor: pointer;
+    padding-right: 20px;
+}
+
+.ite-grid__filter-select option {
+    background-color: var(--vscode-dropdown-background);
+    color: var(--vscode-dropdown-foreground);
+}
+
 /* Story 6.3: Toolbar badge for filter count */
 .ite-toolbar__badge {
     position: absolute;
