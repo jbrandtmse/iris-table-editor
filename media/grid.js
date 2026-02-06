@@ -2435,6 +2435,7 @@
 
         dialog.innerHTML = `
             <h3 id="help-dialog-title" class="ite-dialog__title">Keyboard Shortcuts</h3>
+            <p class="ite-help-note">On Mac, use <strong>Cmd</strong> instead of Ctrl</p>
             <div class="ite-dialog__content ite-help-content">
                 <div class="ite-help-category">
                     <h4 class="ite-help-category__title">Navigation</h4>

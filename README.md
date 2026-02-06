@@ -23,6 +23,8 @@ A VS Code extension that provides Excel-like grid editing for InterSystems IRIS 
 
 Press **?** or **F1** to view the full shortcuts help dialog in the extension.
 
+> **Note:** On Mac, use **Cmd** (⌘) instead of **Ctrl** for all shortcuts below.
+
 ### Navigation
 
 | Shortcut | Action |
