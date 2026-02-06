@@ -6,15 +6,74 @@
 
 A VS Code extension that provides Excel-like grid editing for InterSystems IRIS database tables directly within VS Code.
 
-## Features (Planned)
+## Features
 
-- Browse and select IRIS database tables
+- Browse and select IRIS database tables with schema-based tree view
 - View table data in an Excel-like grid interface
 - Edit cells inline with automatic save
-- Insert new rows
-- Delete rows with confirmation
+- Insert new rows with Ctrl+N
+- Delete rows with confirmation dialog
+- Duplicate rows with Ctrl+D
 - Pagination for large datasets
+- Column filtering and sorting
 - Dark and light theme support
+- Comprehensive keyboard shortcuts (press ? or F1 to view)
+
+## Keyboard Shortcuts
+
+Press **?** or **F1** to view the full shortcuts help dialog in the extension.
+
+### Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| Arrow keys | Move to adjacent cell |
+| Tab | Move to next cell |
+| Shift+Tab | Move to previous cell |
+| Home | First cell in row |
+| End | Last cell in row |
+| Ctrl+Home | First cell in grid |
+| Ctrl+End | Last cell in grid |
+| Page Up/Down | Move one page |
+
+### Editing
+
+| Shortcut | Action |
+|----------|--------|
+| Enter | Enter edit mode / Save and move down |
+| F2 | Enter edit mode |
+| Escape | Cancel edit |
+| Shift+Enter | Save and move up |
+| Ctrl+Enter | Save and stay |
+| Ctrl+Z | Undo edit |
+| Delete | Clear cell |
+| Backspace | Clear and edit |
+
+### Row Operations
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+N | New row |
+| Ctrl+D | Duplicate row |
+| Ctrl+- | Delete row |
+| Ctrl+S | Save new row |
+| Ctrl+Shift+N | Set cell to NULL |
+
+### Data Operations
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+R / F5 | Refresh data |
+| Ctrl+G | Go to row |
+| Ctrl+F | Focus column filter |
+| Ctrl+Shift+F | Clear all filters |
+
+### Pagination
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+Page Down | Next page |
+| Ctrl+Page Up | Previous page |
 
 ## Technical Overview
 
