@@ -3773,13 +3773,29 @@
                     }
                 });
 
-                // Apply filter on blur (when tabbing out or clicking away)
-                input.addEventListener('blur', () => {
-                    applyFilter(col.name, input.value);
+                // Debounce timer for input events
+                let debounceTimer = null;
+
+                // Apply filter on input with debounce (300ms delay)
+                input.addEventListener('input', () => {
+                    console.debug(`${LOG_PREFIX} Filter input event for ${col.name}, value: "${input.value}"`);
+                    if (debounceTimer) {
+                        clearTimeout(debounceTimer);
+                    }
+                    debounceTimer = setTimeout(() => {
+                        console.debug(`${LOG_PREFIX} Filter debounce applying for ${col.name}`);
+                        applyFilter(col.name, input.value);
+                    }, 300);
                 });
 
-                // Also apply on change as backup for blur issues
-                input.addEventListener('change', () => {
+                // Also apply immediately on blur (when tabbing out or clicking away)
+                input.addEventListener('blur', () => {
+                    console.debug(`${LOG_PREFIX} Filter blur fired for ${col.name}, value: "${input.value}"`);
+                    // Clear any pending debounce and apply immediately
+                    if (debounceTimer) {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = null;
+                    }
                     applyFilter(col.name, input.value);
                 });
 
@@ -3798,14 +3814,18 @@
      * @param {string} value - Filter value
      */
     function applyFilter(column, value) {
+        console.debug(`${LOG_PREFIX} applyFilter called: column="${column}", value="${value}"`);
         const trimmedValue = value.trim();
         const currentValue = state.filters.get(column) || '';
+        console.debug(`${LOG_PREFIX} applyFilter: trimmed="${trimmedValue}", current="${currentValue}"`);
 
         // Check if value actually changed to avoid unnecessary requests
         if (trimmedValue === currentValue) {
+            console.debug(`${LOG_PREFIX} applyFilter: No change, returning early`);
             return;
         }
 
+        console.debug(`${LOG_PREFIX} applyFilter: Applying filter change`);
         if (trimmedValue === '') {
             state.filters.delete(column);
         } else {
@@ -3819,6 +3839,7 @@
 
         // Reset to page 1 and reload data
         state.currentPage = 1;
+        console.debug(`${LOG_PREFIX} applyFilter: Requesting filtered data`);
         requestFilteredData();
     }
 
@@ -3923,6 +3944,7 @@
      */
     function requestFilteredData() {
         const filterCriteria = state.filtersEnabled ? state.getFilterCriteria() : [];
+        console.debug(`${LOG_PREFIX} requestFilteredData: filters=${JSON.stringify(filterCriteria)}, filtersEnabled=${state.filtersEnabled}`);
         sendCommand('requestData', {
             page: state.currentPage - 1,  // Convert from 1-indexed UI to 0-indexed API
             pageSize: state.pageSize,
