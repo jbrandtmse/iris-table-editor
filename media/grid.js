@@ -2488,6 +2488,7 @@
                     <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+G</span>Go to row</div>
                     <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+F</span>Focus column filter</div>
                     <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+Shift+F</span>Clear all filters</div>
+                    <div class="ite-help-shortcut"><span class="ite-help-key">Ctrl+E</span>Export data</div>
                 </div>
 
                 <div class="ite-help-category">
@@ -4785,6 +4786,207 @@
         saveState(); // Persist error state
     }
 
+    // ========================================================================
+    // Story 9.1: CSV Export Functions
+    // ========================================================================
+
+    /**
+     * Toggle export menu visibility
+     * Story 9.1: Export dropdown menu
+     */
+    function toggleExportMenu() {
+        const menu = document.getElementById('exportMenu');
+        if (!menu) return;
+
+        const isVisible = menu.style.display !== 'none';
+        if (isVisible) {
+            closeExportMenu();
+        } else {
+            // Update filtered option visibility
+            const filteredBtn = document.getElementById('exportFilteredCsv');
+            if (filteredBtn) {
+                filteredBtn.style.display = state.filtersActive ? '' : 'none';
+            }
+            menu.style.display = '';
+        }
+    }
+
+    /**
+     * Close export menu
+     * Story 9.1: Export dropdown menu
+     */
+    function closeExportMenu() {
+        const menu = document.getElementById('exportMenu');
+        if (menu) {
+            menu.style.display = 'none';
+        }
+    }
+
+    /**
+     * Escape a value for CSV format per RFC 4180
+     * Story 9.1: CSV value escaping
+     * @param {string} value
+     * @returns {string}
+     */
+    function csvEscapeValue(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        const str = String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+
+    /**
+     * Generate CSV content from rows and columns
+     * Story 9.1: CSV generation
+     * @param {Array<Record<string, unknown>>} rows
+     * @param {Array<{ name: string }>} columns
+     * @returns {string}
+     */
+    function generateCsvContent(rows, columns) {
+        const columnNames = columns.map(c => c.name);
+
+        // Header row
+        let csv = columnNames.map(n => csvEscapeValue(n)).join(',') + '\r\n';
+
+        // Data rows
+        for (const row of rows) {
+            const values = columnNames.map(col => csvEscapeValue(row[col]));
+            csv += values.join(',') + '\r\n';
+        }
+
+        return csv;
+    }
+
+    /**
+     * Trigger CSV download in the webview
+     * Story 9.1: Client-side download using Blob
+     * @param {string} csvContent
+     * @param {string} fileName
+     */
+    function downloadCsv(csvContent, fileName) {
+        // Add UTF-8 BOM for Excel compatibility
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Export current page to CSV (client-side)
+     * Story 9.1: Current page export
+     */
+    function handleExportCurrentPageCsv() {
+        closeExportMenu();
+
+        if (state.rows.length === 0) {
+            showToast('No data to export', 'warning');
+            return;
+        }
+
+        const tableName = state.context?.tableName || 'export';
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const fileName = `${tableName}_page${state.currentPage}_${timestamp}.csv`;
+
+        const csvContent = generateCsvContent(state.rows, state.columns);
+        downloadCsv(csvContent, fileName);
+
+        showToast(`Exported ${state.rows.length} rows (page ${state.currentPage})`, 'success');
+    }
+
+    /**
+     * Export all data to CSV (server-side via extension)
+     * Story 9.1: Full dataset export
+     */
+    function handleExportAllCsv() {
+        closeExportMenu();
+
+        sendCommand('exportAllCsv', {
+            filters: [],
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection,
+            filtered: false
+        });
+    }
+
+    /**
+     * Export filtered results to CSV (server-side via extension)
+     * Story 9.1: Filtered dataset export
+     */
+    function handleExportFilteredCsv() {
+        closeExportMenu();
+
+        if (!state.filtersActive) {
+            showToast('No active filters', 'warning');
+            return;
+        }
+
+        sendCommand('exportAllCsv', {
+            filters: state.getFilterCriteria(),
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection,
+            filtered: true
+        });
+    }
+
+    /**
+     * Handle export progress event from extension
+     * Story 9.1: Export progress indicator
+     * @param {{ progress: number; message: string }} payload
+     */
+    function handleExportProgress(payload) {
+        let progressEl = document.getElementById('exportProgress');
+
+        if (!progressEl) {
+            // Create progress element
+            progressEl = document.createElement('div');
+            progressEl.id = 'exportProgress';
+            progressEl.className = 'ite-export-progress';
+            progressEl.innerHTML = `
+                <p class="ite-export-progress__text" id="exportProgressText"></p>
+                <div class="ite-export-progress__bar">
+                    <div class="ite-export-progress__fill" id="exportProgressFill"></div>
+                </div>
+            `;
+            document.body.appendChild(progressEl);
+        }
+
+        const textEl = document.getElementById('exportProgressText');
+        const fillEl = document.getElementById('exportProgressFill');
+
+        if (textEl) textEl.textContent = payload.message;
+        if (fillEl) fillEl.style.width = `${payload.progress}%`;
+    }
+
+    /**
+     * Handle export result event from extension
+     * Story 9.1: Export completion feedback
+     * @param {{ success: boolean; rowCount?: number; filePath?: string; error?: string }} payload
+     */
+    function handleExportResult(payload) {
+        // Remove progress bar
+        const progressEl = document.getElementById('exportProgress');
+        if (progressEl) {
+            progressEl.remove();
+        }
+
+        if (payload.success) {
+            showToast(`Exported ${(payload.rowCount || 0).toLocaleString()} rows`, 'success');
+        } else {
+            showToast(`Export failed: ${payload.error || 'Unknown error'}`, 'error');
+        }
+    }
+
     /**
      * Send command to extension
      * @param {string} command
@@ -4841,6 +5043,14 @@
             case 'deleteRowResult':
                 // Story 5.3: Handle delete row result
                 handleDeleteRowResult(message.payload);
+                break;
+            case 'exportProgress':
+                // Story 9.1: Export progress indicator
+                handleExportProgress(message.payload);
+                break;
+            case 'exportResult':
+                // Story 9.1: Export completion feedback
+                handleExportResult(message.payload);
                 break;
             case 'error':
                 handleError(message.payload);
@@ -4944,6 +5154,30 @@
             filterPanelClose.addEventListener('click', closeFilterPanel);
         }
 
+        // Story 9.1: Setup export button and menu
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleExportMenu();
+            });
+        }
+
+        const exportCurrentPageCsv = document.getElementById('exportCurrentPageCsv');
+        if (exportCurrentPageCsv) {
+            exportCurrentPageCsv.addEventListener('click', handleExportCurrentPageCsv);
+        }
+
+        const exportAllCsv = document.getElementById('exportAllCsv');
+        if (exportAllCsv) {
+            exportAllCsv.addEventListener('click', handleExportAllCsv);
+        }
+
+        const exportFilteredCsv = document.getElementById('exportFilteredCsv');
+        if (exportFilteredCsv) {
+            exportFilteredCsv.addEventListener('click', handleExportFilteredCsv);
+        }
+
         // Column width slider
         const columnWidthSlider = document.getElementById('columnWidthSlider');
         if (columnWidthSlider) {
@@ -4956,7 +5190,7 @@
             });
         }
 
-        // Close filter panel when clicking outside
+        // Close filter panel and export menu when clicking outside
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('filterPanel');
             const panelBtn = document.getElementById('filterPanelBtn');
@@ -4964,6 +5198,15 @@
                 // @ts-ignore
                 if (!panel.contains(e.target) && !panelBtn?.contains(e.target)) {
                     closeFilterPanel();
+                }
+            }
+            // Story 9.1: Close export menu when clicking outside
+            const exportMenu = document.getElementById('exportMenu');
+            const exportBtnEl = document.getElementById('exportBtn');
+            if (exportMenu && exportMenu.style.display !== 'none') {
+                // @ts-ignore
+                if (!exportMenu.contains(e.target) && !exportBtnEl?.contains(e.target)) {
+                    closeExportMenu();
                 }
             }
         });
@@ -5098,6 +5341,13 @@
                 handleCancelNewRow();
                 return;
             }
+        }
+
+        // Story 9.1: Ctrl+E for export menu
+        if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
+            event.preventDefault();
+            toggleExportMenu();
+            return;
         }
 
         // Story 8.4: Ctrl+R or F5 for refresh

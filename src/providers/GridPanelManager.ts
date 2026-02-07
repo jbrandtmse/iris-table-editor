@@ -258,6 +258,12 @@ export class GridPanelManager {
                 await this._handleDeleteRow(panelKey, payload);
                 break;
             }
+            // Story 9.1: Handle export all CSV command
+            case 'exportAllCsv': {
+                const exportPayload = message.payload as { filters?: IFilterCriterion[]; sortColumn?: string; sortDirection?: SortDirection; filtered?: boolean };
+                await this._handleExportAllCsv(panelKey, exportPayload);
+                break;
+            }
         }
     }
 
@@ -522,6 +528,162 @@ export class GridPanelManager {
     }
 
     /**
+     * Handle exportAllCsv command from grid webview
+     * Story 9.1: Export all data (or filtered results) to CSV file
+     */
+    private async _handleExportAllCsv(panelKey: string, payload: {
+        filters?: IFilterCriterion[];
+        sortColumn?: string;
+        sortDirection?: SortDirection;
+        filtered?: boolean;
+    }): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        // Show save dialog
+        const defaultFileName = `${context.tableName.replace(/[^a-zA-Z0-9._-]/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+        const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(defaultFileName),
+            filters: { 'CSV Files': ['csv'], 'All Files': ['*'] },
+            title: payload.filtered ? 'Export Filtered Results to CSV' : 'Export All Data to CSV'
+        });
+
+        if (!uri) {
+            return; // User cancelled
+        }
+
+        // Send progress to webview
+        this._postMessage(panel, {
+            event: 'exportProgress',
+            payload: { progress: 0, message: 'Starting export...' }
+        });
+
+        try {
+            // Get schema for column headers
+            const schemaResult = await this._serverConnectionManager.getTableSchema(
+                context.namespace,
+                context.tableName
+            );
+
+            if (!schemaResult.success || !schemaResult.schema) {
+                this._postMessage(panel, {
+                    event: 'exportResult',
+                    payload: { success: false, error: 'Failed to get table schema' }
+                });
+                return;
+            }
+
+            const columns = schemaResult.schema.columns;
+            const columnNames = columns.map(c => c.name);
+            const filters = payload.filters || [];
+            const sortColumn = payload.sortColumn || null;
+            const sortDirection = (payload.sortDirection || null) as SortDirection;
+
+            // Build CSV with UTF-8 BOM for Excel compatibility
+            const BOM = '\uFEFF';
+            let csvContent = BOM;
+
+            // Header row
+            csvContent += columnNames.map(n => this._csvEscapeValue(n)).join(',') + '\r\n';
+
+            // Fetch data in chunks
+            const chunkSize = 1000;
+            let offset = 0;
+            let totalRows = 0;
+            let fetchedRows = 0;
+            let isFirstChunk = true;
+
+            while (true) {
+                const dataResult = await this._serverConnectionManager.getTableData(
+                    context.namespace,
+                    context.tableName,
+                    chunkSize,
+                    offset,
+                    filters,
+                    sortColumn,
+                    sortDirection
+                );
+
+                if (!dataResult.success || !dataResult.rows) {
+                    this._postMessage(panel, {
+                        event: 'exportResult',
+                        payload: { success: false, error: dataResult.error?.message || 'Failed to fetch data' }
+                    });
+                    return;
+                }
+
+                if (isFirstChunk) {
+                    totalRows = dataResult.totalRows || 0;
+                    isFirstChunk = false;
+                }
+
+                // Append rows to CSV
+                for (const row of dataResult.rows) {
+                    const values = columnNames.map(col => {
+                        const val = row[col];
+                        if (val === null || val === undefined) {
+                            return '';
+                        }
+                        return this._csvEscapeValue(String(val));
+                    });
+                    csvContent += values.join(',') + '\r\n';
+                }
+
+                fetchedRows += dataResult.rows.length;
+                offset += chunkSize;
+
+                // Send progress
+                const progress = totalRows > 0 ? Math.round((fetchedRows / totalRows) * 100) : 100;
+                this._postMessage(panel, {
+                    event: 'exportProgress',
+                    payload: { progress, message: `Exporting... ${fetchedRows.toLocaleString()} of ${totalRows.toLocaleString()} rows` }
+                });
+
+                // Done when we got fewer rows than chunk size
+                if (dataResult.rows.length < chunkSize) {
+                    break;
+                }
+            }
+
+            // Write file
+            const encoder = new TextEncoder();
+            await vscode.workspace.fs.writeFile(uri, encoder.encode(csvContent));
+
+            // Send success
+            this._postMessage(panel, {
+                event: 'exportResult',
+                payload: { success: true, rowCount: fetchedRows, filePath: uri.fsPath }
+            });
+
+            vscode.window.showInformationMessage(
+                `Exported ${fetchedRows.toLocaleString()} rows to ${uri.fsPath}`
+            );
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Export error:`, error);
+            this._postMessage(panel, {
+                event: 'exportResult',
+                payload: { success: false, error: 'An unexpected error occurred during export' }
+            });
+        }
+    }
+
+    /**
+     * Escape a value for CSV format per RFC 4180
+     * Story 9.1: CSV value escaping
+     */
+    private _csvEscapeValue(value: string): string {
+        if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+            return '"' + value.replace(/"/g, '""') + '"';
+        }
+        return value;
+    }
+
+    /**
      * Load table schema and data for a panel
      * Story 2.2: Default pageSize changed to 50
      * Story 6.2: Added filters parameter
@@ -727,6 +889,23 @@ export class GridPanelManager {
                 <i class="codicon codicon-list-filter"></i>
                 <span class="ite-toolbar__badge" id="filterBadge" style="display: none;">0</span>
             </button>
+            <span class="ite-toolbar__separator"></span>
+            <div class="ite-toolbar__export-group" style="position: relative;">
+                <button class="ite-toolbar__button" id="exportBtn" title="Export data (Ctrl+E)">
+                    <i class="codicon codicon-desktop-download"></i>
+                </button>
+                <div class="ite-export-menu" id="exportMenu" style="display: none;">
+                    <button class="ite-export-menu__item" id="exportCurrentPageCsv">
+                        <i class="codicon codicon-file"></i> Export Current Page (CSV)
+                    </button>
+                    <button class="ite-export-menu__item" id="exportAllCsv">
+                        <i class="codicon codicon-files"></i> Export All Data (CSV)
+                    </button>
+                    <button class="ite-export-menu__item" id="exportFilteredCsv" style="display: none;">
+                        <i class="codicon codicon-filter"></i> Export Filtered Results (CSV)
+                    </button>
+                </div>
+            </div>
             <span class="ite-toolbar__separator"></span>
             <div class="ite-toolbar__slider-group">
                 <i class="codicon codicon-text-size" title="Column width"></i>

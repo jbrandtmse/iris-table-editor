@@ -408,6 +408,91 @@ body {
     position: relative; /* For badge positioning */
 }
 
+/* Story 9.1: Export Menu */
+.ite-toolbar__export-group {
+    position: relative;
+}
+
+.ite-export-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    min-width: 220px;
+    background-color: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    padding: 4px 0;
+}
+
+.ite-export-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 12px;
+    border: none;
+    background: none;
+    color: var(--vscode-foreground);
+    font-size: var(--vscode-font-size);
+    font-family: var(--vscode-font-family);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.ite-export-menu__item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.ite-export-menu__item:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+.ite-export-menu__item .codicon {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Story 9.1: Export progress bar */
+.ite-export-progress {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    background-color: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 6px;
+    padding: 12px 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 280px;
+    text-align: center;
+}
+
+.ite-export-progress__text {
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: var(--vscode-foreground);
+}
+
+.ite-export-progress__bar {
+    width: 100%;
+    height: 4px;
+    background-color: var(--vscode-progressBar-background, var(--vscode-widget-border));
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ite-export-progress__fill {
+    height: 100%;
+    background-color: var(--vscode-progressBar-background, var(--vscode-button-background));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
 /* Story 6.3: Filter Panel */
 .ite-filter-panel {
     position: absolute;
