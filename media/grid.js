@@ -2338,6 +2338,7 @@
         // Create overlay
         const overlay = document.createElement('div');
         overlay.className = 'ite-dialog-overlay';
+        overlay.style.display = 'flex';
 
         // Create dialog
         const dialog = document.createElement('div');
@@ -2437,6 +2438,7 @@
         // Create overlay
         const overlay = document.createElement('div');
         overlay.className = 'ite-dialog-overlay';
+        overlay.style.display = 'flex';
 
         // Create dialog
         const dialog = document.createElement('div');
@@ -4835,6 +4837,7 @@
         // Create overlay
         const overlay = document.createElement('div');
         overlay.className = 'ite-dialog-overlay';
+        overlay.style.display = 'flex';
 
         // Create dialog
         const dialog = document.createElement('div');
@@ -5122,6 +5125,7 @@
     function showValidationResultsDialog(payload) {
         const overlay = document.createElement('div');
         overlay.className = 'ite-dialog-overlay';
+        overlay.style.display = 'flex';
 
         const dialog = document.createElement('div');
         dialog.className = 'ite-dialog ite-import-dialog';
@@ -5229,7 +5233,7 @@
         const menu = document.getElementById('exportMenu');
         if (!menu) return;
 
-        const isVisible = menu.style.display !== 'none';
+        const isVisible = getComputedStyle(menu).display !== 'none';
         if (isVisible) {
             closeExportMenu();
         } else {
@@ -5242,7 +5246,7 @@
             if (filteredExcelBtn) {
                 filteredExcelBtn.style.display = state.filtersActive ? '' : 'none';
             }
-            menu.style.display = '';
+            menu.style.display = 'block';
         }
     }
 
