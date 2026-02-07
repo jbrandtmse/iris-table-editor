@@ -4899,6 +4899,12 @@
                     ${previewHtml}
                 </div>
             </div>
+            <div class="ite-import-options">
+                <label class="ite-import-checkbox">
+                    <input type="checkbox" id="import-validate-checkbox" checked />
+                    Validate all rows before importing
+                </label>
+            </div>
             <div class="ite-dialog__actions">
                 <button id="import-cancel-btn" class="ite-dialog__button ite-dialog__button--secondary">Cancel</button>
                 <button id="import-execute-btn" class="ite-dialog__button ite-dialog__button--danger" style="background-color: var(--vscode-button-background); color: var(--vscode-button-foreground);">Import ${importState.totalRows.toLocaleString()} rows</button>
@@ -4931,16 +4937,29 @@
                 }
             });
 
+            // Check validation preference
+            const validateCheckbox = document.getElementById('import-validate-checkbox');
+            const shouldValidate = validateCheckbox ? validateCheckbox.checked : true;
+
             // Save filePath before closing dialog (which clears importState)
             const filePath = importState?.filePath || '';
             closeDialog();
 
-            // Execute import
-            sendCommand('importExecute', {
-                filePath,
-                columnMapping: mapping,
-                hasHeader: true
-            });
+            if (shouldValidate) {
+                // Story 9.5: Run validation first
+                sendCommand('importValidate', {
+                    filePath,
+                    columnMapping: mapping,
+                    hasHeader: true
+                });
+            } else {
+                // Execute import directly
+                sendCommand('importExecute', {
+                    filePath,
+                    columnMapping: mapping,
+                    hasHeader: true
+                });
+            }
         });
 
         // Close on Escape
@@ -5022,6 +5041,148 @@
         } else {
             showToast(`Import failed: all ${payload.totalRows} rows had errors`, 'error');
         }
+    }
+
+    // ========================================================================
+    // Story 9.5: Import Validation
+    // ========================================================================
+
+    /** @type {{ filePath: string; columnMapping: Record<string, string>; hasHeader: boolean } | null} */
+    let pendingImportPayload = null;
+
+    /**
+     * Handle validation result from extension
+     * Story 9.5: Show validation results dialog
+     * @param {object} payload
+     */
+    function handleImportValidationResult(payload) {
+        // Remove progress bar if showing
+        const progressEl = document.getElementById('exportProgress');
+        if (progressEl) {
+            progressEl.remove();
+        }
+
+        if (!payload.success && payload.error) {
+            showToast(`Validation failed: ${payload.error}`, 'error');
+            return;
+        }
+
+        // Save import payload for later execute
+        pendingImportPayload = payload.importPayload;
+
+        if (payload.errorCount === 0) {
+            // All valid - proceed directly
+            showToast(`All ${payload.totalRows} rows passed validation`, 'success');
+            sendCommand('importExecute', pendingImportPayload);
+            pendingImportPayload = null;
+            return;
+        }
+
+        // Show validation results dialog
+        showValidationResultsDialog(payload);
+    }
+
+    /**
+     * Show validation results dialog with options
+     * Story 9.5: Validation results UI
+     * @param {object} payload
+     */
+    function showValidationResultsDialog(payload) {
+        const overlay = document.createElement('div');
+        overlay.className = 'ite-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'ite-dialog ite-import-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+
+        // Build error list
+        let errorListHtml = '';
+        const errors = payload.errors || [];
+        for (const err of errors.slice(0, 50)) {
+            errorListHtml += `<div class="ite-validation-error">
+                <span class="ite-validation-error__row">Row ${err.row}</span>
+                <span class="ite-validation-error__msg">${escapeHtml(err.error)}</span>
+            </div>`;
+        }
+        if (errors.length > 50) {
+            errorListHtml += `<div class="ite-validation-error__more">...and ${errors.length - 50} more errors</div>`;
+        }
+
+        dialog.innerHTML = `
+            <h3 class="ite-dialog__title">Import Validation Results</h3>
+            <div class="ite-dialog__content ite-import-content">
+                <div class="ite-validation-summary">
+                    <div class="ite-validation-stat ite-validation-stat--success">
+                        <strong>${payload.validCount.toLocaleString()}</strong> valid rows
+                    </div>
+                    <div class="ite-validation-stat ite-validation-stat--error">
+                        <strong>${payload.errorCount.toLocaleString()}</strong> rows with errors
+                    </div>
+                </div>
+
+                <h4 class="ite-import-section__title">Errors</h4>
+                <div class="ite-validation-errors">
+                    ${errorListHtml}
+                </div>
+            </div>
+            <div class="ite-dialog__actions">
+                <button id="validation-cancel-btn" class="ite-dialog__button ite-dialog__button--secondary">Cancel</button>
+                <button id="validation-import-valid-btn" class="ite-dialog__button" style="background-color: var(--vscode-button-background); color: var(--vscode-button-foreground);">Import ${payload.validCount.toLocaleString()} valid rows</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        function closeDialog() {
+            overlay.remove();
+        }
+
+        const cancelBtn = document.getElementById('validation-cancel-btn');
+        cancelBtn?.addEventListener('click', () => {
+            closeDialog();
+            pendingImportPayload = null;
+            showToast('Import cancelled', 'warning');
+        });
+
+        const importValidBtn = document.getElementById('validation-import-valid-btn');
+        importValidBtn?.addEventListener('click', () => {
+            closeDialog();
+            if (pendingImportPayload) {
+                sendCommand('importExecute', {
+                    ...pendingImportPayload,
+                    skipInvalidRows: true,
+                    invalidRowNumbers: (payload.errors || []).map(e => e.row)
+                });
+                pendingImportPayload = null;
+            }
+        });
+
+        // Escape to close
+        function handleKeydown(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeDialog();
+                pendingImportPayload = null;
+            }
+        }
+        document.addEventListener('keydown', handleKeydown);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeDialog();
+                pendingImportPayload = null;
+            }
+        });
+
+        const observer = new MutationObserver(() => {
+            if (!document.body.contains(overlay)) {
+                document.removeEventListener('keydown', handleKeydown);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true });
     }
 
     // ========================================================================
@@ -5354,6 +5515,10 @@
             case 'importResult':
                 // Story 9.3: Import result
                 handleImportResult(message.payload);
+                break;
+            case 'importValidationResult':
+                // Story 9.5: Validation result
+                handleImportValidationResult(message.payload);
                 break;
             case 'exportProgress':
                 // Story 9.1: Export progress indicator

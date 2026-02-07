@@ -270,11 +270,22 @@ export class GridPanelManager {
                 await this._handleImportSelectFile(panelKey);
                 break;
             }
+            case 'importValidate': {
+                const validatePayload = message.payload as {
+                    filePath: string;
+                    columnMapping: Record<string, string>;
+                    hasHeader: boolean;
+                };
+                await this._handleImportValidate(panelKey, validatePayload);
+                break;
+            }
             case 'importExecute': {
                 const importPayload = message.payload as {
                     filePath: string;
                     columnMapping: Record<string, string>;
                     hasHeader: boolean;
+                    skipInvalidRows?: boolean;
+                    invalidRowNumbers?: number[];
                 };
                 await this._handleImportExecute(panelKey, importPayload);
                 break;
@@ -1110,13 +1121,198 @@ export class GridPanelManager {
     }
 
     /**
+     * Handle importValidate command - validate rows without inserting
+     * Story 9.5: Import Validation & Rollback
+     */
+    private async _handleImportValidate(panelKey: string, payload: {
+        filePath: string;
+        columnMapping: Record<string, string>;
+        hasHeader: boolean;
+    }): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        try {
+            // Re-read and parse file
+            const fileUri = vscode.Uri.file(payload.filePath);
+            const ext = payload.filePath.toLowerCase().split('.').pop() || '';
+
+            let csvHeaders: string[];
+            let dataRows: string[][];
+
+            if (ext === 'xlsx' || ext === 'xls') {
+                const parsed = await this._parseExcelFile(fileUri);
+                if (!parsed || parsed.rows.length === 0) {
+                    this._postMessage(panel, {
+                        event: 'importValidationResult',
+                        payload: { success: false, error: 'No data rows to validate' }
+                    });
+                    return;
+                }
+                csvHeaders = parsed.headers;
+                dataRows = parsed.rows;
+            } else {
+                const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                const text = new TextDecoder('utf-8').decode(fileContent);
+                const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+                const rows = this._parseCsv(cleanText);
+                if (rows.length < 2) {
+                    this._postMessage(panel, {
+                        event: 'importValidationResult',
+                        payload: { success: false, error: 'No data rows to validate' }
+                    });
+                    return;
+                }
+                csvHeaders = rows[0];
+                dataRows = rows.slice(1);
+            }
+
+            // Build column mapping
+            const mappedCsvIndices: number[] = [];
+            const mappedTableColumns: string[] = [];
+
+            for (const [csvHeader, tableColumn] of Object.entries(payload.columnMapping)) {
+                if (tableColumn) {
+                    const csvIndex = csvHeaders.indexOf(csvHeader);
+                    if (csvIndex >= 0) {
+                        mappedCsvIndices.push(csvIndex);
+                        mappedTableColumns.push(tableColumn);
+                    }
+                }
+            }
+
+            if (mappedTableColumns.length === 0) {
+                this._postMessage(panel, {
+                    event: 'importValidationResult',
+                    payload: { success: false, error: 'No columns mapped for import' }
+                });
+                return;
+            }
+
+            // Get table schema for validation rules
+            const schemaResult = await this._serverConnectionManager.getTableSchema(
+                context.namespace,
+                context.tableName
+            );
+
+            const columnInfoMap = new Map<string, { nullable: boolean; dataType: string; maxLength?: number }>();
+            if (schemaResult.success && schemaResult.schema) {
+                for (const col of schemaResult.schema.columns) {
+                    columnInfoMap.set(col.name, {
+                        nullable: col.nullable,
+                        dataType: col.dataType,
+                        maxLength: col.maxLength
+                    });
+                }
+            }
+
+            // Validate each row
+            let validCount = 0;
+            let errorCount = 0;
+            const errors: Array<{ row: number; error: string }> = [];
+
+            for (let i = 0; i < dataRows.length; i++) {
+                const row = dataRows[i];
+                const rowErrors: string[] = [];
+
+                for (let j = 0; j < mappedCsvIndices.length; j++) {
+                    const csvIdx = mappedCsvIndices[j];
+                    const tableCol = mappedTableColumns[j];
+                    const val = row[csvIdx];
+                    const colInfo = columnInfoMap.get(tableCol);
+
+                    if (!colInfo) {
+                        continue;
+                    }
+
+                    const isEmpty = val === undefined || val === null || val === '';
+
+                    // Check required (non-nullable) fields
+                    if (isEmpty && !colInfo.nullable) {
+                        rowErrors.push(`${tableCol}: required value is empty`);
+                        continue;
+                    }
+
+                    if (isEmpty) {
+                        continue;
+                    }
+
+                    // Check max length for string types
+                    if (colInfo.maxLength && val.length > colInfo.maxLength) {
+                        rowErrors.push(`${tableCol}: value exceeds max length ${colInfo.maxLength} (got ${val.length})`);
+                    }
+
+                    // Check numeric types
+                    const numericTypes = ['INTEGER', 'INT', 'SMALLINT', 'TINYINT', 'BIGINT', 'NUMERIC', 'DECIMAL', 'DOUBLE', 'FLOAT', 'REAL', 'MONEY'];
+                    if (numericTypes.some(t => colInfo.dataType.toUpperCase().includes(t))) {
+                        if (isNaN(Number(val))) {
+                            rowErrors.push(`${tableCol}: "${val}" is not a valid number`);
+                        }
+                    }
+                }
+
+                if (rowErrors.length > 0) {
+                    errorCount++;
+                    errors.push({
+                        row: i + 2, // 1-indexed + header row
+                        error: rowErrors.join('; ')
+                    });
+                } else {
+                    validCount++;
+                }
+
+                // Progress every 100 rows
+                if ((i + 1) % 100 === 0 || i === dataRows.length - 1) {
+                    const progress = Math.round(((i + 1) / dataRows.length) * 100);
+                    this._postMessage(panel, {
+                        event: 'importProgress',
+                        payload: {
+                            progress,
+                            message: `Validating... ${(i + 1).toLocaleString()} of ${dataRows.length.toLocaleString()} rows`,
+                            successCount: validCount,
+                            failCount: errorCount
+                        }
+                    });
+                }
+            }
+
+            // Send validation results
+            this._postMessage(panel, {
+                event: 'importValidationResult',
+                payload: {
+                    success: true,
+                    totalRows: dataRows.length,
+                    validCount,
+                    errorCount,
+                    errors: errors.slice(0, 100), // Limit to first 100 errors
+                    importPayload: payload // Pass back so webview can send importExecute
+                }
+            });
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Import validate error:`, error);
+            this._postMessage(panel, {
+                event: 'importValidationResult',
+                payload: { success: false, error: 'An unexpected error occurred during validation' }
+            });
+        }
+    }
+
+    /**
      * Handle importExecute command - insert rows from CSV
      * Story 9.3: Import from CSV
+     * Story 9.5: Added skipInvalidRows support
      */
     private async _handleImportExecute(panelKey: string, payload: {
         filePath: string;
         columnMapping: Record<string, string>;
         hasHeader: boolean;
+        skipInvalidRows?: boolean;
+        invalidRowNumbers?: number[];
     }): Promise<void> {
         const panel = this._panels.get(panelKey);
         const context = this._panelContexts.get(panelKey);
@@ -1183,12 +1379,24 @@ export class GridPanelManager {
                 return;
             }
 
+            // Story 9.5: Build set of invalid row numbers to skip
+            const invalidRowSet = new Set(payload.skipInvalidRows && payload.invalidRowNumbers ? payload.invalidRowNumbers : []);
+
             // Insert rows one by one with progress
             let successCount = 0;
             let failCount = 0;
+            let skippedCount = 0;
             const errors: Array<{ row: number; error: string }> = [];
 
             for (let i = 0; i < dataRows.length; i++) {
+                const rowNumber = i + 2; // 1-indexed + header row
+
+                // Story 9.5: Skip invalid rows when importing valid-only
+                if (invalidRowSet.has(rowNumber)) {
+                    skippedCount++;
+                    continue;
+                }
+
                 const row = dataRows[i];
                 const values = mappedCsvIndices.map(idx => {
                     const val = row[idx];

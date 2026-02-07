@@ -604,6 +604,85 @@ body {
     top: 0;
 }
 
+/* Story 9.5: Import Options & Validation */
+.ite-import-options {
+    padding: 8px 0;
+}
+
+.ite-import-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--vscode-foreground);
+}
+
+.ite-import-checkbox input[type="checkbox"] {
+    accent-color: var(--vscode-checkbox-background);
+}
+
+.ite-validation-summary {
+    display: flex;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.ite-validation-stat {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.95em;
+}
+
+.ite-validation-stat--success {
+    background: rgba(51, 153, 51, 0.15);
+    color: var(--vscode-testing-iconPassed, #3b9a3b);
+}
+
+.ite-validation-stat--error {
+    background: rgba(204, 51, 51, 0.15);
+    color: var(--vscode-testing-iconFailed, #cc3333);
+}
+
+.ite-validation-errors {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.ite-validation-error {
+    display: flex;
+    gap: 12px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--vscode-widget-border);
+    font-size: 0.85em;
+}
+
+.ite-validation-error:last-child {
+    border-bottom: none;
+}
+
+.ite-validation-error__row {
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--vscode-testing-iconFailed, #cc3333);
+    min-width: 50px;
+}
+
+.ite-validation-error__msg {
+    color: var(--vscode-foreground);
+    word-break: break-word;
+}
+
+.ite-validation-error__more {
+    padding: 6px 10px;
+    font-size: 0.85em;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground);
+}
+
 /* Story 6.3: Filter Panel */
 .ite-filter-panel {
     position: absolute;
