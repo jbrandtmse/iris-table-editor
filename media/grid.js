@@ -3019,18 +3019,6 @@
             code: payload.code || 'UNKNOWN_ERROR'
         });
         showToast(formattedMessage, 'error', 8000);
-
-        // Also update status bar briefly
-        const statusText = document.getElementById('statusText');
-        if (statusText) {
-            statusText.textContent = `Error: ${payload.message}`;
-            statusText.classList.add('ite-status-bar__text--error');
-
-            setTimeout(() => {
-                updateStatusBar();
-                statusText.classList.remove('ite-status-bar__text--error');
-            }, 5000);
-        }
     }
 
     /**
@@ -4257,27 +4245,6 @@
     }
 
     /**
-     * Update status bar
-     * Story 2.2: Updated to use 1-indexed currentPage
-     */
-    function updateStatusBar() {
-        const statusText = document.getElementById('statusText');
-        if (statusText) {
-            if (state.loading) {
-                statusText.textContent = 'Loading...';
-            } else if (state.error) {
-                statusText.textContent = `Error: ${state.error}`;
-            } else {
-                const start = (state.currentPage - 1) * state.pageSize + 1;
-                const end = Math.min(start + state.rows.length - 1, state.totalRows);
-                statusText.textContent = state.totalRows > 0
-                    ? `Showing ${start}-${end} of ${state.totalRows} rows`
-                    : 'No data';
-            }
-        }
-    }
-
-    /**
      * Format a number with thousands separators (Story 6.5)
      * @param {number} num - Number to format
      * @returns {string} Formatted number string
@@ -4581,8 +4548,6 @@
             loadingText.textContent = context;
         }
 
-        updateStatusBar();
-
         if (loading) {
             announce(context || 'Loading table data');
         }
@@ -4671,7 +4636,6 @@
             }
         }
 
-        updateStatusBar();
         updatePaginationUI();
 
         const message = state.rows.length === 0
@@ -4782,7 +4746,6 @@
             }
         }
 
-        updateStatusBar();
         updatePaginationUI();
         announce(`Error: ${payload.message}`);
         saveState(); // Persist error state

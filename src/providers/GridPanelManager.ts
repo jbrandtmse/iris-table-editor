@@ -1982,10 +1982,6 @@ export class GridPanelManager {
             </div>
         </div>
 
-        <div class="ite-status-bar" id="statusBar">
-            <span class="ite-status-bar__text" id="statusText">Loading...</span>
-        </div>
-
         <!-- Story 3.5: Toast notification container -->
         <div id="toastContainer" class="ite-toast-container" aria-live="assertive" aria-atomic="true"></div>
 
