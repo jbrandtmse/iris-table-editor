@@ -713,6 +713,7 @@ body {
 
 /* Story 6.3: Filter Panel */
 .ite-filter-panel {
+    display: none;
     position: absolute;
     top: 100%;
     right: 8px;

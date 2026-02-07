@@ -4002,7 +4002,7 @@
         const panel = document.getElementById('filterPanel');
         if (!panel) return;
 
-        const isVisible = panel.style.display !== 'none';
+        const isVisible = getComputedStyle(panel).display !== 'none';
         if (isVisible) {
             panel.style.display = 'none';
             announce('Filter panel closed');
@@ -5708,7 +5708,7 @@
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('filterPanel');
             const panelBtn = document.getElementById('filterPanelBtn');
-            if (panel && panel.style.display !== 'none') {
+            if (panel && getComputedStyle(panel).display !== 'none') {
                 // @ts-ignore
                 if (!panel.contains(e.target) && !panelBtn?.contains(e.target)) {
                     closeFilterPanel();
@@ -5717,7 +5717,7 @@
             // Story 9.1: Close export menu when clicking outside
             const exportMenu = document.getElementById('exportMenu');
             const exportBtnEl = document.getElementById('exportBtn');
-            if (exportMenu && exportMenu.style.display !== 'none') {
+            if (exportMenu && getComputedStyle(exportMenu).display !== 'none') {
                 // @ts-ignore
                 if (!exportMenu.contains(e.target) && !exportBtnEl?.contains(e.target)) {
                     closeExportMenu();
