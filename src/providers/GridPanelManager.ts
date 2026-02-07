@@ -265,6 +265,20 @@ export class GridPanelManager {
                 await this._handleExportAllCsv(panelKey, exportPayload);
                 break;
             }
+            // Story 9.3: Handle import commands
+            case 'importSelectFile': {
+                await this._handleImportSelectFile(panelKey);
+                break;
+            }
+            case 'importExecute': {
+                const importPayload = message.payload as {
+                    filePath: string;
+                    columnMapping: Record<string, string>;
+                    hasHeader: boolean;
+                };
+                await this._handleImportExecute(panelKey, importPayload);
+                break;
+            }
             // Story 9.2: Handle export Excel commands
             case 'exportCurrentPageExcel': {
                 const excelPayload = message.payload as { rows: Record<string, unknown>[]; columns: Array<{ name: string; dataType: string }> };
@@ -969,6 +983,314 @@ export class GridPanelManager {
     }
 
     /**
+     * Handle importSelectFile command - open file dialog and parse CSV
+     * Story 9.3: Import from CSV
+     */
+    private async _handleImportSelectFile(panelKey: string): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        const uris = await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            filters: { 'CSV Files': ['csv'], 'All Files': ['*'] },
+            title: 'Select CSV file to import'
+        });
+
+        if (!uris || uris.length === 0) {
+            return;
+        }
+
+        try {
+            // Read and parse CSV file
+            const fileContent = await vscode.workspace.fs.readFile(uris[0]);
+            const text = new TextDecoder('utf-8').decode(fileContent);
+
+            // Remove BOM if present
+            const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+
+            const rows = this._parseCsv(cleanText);
+            if (rows.length === 0) {
+                this._postMessage(panel, {
+                    event: 'importPreview',
+                    payload: { success: false, error: 'CSV file is empty' }
+                });
+                return;
+            }
+
+            // First row as headers
+            const csvHeaders = rows[0];
+            const dataRows = rows.slice(1);
+
+            // Get table columns for mapping
+            const schemaResult = await this._serverConnectionManager.getTableSchema(
+                context.namespace,
+                context.tableName
+            );
+
+            if (!schemaResult.success || !schemaResult.schema) {
+                this._postMessage(panel, {
+                    event: 'importPreview',
+                    payload: { success: false, error: 'Failed to get table schema' }
+                });
+                return;
+            }
+
+            const tableColumns = schemaResult.schema.columns.map(c => c.name);
+
+            // Auto-map matching column names (case-insensitive)
+            const columnMapping: Record<string, string> = {};
+            for (const csvHeader of csvHeaders) {
+                const match = tableColumns.find(tc => tc.toLowerCase() === csvHeader.toLowerCase());
+                if (match) {
+                    columnMapping[csvHeader] = match;
+                }
+            }
+
+            // Send preview data
+            const previewRows = dataRows.slice(0, 10).map(row => {
+                const obj: Record<string, string> = {};
+                csvHeaders.forEach((header, i) => {
+                    obj[header] = row[i] || '';
+                });
+                return obj;
+            });
+
+            this._postMessage(panel, {
+                event: 'importPreview',
+                payload: {
+                    success: true,
+                    filePath: uris[0].fsPath,
+                    csvHeaders,
+                    tableColumns,
+                    columnMapping,
+                    previewRows,
+                    totalRows: dataRows.length
+                }
+            });
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Import file parse error:`, error);
+            this._postMessage(panel, {
+                event: 'importPreview',
+                payload: { success: false, error: 'Failed to parse CSV file' }
+            });
+        }
+    }
+
+    /**
+     * Handle importExecute command - insert rows from CSV
+     * Story 9.3: Import from CSV
+     */
+    private async _handleImportExecute(panelKey: string, payload: {
+        filePath: string;
+        columnMapping: Record<string, string>;
+        hasHeader: boolean;
+    }): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        try {
+            // Re-read and parse CSV file
+            const fileUri = vscode.Uri.file(payload.filePath);
+            const fileContent = await vscode.workspace.fs.readFile(fileUri);
+            const text = new TextDecoder('utf-8').decode(fileContent);
+            const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+            const rows = this._parseCsv(cleanText);
+
+            if (rows.length < 2) {
+                this._postMessage(panel, {
+                    event: 'importResult',
+                    payload: { success: false, error: 'No data rows to import' }
+                });
+                return;
+            }
+
+            const csvHeaders = rows[0];
+            const dataRows = rows.slice(1);
+
+            // Build column mapping arrays
+            const mappedCsvIndices: number[] = [];
+            const mappedTableColumns: string[] = [];
+
+            for (const [csvHeader, tableColumn] of Object.entries(payload.columnMapping)) {
+                if (tableColumn) {
+                    const csvIndex = csvHeaders.indexOf(csvHeader);
+                    if (csvIndex >= 0) {
+                        mappedCsvIndices.push(csvIndex);
+                        mappedTableColumns.push(tableColumn);
+                    }
+                }
+            }
+
+            if (mappedTableColumns.length === 0) {
+                this._postMessage(panel, {
+                    event: 'importResult',
+                    payload: { success: false, error: 'No columns mapped for import' }
+                });
+                return;
+            }
+
+            // Insert rows one by one with progress
+            let successCount = 0;
+            let failCount = 0;
+            const errors: Array<{ row: number; error: string }> = [];
+
+            for (let i = 0; i < dataRows.length; i++) {
+                const row = dataRows[i];
+                const values = mappedCsvIndices.map(idx => {
+                    const val = row[idx];
+                    return val === undefined || val === '' ? null : val;
+                });
+
+                try {
+                    const result = await this._serverConnectionManager.insertRow(
+                        context.namespace,
+                        context.tableName,
+                        mappedTableColumns,
+                        values
+                    );
+
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errors.push({
+                            row: i + 2, // 1-indexed + header row
+                            error: result.error?.message || 'Insert failed'
+                        });
+                    }
+                } catch {
+                    failCount++;
+                    errors.push({
+                        row: i + 2,
+                        error: 'Unexpected error'
+                    });
+                }
+
+                // Progress every 10 rows or last row
+                if ((i + 1) % 10 === 0 || i === dataRows.length - 1) {
+                    const progress = Math.round(((i + 1) / dataRows.length) * 100);
+                    this._postMessage(panel, {
+                        event: 'importProgress',
+                        payload: {
+                            progress,
+                            message: `Importing... ${(i + 1).toLocaleString()} of ${dataRows.length.toLocaleString()} rows`,
+                            successCount,
+                            failCount
+                        }
+                    });
+                }
+            }
+
+            // Send final result
+            this._postMessage(panel, {
+                event: 'importResult',
+                payload: {
+                    success: true,
+                    successCount,
+                    failCount,
+                    totalRows: dataRows.length,
+                    errors: errors.slice(0, 50) // Limit to first 50 errors
+                }
+            });
+
+            if (successCount > 0) {
+                vscode.window.showInformationMessage(
+                    `Imported ${successCount.toLocaleString()} rows${failCount > 0 ? ` (${failCount} failed)` : ''}`
+                );
+            }
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Import execute error:`, error);
+            this._postMessage(panel, {
+                event: 'importResult',
+                payload: { success: false, error: 'An unexpected error occurred during import' }
+            });
+        }
+    }
+
+    /**
+     * Parse a CSV string into arrays of values
+     * Story 9.3: Simple RFC 4180 CSV parser
+     */
+    private _parseCsv(text: string): string[][] {
+        const rows: string[][] = [];
+        let currentRow: string[] = [];
+        let currentField = '';
+        let inQuotes = false;
+        let i = 0;
+
+        while (i < text.length) {
+            const char = text[i];
+
+            if (inQuotes) {
+                if (char === '"') {
+                    if (i + 1 < text.length && text[i + 1] === '"') {
+                        // Escaped quote
+                        currentField += '"';
+                        i += 2;
+                    } else {
+                        // End of quoted field
+                        inQuotes = false;
+                        i++;
+                    }
+                } else {
+                    currentField += char;
+                    i++;
+                }
+            } else {
+                if (char === '"') {
+                    inQuotes = true;
+                    i++;
+                } else if (char === ',') {
+                    currentRow.push(currentField);
+                    currentField = '';
+                    i++;
+                } else if (char === '\r') {
+                    // Handle \r\n and \r
+                    currentRow.push(currentField);
+                    currentField = '';
+                    if (currentRow.some(f => f.trim() !== '') || currentRow.length > 1) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    i++;
+                    if (i < text.length && text[i] === '\n') {
+                        i++;
+                    }
+                } else if (char === '\n') {
+                    currentRow.push(currentField);
+                    currentField = '';
+                    if (currentRow.some(f => f.trim() !== '') || currentRow.length > 1) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    i++;
+                } else {
+                    currentField += char;
+                    i++;
+                }
+            }
+        }
+
+        // Last field/row
+        currentRow.push(currentField);
+        if (currentRow.some(f => f.trim() !== '') || currentRow.length > 1) {
+            rows.push(currentRow);
+        }
+
+        return rows;
+    }
+
+    /**
      * Load table schema and data for a panel
      * Story 2.2: Default pageSize changed to 50
      * Story 6.2: Added filters parameter
@@ -1175,6 +1497,9 @@ export class GridPanelManager {
                 <span class="ite-toolbar__badge" id="filterBadge" style="display: none;">0</span>
             </button>
             <span class="ite-toolbar__separator"></span>
+            <button class="ite-toolbar__button" id="importBtn" title="Import data">
+                <i class="codicon codicon-cloud-upload"></i>
+            </button>
             <div class="ite-toolbar__export-group" style="position: relative;">
                 <button class="ite-toolbar__button" id="exportBtn" title="Export data (Ctrl+E)">
                     <i class="codicon codicon-desktop-download"></i>

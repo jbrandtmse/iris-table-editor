@@ -4787,6 +4787,244 @@
     }
 
     // ========================================================================
+    // Story 9.3: CSV Import Functions
+    // ========================================================================
+
+    /** @type {{ filePath: string; csvHeaders: string[]; tableColumns: string[]; columnMapping: Record<string, string>; previewRows: Array<Record<string, string>>; totalRows: number } | null} */
+    let importState = null;
+
+    /**
+     * Handle import button click - request file selection from extension
+     * Story 9.3: Import from CSV
+     */
+    function handleImportClick() {
+        sendCommand('importSelectFile', {});
+    }
+
+    /**
+     * Handle import preview data from extension
+     * Story 9.3: Show import preview dialog
+     * @param {object} payload
+     */
+    function handleImportPreview(payload) {
+        if (!payload.success) {
+            showToast(`Import error: ${payload.error}`, 'error');
+            return;
+        }
+
+        importState = {
+            filePath: payload.filePath,
+            csvHeaders: payload.csvHeaders,
+            tableColumns: payload.tableColumns,
+            columnMapping: { ...payload.columnMapping },
+            previewRows: payload.previewRows,
+            totalRows: payload.totalRows
+        };
+
+        showImportDialog();
+    }
+
+    /**
+     * Show import preview/mapping dialog
+     * Story 9.3: Import dialog UI
+     */
+    function showImportDialog() {
+        if (!importState) return;
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'ite-dialog-overlay';
+
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'ite-dialog ite-import-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+
+        // Build column mapping rows
+        let mappingHtml = '';
+        for (const csvHeader of importState.csvHeaders) {
+            const currentMapping = importState.columnMapping[csvHeader] || '';
+            const options = importState.tableColumns.map(tc => {
+                const selected = tc === currentMapping ? ' selected' : '';
+                return `<option value="${escapeHtml(tc)}"${selected}>${escapeHtml(tc)}</option>`;
+            }).join('');
+
+            mappingHtml += `
+                <div class="ite-import-mapping__row">
+                    <span class="ite-import-mapping__csv-col">${escapeHtml(csvHeader)}</span>
+                    <span class="ite-import-mapping__arrow">&rarr;</span>
+                    <select class="ite-import-mapping__select" data-csv-header="${escapeHtml(csvHeader)}">
+                        <option value="">(skip)</option>
+                        ${options}
+                    </select>
+                </div>
+            `;
+        }
+
+        // Build preview table
+        let previewHtml = '<table class="ite-import-preview__table"><thead><tr>';
+        for (const h of importState.csvHeaders) {
+            previewHtml += `<th>${escapeHtml(h)}</th>`;
+        }
+        previewHtml += '</tr></thead><tbody>';
+        for (const row of importState.previewRows) {
+            previewHtml += '<tr>';
+            for (const h of importState.csvHeaders) {
+                previewHtml += `<td>${escapeHtml(row[h] || '')}</td>`;
+            }
+            previewHtml += '</tr>';
+        }
+        previewHtml += '</tbody></table>';
+
+        dialog.innerHTML = `
+            <h3 class="ite-dialog__title">Import CSV</h3>
+            <div class="ite-dialog__content ite-import-content">
+                <p class="ite-import-info">
+                    <strong>${importState.totalRows.toLocaleString()}</strong> rows found in file
+                </p>
+
+                <h4 class="ite-import-section__title">Column Mapping</h4>
+                <div class="ite-import-mapping">
+                    <div class="ite-import-mapping__header">
+                        <span>CSV Column</span>
+                        <span></span>
+                        <span>Table Column</span>
+                    </div>
+                    ${mappingHtml}
+                </div>
+
+                <h4 class="ite-import-section__title">Preview (first ${importState.previewRows.length} rows)</h4>
+                <div class="ite-import-preview">
+                    ${previewHtml}
+                </div>
+            </div>
+            <div class="ite-dialog__actions">
+                <button id="import-cancel-btn" class="ite-dialog__button ite-dialog__button--secondary">Cancel</button>
+                <button id="import-execute-btn" class="ite-dialog__button ite-dialog__button--danger" style="background-color: var(--vscode-button-background); color: var(--vscode-button-foreground);">Import ${importState.totalRows.toLocaleString()} rows</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Event handlers
+        const cancelBtn = document.getElementById('import-cancel-btn');
+        const executeBtn = document.getElementById('import-execute-btn');
+
+        function closeDialog() {
+            overlay.remove();
+            importState = null;
+        }
+
+        cancelBtn?.addEventListener('click', closeDialog);
+
+        executeBtn?.addEventListener('click', () => {
+            // Collect current mapping from selects
+            const mapping = {};
+            const selects = dialog.querySelectorAll('.ite-import-mapping__select');
+            selects.forEach(sel => {
+                const csvHeader = sel.getAttribute('data-csv-header');
+                const tableCol = sel.value;
+                if (csvHeader && tableCol) {
+                    mapping[csvHeader] = tableCol;
+                }
+            });
+
+            // Save filePath before closing dialog (which clears importState)
+            const filePath = importState?.filePath || '';
+            closeDialog();
+
+            // Execute import
+            sendCommand('importExecute', {
+                filePath,
+                columnMapping: mapping,
+                hasHeader: true
+            });
+        });
+
+        // Close on Escape
+        function handleKeydown(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeDialog();
+            }
+        }
+        document.addEventListener('keydown', handleKeydown);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeDialog();
+        });
+
+        const observer = new MutationObserver(() => {
+            if (!document.body.contains(overlay)) {
+                document.removeEventListener('keydown', handleKeydown);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true });
+    }
+
+    /**
+     * Handle import progress event from extension
+     * Story 9.3: Import progress indicator
+     * @param {object} payload
+     */
+    function handleImportProgress(payload) {
+        let progressEl = document.getElementById('exportProgress');
+
+        if (!progressEl) {
+            progressEl = document.createElement('div');
+            progressEl.id = 'exportProgress';
+            progressEl.className = 'ite-export-progress';
+            progressEl.innerHTML = `
+                <p class="ite-export-progress__text" id="exportProgressText"></p>
+                <div class="ite-export-progress__bar">
+                    <div class="ite-export-progress__fill" id="exportProgressFill"></div>
+                </div>
+            `;
+            document.body.appendChild(progressEl);
+        }
+
+        const textEl = document.getElementById('exportProgressText');
+        const fillEl = document.getElementById('exportProgressFill');
+
+        if (textEl) textEl.textContent = payload.message;
+        if (fillEl) fillEl.style.width = `${payload.progress}%`;
+    }
+
+    /**
+     * Handle import result event from extension
+     * Story 9.3: Import completion feedback
+     * @param {object} payload
+     */
+    function handleImportResult(payload) {
+        // Remove progress bar
+        const progressEl = document.getElementById('exportProgress');
+        if (progressEl) {
+            progressEl.remove();
+        }
+
+        if (!payload.success && payload.error) {
+            showToast(`Import failed: ${payload.error}`, 'error');
+            return;
+        }
+
+        if (payload.successCount > 0) {
+            let msg = `Imported ${payload.successCount.toLocaleString()} rows`;
+            if (payload.failCount > 0) {
+                msg += ` (${payload.failCount} failed)`;
+            }
+            showToast(msg, payload.failCount > 0 ? 'warning' : 'success');
+
+            // Refresh data to show imported rows
+            handleRefresh();
+        } else {
+            showToast(`Import failed: all ${payload.totalRows} rows had errors`, 'error');
+        }
+    }
+
+    // ========================================================================
     // Story 9.1: CSV Export Functions
     // ========================================================================
 
@@ -5105,6 +5343,18 @@
                 // Story 5.3: Handle delete row result
                 handleDeleteRowResult(message.payload);
                 break;
+            case 'importPreview':
+                // Story 9.3: Import preview data
+                handleImportPreview(message.payload);
+                break;
+            case 'importProgress':
+                // Story 9.3: Import progress
+                handleImportProgress(message.payload);
+                break;
+            case 'importResult':
+                // Story 9.3: Import result
+                handleImportResult(message.payload);
+                break;
             case 'exportProgress':
                 // Story 9.1: Export progress indicator
                 handleExportProgress(message.payload);
@@ -5213,6 +5463,12 @@
         const filterPanelClose = document.getElementById('filterPanelClose');
         if (filterPanelClose) {
             filterPanelClose.addEventListener('click', closeFilterPanel);
+        }
+
+        // Story 9.3: Setup import button
+        const importBtn = document.getElementById('importBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', handleImportClick);
         }
 
         // Story 9.1: Setup export button and menu

@@ -499,6 +499,111 @@ body {
     transition: width 0.3s ease;
 }
 
+/* Story 9.3: Import Dialog */
+.ite-import-dialog {
+    max-width: 600px;
+    max-height: 80vh;
+}
+
+.ite-import-content {
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+.ite-import-info {
+    margin: 0 0 12px;
+    font-size: 0.9em;
+}
+
+.ite-import-section__title {
+    margin: 12px 0 8px;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+}
+
+.ite-import-mapping {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.ite-import-mapping__header {
+    display: grid;
+    grid-template-columns: 1fr 30px 1fr;
+    gap: 8px;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    padding: 4px 0;
+}
+
+.ite-import-mapping__row {
+    display: grid;
+    grid-template-columns: 1fr 30px 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.ite-import-mapping__csv-col {
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 0.9em;
+    padding: 2px 6px;
+    background: var(--vscode-textCodeBlock-background);
+    border-radius: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ite-import-mapping__arrow {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+}
+
+.ite-import-mapping__select {
+    padding: 3px 6px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.ite-import-preview {
+    overflow-x: auto;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 3px;
+}
+
+.ite-import-preview__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85em;
+}
+
+.ite-import-preview__table th,
+.ite-import-preview__table td {
+    padding: 4px 8px;
+    border: 1px solid var(--vscode-widget-border);
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ite-import-preview__table th {
+    background: var(--vscode-editorWidget-background);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+
 /* Story 6.3: Filter Panel */
 .ite-filter-panel {
     position: absolute;
