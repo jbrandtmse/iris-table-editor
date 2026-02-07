@@ -1972,10 +1972,10 @@
             // The edited value might cause the row to no longer match the filter
             if (state.filtersActive) {
                 console.debug(`${LOG_PREFIX} Filters active, refreshing data after save`);
-                // Small delay to let the success animation show
+                // Delay to let the success animation show before refresh
                 setTimeout(() => {
                     requestFilteredData();
-                }, 500);
+                }, 1000);
             }
         } else {
             console.debug(`${LOG_PREFIX} Cell save failed:`, error?.message);
@@ -3769,7 +3769,7 @@
                     input.disabled = true;
                 }
 
-                // Apply filter on Enter or blur
+                // Apply filter on Enter, Escape, or blur (tab out)
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -3783,29 +3783,9 @@
                     }
                 });
 
-                // Debounce timer for input events
-                let debounceTimer = null;
-
-                // Apply filter on input with debounce (300ms delay)
-                input.addEventListener('input', () => {
-                    console.debug(`${LOG_PREFIX} Filter input event for ${col.name}, value: "${input.value}"`);
-                    if (debounceTimer) {
-                        clearTimeout(debounceTimer);
-                    }
-                    debounceTimer = setTimeout(() => {
-                        console.debug(`${LOG_PREFIX} Filter debounce applying for ${col.name}`);
-                        applyFilter(col.name, input.value);
-                    }, 300);
-                });
-
-                // Also apply immediately on blur (when tabbing out or clicking away)
+                // Apply filter on blur (when tabbing out or clicking away)
                 input.addEventListener('blur', () => {
                     console.debug(`${LOG_PREFIX} Filter blur fired for ${col.name}, value: "${input.value}"`);
-                    // Clear any pending debounce and apply immediately
-                    if (debounceTimer) {
-                        clearTimeout(debounceTimer);
-                        debounceTimer = null;
-                    }
                     applyFilter(col.name, input.value);
                 });
 
