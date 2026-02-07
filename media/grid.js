@@ -4046,12 +4046,12 @@
             const safeColumn = escapeHtml(filter.column);
             const safeValue = escapeHtml(filter.value);
             html += `
-                <div class="ite-filter-chip" data-column="${escapeAttr(filter.column)}">
+                <div class="ite-filter-chip" data-column="${safeColumn}">
                     <span class="ite-filter-chip__column">${safeColumn}</span>
                     <span class="ite-filter-chip__value">${safeValue}</span>
                     <button class="ite-filter-chip__remove"
                             title="Remove filter"
-                            data-column="${escapeAttr(filter.column)}">
+                            data-column="${safeColumn}">
                         <i class="codicon codicon-close"></i>
                     </button>
                 </div>
