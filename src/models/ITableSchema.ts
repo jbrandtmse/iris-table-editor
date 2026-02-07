@@ -15,6 +15,8 @@ export interface IColumnInfo {
     precision?: number;
     /** Numeric scale for decimal types (from NUMERIC_SCALE) */
     scale?: number;
+    /** Whether column is read-only (identity/auto-increment or computed/generated) */
+    readOnly?: boolean;
 }
 
 /**

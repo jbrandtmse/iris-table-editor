@@ -4790,7 +4790,7 @@
     // Story 9.3: CSV Import Functions
     // ========================================================================
 
-    /** @type {{ filePath: string; csvHeaders: string[]; tableColumns: string[]; columnMapping: Record<string, string>; previewRows: Array<Record<string, string>>; totalRows: number } | null} */
+    /** @type {{ filePath: string; csvHeaders: string[]; tableColumns: string[]; readOnlyColumns: string[]; columnMapping: Record<string, string>; previewRows: Array<Record<string, string>>; totalRows: number } | null} */
     let importState = null;
 
     /**
@@ -4816,6 +4816,7 @@
             filePath: payload.filePath,
             csvHeaders: payload.csvHeaders,
             tableColumns: payload.tableColumns,
+            readOnlyColumns: payload.readOnlyColumns || [],
             columnMapping: { ...payload.columnMapping },
             previewRows: payload.previewRows,
             totalRows: payload.totalRows
@@ -4842,12 +4843,16 @@
         dialog.setAttribute('aria-modal', 'true');
 
         // Build column mapping rows
+        const readOnlySet = new Set(importState.readOnlyColumns);
         let mappingHtml = '';
         for (const csvHeader of importState.csvHeaders) {
             const currentMapping = importState.columnMapping[csvHeader] || '';
             const options = importState.tableColumns.map(tc => {
+                const isReadOnly = readOnlySet.has(tc);
                 const selected = tc === currentMapping ? ' selected' : '';
-                return `<option value="${escapeHtml(tc)}"${selected}>${escapeHtml(tc)}</option>`;
+                const disabled = isReadOnly ? ' disabled' : '';
+                const label = isReadOnly ? `${escapeHtml(tc)} (read-only)` : escapeHtml(tc);
+                return `<option value="${escapeHtml(tc)}"${selected}${disabled}>${label}</option>`;
             }).join('');
 
             mappingHtml += `

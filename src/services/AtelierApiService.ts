@@ -670,7 +670,9 @@ export class AtelierApiService {
                 IS_NULLABLE,
                 CHARACTER_MAXIMUM_LENGTH,
                 NUMERIC_PRECISION,
-                NUMERIC_SCALE
+                NUMERIC_SCALE,
+                IS_IDENTITY,
+                IS_GENERATED
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
             ORDER BY ORDINAL_POSITION
@@ -760,6 +762,8 @@ export class AtelierApiService {
                         CHARACTER_MAXIMUM_LENGTH?: number;
                         NUMERIC_PRECISION?: number;
                         NUMERIC_SCALE?: number;
+                        IS_IDENTITY?: string;
+                        IS_GENERATED?: string;
                     };
                     const column: IColumnInfo = {
                         name: r.COLUMN_NAME,
@@ -774,6 +778,9 @@ export class AtelierApiService {
                     }
                     if (r.NUMERIC_SCALE !== undefined && r.NUMERIC_SCALE !== null) {
                         column.scale = r.NUMERIC_SCALE;
+                    }
+                    if (r.IS_IDENTITY === 'YES' || r.IS_GENERATED === 'YES') {
+                        column.readOnly = true;
                     }
                     return column;
                 });

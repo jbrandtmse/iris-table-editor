@@ -1111,12 +1111,16 @@ export class GridPanelManager {
             }
 
             const tableColumns = schemaResult.schema.columns.map(c => c.name);
+            // Build set of read-only columns (identity/computed)
+            const readOnlyColumns = new Set(
+                schemaResult.schema.columns.filter(c => c.readOnly).map(c => c.name)
+            );
 
-            // Auto-map matching column names (case-insensitive)
+            // Auto-map matching column names (case-insensitive), skip read-only columns
             const columnMapping: Record<string, string> = {};
             for (const csvHeader of csvHeaders) {
                 const match = tableColumns.find(tc => tc.toLowerCase() === csvHeader.toLowerCase());
-                if (match) {
+                if (match && !readOnlyColumns.has(match)) {
                     columnMapping[csvHeader] = match;
                 }
             }
@@ -1137,6 +1141,7 @@ export class GridPanelManager {
                     filePath: uris[0].fsPath,
                     csvHeaders,
                     tableColumns,
+                    readOnlyColumns: Array.from(readOnlyColumns),
                     columnMapping,
                     previewRows,
                     totalRows: dataRows.length
