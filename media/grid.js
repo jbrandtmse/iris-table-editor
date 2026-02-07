@@ -1967,6 +1967,16 @@
                 }
             }
             announce(`Saved successfully`);
+
+            // If filters are active, refresh data to ensure row still matches filter criteria
+            // The edited value might cause the row to no longer match the filter
+            if (state.filtersActive) {
+                console.debug(`${LOG_PREFIX} Filters active, refreshing data after save`);
+                // Small delay to let the success animation show
+                setTimeout(() => {
+                    requestFilteredData();
+                }, 500);
+            }
         } else {
             console.debug(`${LOG_PREFIX} Cell save failed:`, error?.message);
             // Rollback to original value if we can find the row
