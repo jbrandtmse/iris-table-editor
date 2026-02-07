@@ -4803,9 +4803,13 @@
             closeExportMenu();
         } else {
             // Update filtered option visibility
-            const filteredBtn = document.getElementById('exportFilteredCsv');
-            if (filteredBtn) {
-                filteredBtn.style.display = state.filtersActive ? '' : 'none';
+            const filteredCsvBtn = document.getElementById('exportFilteredCsv');
+            if (filteredCsvBtn) {
+                filteredCsvBtn.style.display = state.filtersActive ? '' : 'none';
+            }
+            const filteredExcelBtn = document.getElementById('exportFilteredExcel');
+            if (filteredExcelBtn) {
+                filteredExcelBtn.style.display = state.filtersActive ? '' : 'none';
             }
             menu.style.display = '';
         }
@@ -4932,6 +4936,63 @@
         }
 
         sendCommand('exportAllCsv', {
+            filters: state.getFilterCriteria(),
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection,
+            filtered: true
+        });
+    }
+
+    // ========================================================================
+    // Story 9.2: Excel Export Functions
+    // ========================================================================
+
+    /**
+     * Export current page to Excel (server-side via extension)
+     * Story 9.2: Current page Excel export
+     */
+    function handleExportCurrentPageExcel() {
+        closeExportMenu();
+
+        if (state.rows.length === 0) {
+            showToast('No data to export', 'warning');
+            return;
+        }
+
+        sendCommand('exportCurrentPageExcel', {
+            rows: state.rows,
+            columns: state.columns.map(c => ({ name: c.name, dataType: c.dataType }))
+        });
+    }
+
+    /**
+     * Export all data to Excel (server-side via extension)
+     * Story 9.2: Full dataset Excel export
+     */
+    function handleExportAllExcel() {
+        closeExportMenu();
+
+        sendCommand('exportAllExcel', {
+            filters: [],
+            sortColumn: state.sortColumn,
+            sortDirection: state.sortDirection,
+            filtered: false
+        });
+    }
+
+    /**
+     * Export filtered results to Excel (server-side via extension)
+     * Story 9.2: Filtered dataset Excel export
+     */
+    function handleExportFilteredExcel() {
+        closeExportMenu();
+
+        if (!state.filtersActive) {
+            showToast('No active filters', 'warning');
+            return;
+        }
+
+        sendCommand('exportAllExcel', {
             filters: state.getFilterCriteria(),
             sortColumn: state.sortColumn,
             sortDirection: state.sortDirection,
@@ -5176,6 +5237,22 @@
         const exportFilteredCsv = document.getElementById('exportFilteredCsv');
         if (exportFilteredCsv) {
             exportFilteredCsv.addEventListener('click', handleExportFilteredCsv);
+        }
+
+        // Story 9.2: Excel export buttons
+        const exportCurrentPageExcel = document.getElementById('exportCurrentPageExcel');
+        if (exportCurrentPageExcel) {
+            exportCurrentPageExcel.addEventListener('click', handleExportCurrentPageExcel);
+        }
+
+        const exportAllExcel = document.getElementById('exportAllExcel');
+        if (exportAllExcel) {
+            exportAllExcel.addEventListener('click', handleExportAllExcel);
+        }
+
+        const exportFilteredExcel = document.getElementById('exportFilteredExcel');
+        if (exportFilteredExcel) {
+            exportFilteredExcel.addEventListener('click', handleExportFilteredExcel);
         }
 
         // Column width slider

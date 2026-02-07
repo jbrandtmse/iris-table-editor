@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import ExcelJS from 'exceljs';
 import { ServerConnectionManager } from './ServerConnectionManager';
 import {
     ICommand,
@@ -262,6 +263,17 @@ export class GridPanelManager {
             case 'exportAllCsv': {
                 const exportPayload = message.payload as { filters?: IFilterCriterion[]; sortColumn?: string; sortDirection?: SortDirection; filtered?: boolean };
                 await this._handleExportAllCsv(panelKey, exportPayload);
+                break;
+            }
+            // Story 9.2: Handle export Excel commands
+            case 'exportCurrentPageExcel': {
+                const excelPayload = message.payload as { rows: Record<string, unknown>[]; columns: Array<{ name: string; dataType: string }> };
+                await this._handleExportCurrentPageExcel(panelKey, excelPayload);
+                break;
+            }
+            case 'exportAllExcel': {
+                const excelAllPayload = message.payload as { filters?: IFilterCriterion[]; sortColumn?: string; sortDirection?: SortDirection; filtered?: boolean };
+                await this._handleExportAllExcel(panelKey, excelAllPayload);
                 break;
             }
         }
@@ -684,6 +696,279 @@ export class GridPanelManager {
     }
 
     /**
+     * Handle exportCurrentPageExcel command from grid webview
+     * Story 9.2: Export current page rows to Excel file
+     */
+    private async _handleExportCurrentPageExcel(panelKey: string, payload: {
+        rows: Record<string, unknown>[];
+        columns: Array<{ name: string; dataType: string }>;
+    }): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        const defaultFileName = `${context.tableName.replace(/[^a-zA-Z0-9._-]/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(defaultFileName),
+            filters: { 'Excel Files': ['xlsx'], 'All Files': ['*'] },
+            title: 'Export Current Page to Excel'
+        });
+
+        if (!uri) {
+            return;
+        }
+
+        try {
+            const buffer = await this._buildExcelBuffer(payload.columns, payload.rows, context.tableName);
+            await vscode.workspace.fs.writeFile(uri, new Uint8Array(buffer));
+
+            this._postMessage(panel, {
+                event: 'exportResult',
+                payload: { success: true, rowCount: payload.rows.length, filePath: uri.fsPath }
+            });
+
+            vscode.window.showInformationMessage(
+                `Exported ${payload.rows.length} rows to ${uri.fsPath}`
+            );
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Excel export error:`, error);
+            this._postMessage(panel, {
+                event: 'exportResult',
+                payload: { success: false, error: 'Failed to create Excel file' }
+            });
+        }
+    }
+
+    /**
+     * Handle exportAllExcel command from grid webview
+     * Story 9.2: Export all data (or filtered results) to Excel file
+     */
+    private async _handleExportAllExcel(panelKey: string, payload: {
+        filters?: IFilterCriterion[];
+        sortColumn?: string;
+        sortDirection?: SortDirection;
+        filtered?: boolean;
+    }): Promise<void> {
+        const panel = this._panels.get(panelKey);
+        const context = this._panelContexts.get(panelKey);
+
+        if (!panel || !context) {
+            return;
+        }
+
+        const defaultFileName = `${context.tableName.replace(/[^a-zA-Z0-9._-]/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(defaultFileName),
+            filters: { 'Excel Files': ['xlsx'], 'All Files': ['*'] },
+            title: payload.filtered ? 'Export Filtered Results to Excel' : 'Export All Data to Excel'
+        });
+
+        if (!uri) {
+            return;
+        }
+
+        this._postMessage(panel, {
+            event: 'exportProgress',
+            payload: { progress: 0, message: 'Starting Excel export...' }
+        });
+
+        try {
+            // Get schema
+            const schemaResult = await this._serverConnectionManager.getTableSchema(
+                context.namespace,
+                context.tableName
+            );
+
+            if (!schemaResult.success || !schemaResult.schema) {
+                this._postMessage(panel, {
+                    event: 'exportResult',
+                    payload: { success: false, error: 'Failed to get table schema' }
+                });
+                return;
+            }
+
+            const columns = schemaResult.schema.columns;
+            const filters = payload.filters || [];
+            const sortColumn = payload.sortColumn || null;
+            const sortDirection = (payload.sortDirection || null) as SortDirection;
+
+            // Fetch all data in chunks
+            const allRows: Record<string, unknown>[] = [];
+            const chunkSize = 1000;
+            let offset = 0;
+            let totalRows = 0;
+            let isFirstChunk = true;
+
+            while (true) {
+                const dataResult = await this._serverConnectionManager.getTableData(
+                    context.namespace,
+                    context.tableName,
+                    chunkSize,
+                    offset,
+                    filters,
+                    sortColumn,
+                    sortDirection
+                );
+
+                if (!dataResult.success || !dataResult.rows) {
+                    this._postMessage(panel, {
+                        event: 'exportResult',
+                        payload: { success: false, error: dataResult.error?.message || 'Failed to fetch data' }
+                    });
+                    return;
+                }
+
+                if (isFirstChunk) {
+                    totalRows = dataResult.totalRows || 0;
+                    isFirstChunk = false;
+                }
+
+                allRows.push(...dataResult.rows);
+                offset += chunkSize;
+
+                const progress = totalRows > 0 ? Math.round((allRows.length / totalRows) * 100) : 100;
+                this._postMessage(panel, {
+                    event: 'exportProgress',
+                    payload: { progress, message: `Fetching... ${allRows.length.toLocaleString()} of ${totalRows.toLocaleString()} rows` }
+                });
+
+                if (dataResult.rows.length < chunkSize) {
+                    break;
+                }
+            }
+
+            // Build Excel file
+            this._postMessage(panel, {
+                event: 'exportProgress',
+                payload: { progress: 95, message: 'Building Excel file...' }
+            });
+
+            const buffer = await this._buildExcelBuffer(columns, allRows, context.tableName);
+            await vscode.workspace.fs.writeFile(uri, new Uint8Array(buffer));
+
+            this._postMessage(panel, {
+                event: 'exportResult',
+                payload: { success: true, rowCount: allRows.length, filePath: uri.fsPath }
+            });
+
+            vscode.window.showInformationMessage(
+                `Exported ${allRows.length.toLocaleString()} rows to ${uri.fsPath}`
+            );
+
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Excel export error:`, error);
+            this._postMessage(panel, {
+                event: 'exportResult',
+                payload: { success: false, error: 'An unexpected error occurred during Excel export' }
+            });
+        }
+    }
+
+    /**
+     * Build an Excel buffer from columns and rows
+     * Story 9.2: Excel file generation with ExcelJS
+     */
+    private async _buildExcelBuffer(
+        columns: Array<{ name: string; dataType: string }>,
+        rows: Record<string, unknown>[],
+        sheetName: string
+    ): Promise<Buffer> {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'IRIS Table Editor';
+        workbook.created = new Date();
+
+        const worksheet = workbook.addWorksheet(sheetName.substring(0, 31)); // Excel max sheet name is 31 chars
+
+        // Define columns with appropriate widths
+        worksheet.columns = columns.map(col => ({
+            header: col.name,
+            key: col.name,
+            width: Math.min(30, Math.max(10, col.name.length + 4))
+        }));
+
+        // Style header row
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        // Add data rows with type-appropriate values
+        for (const row of rows) {
+            const rowData: Record<string, unknown> = {};
+            for (const col of columns) {
+                const val = row[col.name];
+                if (val === null || val === undefined) {
+                    rowData[col.name] = null;
+                } else {
+                    rowData[col.name] = this._convertExcelValue(val, col.dataType);
+                }
+            }
+            worksheet.addRow(rowData);
+        }
+
+        // Auto-filter on header row
+        if (columns.length > 0) {
+            worksheet.autoFilter = {
+                from: { row: 1, column: 1 },
+                to: { row: 1, column: columns.length }
+            };
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return Buffer.from(buffer);
+    }
+
+    /**
+     * Convert a value to the appropriate Excel type based on IRIS data type
+     * Story 9.2: Type-aware Excel export
+     */
+    private _convertExcelValue(value: unknown, dataType: string): unknown {
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        const dt = dataType.toUpperCase();
+        const strVal = String(value);
+
+        // Boolean types
+        if (dt === 'BIT' || dt === 'BOOLEAN' || dt === '%LIBRARY.BOOLEAN') {
+            return strVal === '1' || strVal.toLowerCase() === 'true';
+        }
+
+        // Numeric types
+        if (dt.includes('INT') || dt === 'BIGINT' || dt === 'SMALLINT' || dt === 'TINYINT') {
+            const num = parseInt(strVal, 10);
+            return isNaN(num) ? strVal : num;
+        }
+
+        if (dt.includes('DECIMAL') || dt.includes('NUMERIC') || dt === 'FLOAT' || dt === 'DOUBLE' || dt === 'REAL' || dt === 'MONEY') {
+            const num = parseFloat(strVal);
+            return isNaN(num) ? strVal : num;
+        }
+
+        // Date types
+        if (dt === 'DATE' || dt === '%LIBRARY.DATE') {
+            const d = new Date(strVal);
+            return isNaN(d.getTime()) ? strVal : d;
+        }
+
+        // Timestamp types
+        if (dt === 'TIMESTAMP' || dt === 'DATETIME' || dt === '%LIBRARY.TIMESTAMP' || dt === '%LIBRARY.POSIXTIME') {
+            const d = new Date(strVal);
+            return isNaN(d.getTime()) ? strVal : d;
+        }
+
+        // Everything else as string
+        return strVal;
+    }
+
+    /**
      * Load table schema and data for a panel
      * Story 2.2: Default pageSize changed to 50
      * Story 6.2: Added filters parameter
@@ -903,6 +1188,16 @@ export class GridPanelManager {
                     </button>
                     <button class="ite-export-menu__item" id="exportFilteredCsv" style="display: none;">
                         <i class="codicon codicon-filter"></i> Export Filtered Results (CSV)
+                    </button>
+                    <div class="ite-export-menu__divider"></div>
+                    <button class="ite-export-menu__item" id="exportCurrentPageExcel">
+                        <i class="codicon codicon-file"></i> Export Current Page (Excel)
+                    </button>
+                    <button class="ite-export-menu__item" id="exportAllExcel">
+                        <i class="codicon codicon-files"></i> Export All Data (Excel)
+                    </button>
+                    <button class="ite-export-menu__item" id="exportFilteredExcel" style="display: none;">
+                        <i class="codicon codicon-filter"></i> Export Filtered Results (Excel)
                     </button>
                 </div>
             </div>

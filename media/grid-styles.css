@@ -456,6 +456,12 @@ body {
     opacity: 0.8;
 }
 
+.ite-export-menu__divider {
+    height: 1px;
+    background-color: var(--vscode-widget-border);
+    margin: 4px 0;
+}
+
 /* Story 9.1: Export progress bar */
 .ite-export-progress {
     position: fixed;
