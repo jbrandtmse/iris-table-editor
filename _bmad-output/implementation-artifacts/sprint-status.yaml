@@ -114,7 +114,7 @@ development_status:
   9-1-export-current-view-to-csv: done
   9-2-export-to-excel-format: done
   9-3-import-from-csv: done
-  9-4-import-from-excel: backlog
+  9-4-import-from-excel: done
   9-5-import-validation-rollback: backlog
   9-6-export-import-large-datasets: backlog
   epic-9-retrospective: optional

@@ -996,8 +996,13 @@ export class GridPanelManager {
 
         const uris = await vscode.window.showOpenDialog({
             canSelectMany: false,
-            filters: { 'CSV Files': ['csv'], 'All Files': ['*'] },
-            title: 'Select CSV file to import'
+            filters: {
+                'Data Files': ['csv', 'xlsx', 'xls'],
+                'CSV Files': ['csv'],
+                'Excel Files': ['xlsx', 'xls'],
+                'All Files': ['*']
+            },
+            title: 'Select file to import'
         });
 
         if (!uris || uris.length === 0) {
@@ -1005,25 +1010,48 @@ export class GridPanelManager {
         }
 
         try {
-            // Read and parse CSV file
-            const fileContent = await vscode.workspace.fs.readFile(uris[0]);
-            const text = new TextDecoder('utf-8').decode(fileContent);
+            const filePath = uris[0].fsPath;
+            const ext = filePath.toLowerCase().split('.').pop() || '';
 
-            // Remove BOM if present
-            const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+            let csvHeaders: string[];
+            let dataRows: string[][];
 
-            const rows = this._parseCsv(cleanText);
-            if (rows.length === 0) {
+            if (ext === 'xlsx' || ext === 'xls') {
+                // Story 9.4: Parse Excel file using ExcelJS
+                const parsed = await this._parseExcelFile(uris[0]);
+                if (!parsed) {
+                    this._postMessage(panel, {
+                        event: 'importPreview',
+                        payload: { success: false, error: 'Failed to parse Excel file or file is empty' }
+                    });
+                    return;
+                }
+                csvHeaders = parsed.headers;
+                dataRows = parsed.rows;
+            } else {
+                // Parse CSV file
+                const fileContent = await vscode.workspace.fs.readFile(uris[0]);
+                const text = new TextDecoder('utf-8').decode(fileContent);
+                const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+                const allRows = this._parseCsv(cleanText);
+                if (allRows.length === 0) {
+                    this._postMessage(panel, {
+                        event: 'importPreview',
+                        payload: { success: false, error: 'CSV file is empty' }
+                    });
+                    return;
+                }
+                csvHeaders = allRows[0];
+                dataRows = allRows.slice(1);
+            }
+
+            if (csvHeaders.length === 0) {
                 this._postMessage(panel, {
                     event: 'importPreview',
-                    payload: { success: false, error: 'CSV file is empty' }
+                    payload: { success: false, error: 'No columns found in file' }
                 });
                 return;
             }
-
-            // First row as headers
-            const csvHeaders = rows[0];
-            const dataRows = rows.slice(1);
 
             // Get table columns for mapping
             const schemaResult = await this._serverConnectionManager.getTableSchema(
@@ -1098,23 +1126,40 @@ export class GridPanelManager {
         }
 
         try {
-            // Re-read and parse CSV file
+            // Re-read and parse file (CSV or Excel)
             const fileUri = vscode.Uri.file(payload.filePath);
-            const fileContent = await vscode.workspace.fs.readFile(fileUri);
-            const text = new TextDecoder('utf-8').decode(fileContent);
-            const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
-            const rows = this._parseCsv(cleanText);
+            const ext = payload.filePath.toLowerCase().split('.').pop() || '';
 
-            if (rows.length < 2) {
-                this._postMessage(panel, {
-                    event: 'importResult',
-                    payload: { success: false, error: 'No data rows to import' }
-                });
-                return;
+            let csvHeaders: string[];
+            let dataRows: string[][];
+
+            if (ext === 'xlsx' || ext === 'xls') {
+                // Story 9.4: Parse Excel file
+                const parsed = await this._parseExcelFile(fileUri);
+                if (!parsed || parsed.rows.length === 0) {
+                    this._postMessage(panel, {
+                        event: 'importResult',
+                        payload: { success: false, error: 'No data rows to import' }
+                    });
+                    return;
+                }
+                csvHeaders = parsed.headers;
+                dataRows = parsed.rows;
+            } else {
+                const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                const text = new TextDecoder('utf-8').decode(fileContent);
+                const cleanText = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+                const rows = this._parseCsv(cleanText);
+                if (rows.length < 2) {
+                    this._postMessage(panel, {
+                        event: 'importResult',
+                        payload: { success: false, error: 'No data rows to import' }
+                    });
+                    return;
+                }
+                csvHeaders = rows[0];
+                dataRows = rows.slice(1);
             }
-
-            const csvHeaders = rows[0];
-            const dataRows = rows.slice(1);
 
             // Build column mapping arrays
             const mappedCsvIndices: number[] = [];
@@ -1214,6 +1259,68 @@ export class GridPanelManager {
                 event: 'importResult',
                 payload: { success: false, error: 'An unexpected error occurred during import' }
             });
+        }
+    }
+
+    /**
+     * Parse an Excel file using ExcelJS
+     * Story 9.4: Import from Excel
+     */
+    private async _parseExcelFile(uri: vscode.Uri): Promise<{ headers: string[]; rows: string[][] } | null> {
+        try {
+            const fileContent = await vscode.workspace.fs.readFile(uri);
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(fileContent.buffer as ArrayBuffer);
+
+            // Use first worksheet
+            const worksheet = workbook.worksheets[0];
+            if (!worksheet || worksheet.rowCount === 0) {
+                return null;
+            }
+
+            const headers: string[] = [];
+            const rows: string[][] = [];
+
+            worksheet.eachRow((row, rowNumber) => {
+                const values: string[] = [];
+                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    // Ensure array is long enough
+                    while (values.length < colNumber - 1) {
+                        values.push('');
+                    }
+                    // Convert cell value to string
+                    let val = '';
+                    if (cell.value !== null && cell.value !== undefined) {
+                        if (cell.value instanceof Date) {
+                            val = cell.value.toISOString().slice(0, 19).replace('T', ' ');
+                        } else if (typeof cell.value === 'object' && 'result' in cell.value) {
+                            // Formula cell - use the result
+                            val = String(cell.value.result ?? '');
+                        } else if (typeof cell.value === 'object' && 'richText' in cell.value) {
+                            // Rich text - concatenate text parts
+                            val = (cell.value as { richText: Array<{ text: string }> }).richText.map(rt => rt.text).join('');
+                        } else {
+                            val = String(cell.value);
+                        }
+                    }
+                    values.push(val);
+                });
+
+                if (rowNumber === 1) {
+                    headers.push(...values);
+                } else {
+                    // Pad row to match header length
+                    while (values.length < headers.length) {
+                        values.push('');
+                    }
+                    rows.push(values);
+                }
+            });
+
+            return headers.length > 0 ? { headers, rows } : null;
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Excel parse error:`, error);
+            return null;
         }
     }
 
