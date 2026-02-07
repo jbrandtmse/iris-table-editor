@@ -4997,12 +4997,29 @@
             progressEl.id = 'exportProgress';
             progressEl.className = 'ite-export-progress';
             progressEl.innerHTML = `
-                <p class="ite-export-progress__text" id="exportProgressText"></p>
+                <div class="ite-export-progress__header">
+                    <p class="ite-export-progress__text" id="exportProgressText"></p>
+                    <button class="ite-export-progress__cancel" id="exportProgressCancel" title="Cancel operation">
+                        <span class="codicon codicon-close"></span>
+                    </button>
+                </div>
                 <div class="ite-export-progress__bar">
                     <div class="ite-export-progress__fill" id="exportProgressFill"></div>
                 </div>
             `;
             document.body.appendChild(progressEl);
+
+            // Story 9.6: Cancel button handler
+            const cancelBtn = document.getElementById('exportProgressCancel');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    sendCommand('cancelOperation', {});
+                    cancelBtn.disabled = true;
+                    cancelBtn.style.opacity = '0.5';
+                    const textEl = document.getElementById('exportProgressText');
+                    if (textEl) textEl.textContent = 'Cancelling...';
+                });
+            }
         }
 
         const textEl = document.getElementById('exportProgressText');
@@ -5026,6 +5043,16 @@
 
         if (!payload.success && payload.error) {
             showToast(`Import failed: ${payload.error}`, 'error');
+            return;
+        }
+
+        // Story 9.6: Handle cancelled import
+        if (payload.cancelled) {
+            const msg = `Import cancelled. ${payload.successCount.toLocaleString()} rows were imported before cancellation.`;
+            showToast(msg, 'warning');
+            if (payload.successCount > 0) {
+                handleRefresh();
+            }
             return;
         }
 
@@ -5413,12 +5440,29 @@
             progressEl.id = 'exportProgress';
             progressEl.className = 'ite-export-progress';
             progressEl.innerHTML = `
-                <p class="ite-export-progress__text" id="exportProgressText"></p>
+                <div class="ite-export-progress__header">
+                    <p class="ite-export-progress__text" id="exportProgressText"></p>
+                    <button class="ite-export-progress__cancel" id="exportProgressCancel" title="Cancel operation">
+                        <span class="codicon codicon-close"></span>
+                    </button>
+                </div>
                 <div class="ite-export-progress__bar">
                     <div class="ite-export-progress__fill" id="exportProgressFill"></div>
                 </div>
             `;
             document.body.appendChild(progressEl);
+
+            // Story 9.6: Cancel button handler
+            const cancelBtn = document.getElementById('exportProgressCancel');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    sendCommand('cancelOperation', {});
+                    cancelBtn.disabled = true;
+                    cancelBtn.style.opacity = '0.5';
+                    const textEl = document.getElementById('exportProgressText');
+                    if (textEl) textEl.textContent = 'Cancelling...';
+                });
+            }
         }
 
         const textEl = document.getElementById('exportProgressText');

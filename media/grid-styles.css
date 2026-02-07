@@ -475,13 +475,40 @@ body {
     padding: 12px 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     min-width: 280px;
-    text-align: center;
+}
+
+/* Story 9.6: Progress header with cancel button */
+.ite-export-progress__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .ite-export-progress__text {
     margin: 0 0 8px 0;
     font-size: 0.9em;
     color: var(--vscode-foreground);
+}
+
+.ite-export-progress__cancel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin-bottom: 8px;
+    border: none;
+    background: transparent;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.ite-export-progress__cancel:hover {
+    background: var(--vscode-toolbar-hoverBackground);
 }
 
 .ite-export-progress__bar {

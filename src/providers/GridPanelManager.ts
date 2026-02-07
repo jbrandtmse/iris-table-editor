@@ -48,6 +48,8 @@ export class GridPanelManager {
     private _panels: Map<string, vscode.WebviewPanel> = new Map();
     private _panelContexts: Map<string, IGridPanelContext> = new Map();
     private _disposables: vscode.Disposable[] = [];
+    /** Story 9.6: Track cancelled operations per panel */
+    private _cancelledOperations: Set<string> = new Set();
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -299,6 +301,11 @@ export class GridPanelManager {
             case 'exportAllExcel': {
                 const excelAllPayload = message.payload as { filters?: IFilterCriterion[]; sortColumn?: string; sortDirection?: SortDirection; filtered?: boolean };
                 await this._handleExportAllExcel(panelKey, excelAllPayload);
+                break;
+            }
+            // Story 9.6: Cancel a running operation
+            case 'cancelOperation': {
+                this._cancelledOperations.add(panelKey);
                 break;
             }
         }
@@ -600,6 +607,9 @@ export class GridPanelManager {
         });
 
         try {
+            // Story 9.6: Clear any previous cancellation
+            this._cancelledOperations.delete(panelKey);
+
             // Get schema for column headers
             const schemaResult = await this._serverConnectionManager.getTableSchema(
                 context.namespace,
@@ -635,6 +645,15 @@ export class GridPanelManager {
             let isFirstChunk = true;
 
             while (true) {
+                // Story 9.6: Check for cancellation
+                if (this._cancelledOperations.has(panelKey)) {
+                    this._cancelledOperations.delete(panelKey);
+                    this._postMessage(panel, {
+                        event: 'exportResult',
+                        payload: { success: false, error: `Export cancelled after ${fetchedRows.toLocaleString()} rows` }
+                    });
+                    return;
+                }
                 const dataResult = await this._serverConnectionManager.getTableData(
                     context.namespace,
                     context.tableName,
@@ -801,6 +820,9 @@ export class GridPanelManager {
         });
 
         try {
+            // Story 9.6: Clear any previous cancellation
+            this._cancelledOperations.delete(panelKey);
+
             // Get schema
             const schemaResult = await this._serverConnectionManager.getTableSchema(
                 context.namespace,
@@ -828,6 +850,16 @@ export class GridPanelManager {
             let isFirstChunk = true;
 
             while (true) {
+                // Story 9.6: Check for cancellation
+                if (this._cancelledOperations.has(panelKey)) {
+                    this._cancelledOperations.delete(panelKey);
+                    this._postMessage(panel, {
+                        event: 'exportResult',
+                        payload: { success: false, error: `Export cancelled after fetching ${allRows.length.toLocaleString()} rows` }
+                    });
+                    return;
+                }
+
                 const dataResult = await this._serverConnectionManager.getTableData(
                     context.namespace,
                     context.tableName,
@@ -1322,6 +1354,9 @@ export class GridPanelManager {
         }
 
         try {
+            // Story 9.6: Clear any previous cancellation
+            this._cancelledOperations.delete(panelKey);
+
             // Re-read and parse file (CSV or Excel)
             const fileUri = vscode.Uri.file(payload.filePath);
             const ext = payload.filePath.toLowerCase().split('.').pop() || '';
@@ -1395,6 +1430,26 @@ export class GridPanelManager {
                 if (invalidRowSet.has(rowNumber)) {
                     skippedCount++;
                     continue;
+                }
+
+                // Story 9.6: Check for cancellation
+                if (this._cancelledOperations.has(panelKey)) {
+                    this._cancelledOperations.delete(panelKey);
+                    this._postMessage(panel, {
+                        event: 'importResult',
+                        payload: {
+                            success: true,
+                            successCount,
+                            failCount,
+                            totalRows: dataRows.length,
+                            cancelled: true,
+                            errors: errors.slice(0, 50)
+                        }
+                    });
+                    vscode.window.showInformationMessage(
+                        `Import cancelled. ${successCount.toLocaleString()} rows were imported before cancellation.`
+                    );
+                    return;
                 }
 
                 const row = dataRows[i];
