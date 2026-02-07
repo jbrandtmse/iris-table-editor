@@ -642,70 +642,83 @@
     function renderSchemaTree(tables, selectedTable, namespace, expandedSchema) {
         const { schemas, singleTableSchemas } = parseTablesBySchema(tables);
 
+        // Build a unified list of items (folders and standalone tables) for alphabetical sorting
+        const allItems = [];
+
+        singleTableSchemas.forEach(fullName => {
+            allItems.push({ type: 'table', name: fullName, fullName });
+        });
+
+        schemas.forEach(schema => {
+            allItems.push({ type: 'folder', name: schema.name, schema });
+        });
+
+        // Sort all items alphabetically by name (case-insensitive)
+        allItems.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+
         let treeItems = '';
         let itemIndex = 0;
 
-        // Render single-table schemas at root level (AC #4)
-        singleTableSchemas.forEach(fullName => {
-            const isSelected = fullName === selectedTable;
-            const selectedClass = isSelected ? 'ite-schema-tree__table--selected' : '';
-            treeItems += `
-                <div class="ite-schema-tree__table ite-schema-tree__table--root ${selectedClass}"
-                     data-table="${escapeAttr(fullName)}"
-                     data-namespace="${escapeAttr(namespace)}"
-                     data-index="${itemIndex}"
-                     tabindex="0"
-                     role="treeitem"
-                     aria-selected="${isSelected}">
-                    <span class="ite-schema-tree__table-icon codicon codicon-table"></span>
-                    <span class="ite-schema-tree__table-name">${escapeHtml(fullName)}</span>
-                </div>
-            `;
-            itemIndex++;
-        });
+        allItems.forEach(item => {
+            if (item.type === 'table') {
+                const isSelected = item.fullName === selectedTable;
+                const selectedClass = isSelected ? 'ite-schema-tree__table--selected' : '';
+                treeItems += `
+                    <div class="ite-schema-tree__table ite-schema-tree__table--root ${selectedClass}"
+                         data-table="${escapeAttr(item.fullName)}"
+                         data-namespace="${escapeAttr(namespace)}"
+                         data-index="${itemIndex}"
+                         tabindex="0"
+                         role="treeitem"
+                         aria-selected="${isSelected}">
+                        <span class="ite-schema-tree__table-icon codicon codicon-table"></span>
+                        <span class="ite-schema-tree__table-name">${escapeHtml(item.fullName)}</span>
+                    </div>
+                `;
+                itemIndex++;
+            } else {
+                const schema = item.schema;
+                const isExpanded = schema.name === expandedSchema;
+                const expandedClass = isExpanded ? 'ite-schema-tree__schema--expanded' : '';
+                const chevronClass = isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
 
-        // Render multi-table schemas as collapsible folders
-        schemas.forEach(schema => {
-            const isExpanded = schema.name === expandedSchema;
-            const expandedClass = isExpanded ? 'ite-schema-tree__schema--expanded' : '';
-            const chevronClass = isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
+                treeItems += `
+                    <div class="ite-schema-tree__schema ${expandedClass}"
+                         data-schema="${escapeAttr(schema.name)}"
+                         data-index="${itemIndex}"
+                         tabindex="0"
+                         role="treeitem"
+                         aria-expanded="${isExpanded}">
+                        <span class="ite-schema-tree__schema-chevron codicon ${chevronClass}"></span>
+                        <span class="ite-schema-tree__schema-icon codicon codicon-folder${isExpanded ? '-opened' : ''}"></span>
+                        <span class="ite-schema-tree__schema-name">${escapeHtml(schema.name)}</span>
+                        <span class="ite-schema-tree__schema-count">${schema.count}</span>
+                    </div>
+                `;
+                itemIndex++;
 
-            treeItems += `
-                <div class="ite-schema-tree__schema ${expandedClass}"
-                     data-schema="${escapeAttr(schema.name)}"
-                     data-index="${itemIndex}"
-                     tabindex="0"
-                     role="treeitem"
-                     aria-expanded="${isExpanded}">
-                    <span class="ite-schema-tree__schema-chevron codicon ${chevronClass}"></span>
-                    <span class="ite-schema-tree__schema-icon codicon codicon-folder${isExpanded ? '-opened' : ''}"></span>
-                    <span class="ite-schema-tree__schema-name">${escapeHtml(schema.name)}</span>
-                    <span class="ite-schema-tree__schema-count">${schema.count}</span>
-                </div>
-            `;
-            itemIndex++;
-
-            // Render nested tables if schema is expanded
-            if (isExpanded) {
-                schema.tables.forEach(table => {
-                    const isSelected = table.fullName === selectedTable;
-                    const selectedClass = isSelected ? 'ite-schema-tree__table--selected' : '';
-                    treeItems += `
-                        <div class="ite-schema-tree__table ite-schema-tree__table--nested ${selectedClass}"
-                             data-table="${escapeAttr(table.fullName)}"
-                             data-namespace="${escapeAttr(namespace)}"
-                             data-schema="${escapeAttr(schema.name)}"
-                             data-index="${itemIndex}"
-                             tabindex="0"
-                             role="treeitem"
-                             aria-selected="${isSelected}"
-                             aria-level="2">
-                            <span class="ite-schema-tree__table-icon codicon codicon-table"></span>
-                            <span class="ite-schema-tree__table-name">${escapeHtml(table.tableName)}</span>
-                        </div>
-                    `;
-                    itemIndex++;
-                });
+                // Render nested tables if schema is expanded
+                if (isExpanded) {
+                    schema.tables.forEach(table => {
+                        const isSelected = table.fullName === selectedTable;
+                        const selectedClass = isSelected ? 'ite-schema-tree__table--selected' : '';
+                        treeItems += `
+                            <div class="ite-schema-tree__table ite-schema-tree__table--nested ${selectedClass}"
+                                 data-table="${escapeAttr(table.fullName)}"
+                                 data-namespace="${escapeAttr(namespace)}"
+                                 data-schema="${escapeAttr(schema.name)}"
+                                 data-index="${itemIndex}"
+                                 tabindex="0"
+                                 role="treeitem"
+                                 aria-selected="${isSelected}"
+                                 aria-level="2">
+                                <span class="ite-schema-tree__table-icon codicon codicon-table"></span>
+                                <span class="ite-schema-tree__table-name">${escapeHtml(table.tableName)}</span>
+                            </div>
+                        `;
+                        itemIndex++;
+                    });
+                }
             }
         });
 
@@ -966,6 +979,11 @@
      */
     function toggleSchema(schemaName) {
         const currentExpanded = appState.state.expandedSchema;
+
+        // Save scroll position before re-render
+        const tree = document.querySelector('.ite-schema-tree');
+        const savedScroll = tree ? tree.scrollTop : 0;
+
         if (currentExpanded === schemaName) {
             // Collapse if already expanded
             appState.update({ expandedSchema: null });
@@ -975,6 +993,21 @@
             appState.update({ expandedSchema: schemaName });
             announce(`Expanded schema ${schemaName}`);
         }
+
+        // Restore scroll and ensure the toggled folder is visible
+        requestAnimationFrame(() => {
+            const newTree = document.querySelector('.ite-schema-tree');
+            if (!newTree) return;
+
+            // Restore previous scroll position first
+            newTree.scrollTop = savedScroll;
+
+            // Scroll the toggled schema folder into view if needed
+            const schemaEl = newTree.querySelector(`.ite-schema-tree__schema[data-schema="${schemaName}"]`);
+            if (schemaEl) {
+                schemaEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        });
     }
 
     /**
