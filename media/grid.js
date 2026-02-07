@@ -61,6 +61,8 @@
             this.sortDirection = null;
             /** @type {number} - Column width in pixels for data columns */
             this.columnWidth = 150;
+            /** @type {number | null} - Filter column index to restore focus to after refresh */
+            this.pendingFilterFocus = null;
         }
 
         /**
@@ -3784,8 +3786,21 @@
                 });
 
                 // Apply filter on blur (when tabbing out or clicking away)
-                input.addEventListener('blur', () => {
+                input.addEventListener('blur', (e) => {
                     console.debug(`${LOG_PREFIX} Filter blur fired for ${col.name}, value: "${input.value}"`);
+
+                    // Check if focus is moving to another filter input
+                    // If so, save the target filter index to restore after refresh
+                    const relatedTarget = e.relatedTarget;
+                    if (relatedTarget && relatedTarget.classList.contains('ite-grid__filter-input')) {
+                        const targetColumn = relatedTarget.getAttribute('data-column');
+                        const targetIndex = state.columns.findIndex(c => c.name === targetColumn);
+                        if (targetIndex >= 0) {
+                            state.pendingFilterFocus = targetIndex;
+                            console.debug(`${LOG_PREFIX} Will restore focus to filter ${targetIndex} after refresh`);
+                        }
+                    }
+
                     applyFilter(col.name, input.value);
                 });
 
@@ -4711,6 +4726,16 @@
         // Story 5.1: Update delete button state after clearing selection
         updateDeleteButtonState();
         saveState(); // Persist immediately after data update
+
+        // Restore focus to filter input if we were tabbing between filters
+        if (state.pendingFilterFocus !== null) {
+            const filterIndex = state.pendingFilterFocus;
+            state.pendingFilterFocus = null;
+            // Small delay to ensure DOM is updated
+            setTimeout(() => {
+                focusColumnFilter(filterIndex);
+            }, 10);
+        }
     }
 
     /**
