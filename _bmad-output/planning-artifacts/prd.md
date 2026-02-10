@@ -359,6 +359,7 @@ IRIS Table Editor is a **VS Code Extension** providing visual database editing c
 - **FR2**: User can select an IRIS server to connect to
 - **FR3**: User can authenticate with the selected server using Server Manager credentials
 - **FR4**: User can see the current connection status (connected/disconnected)
+- **FR4a**: Connection attempts must timeout after a configurable period (default: 30 seconds) and display a cancel option during the attempt. On timeout, the user is presented with "Retry" and "Select Different Server" options.
 - **FR5**: User can disconnect from the current server
 
 ### Table Navigation
@@ -445,5 +446,5 @@ IRIS Table Editor is a **VS Code Extension** providing visual database editing c
 - **NFR15**: Failed operations display clear, actionable error messages
 - **NFR16**: Partial failures do not corrupt data or leave UI in inconsistent state
 - **NFR17**: Network disconnection is detected and reported to user
-- **NFR18**: Extension recovers gracefully from server connection loss
+- **NFR18**: Extension recovers gracefully from server connection loss, including when re-entering the extension with a previously selected server that is no longer available. Connection attempts must be cancellable and time-bounded.
 

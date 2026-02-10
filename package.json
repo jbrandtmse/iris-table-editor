@@ -43,7 +43,26 @@
         "command": "iris-table-editor.openTableEditor",
         "title": "IRIS Table Editor: Open Table Editor"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "IRIS Table Editor",
+      "properties": {
+        "iris-table-editor.connectionTimeout": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Connection timeout in seconds. How long to wait when testing a server connection before giving up."
+        },
+        "iris-table-editor.apiTimeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "description": "API operation timeout in seconds. How long to wait for query, update, insert, and delete operations."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

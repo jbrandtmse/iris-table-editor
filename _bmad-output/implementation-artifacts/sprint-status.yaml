@@ -39,13 +39,14 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Extension Foundation & Server Connection
-  epic-1: done
+  epic-1: done  # Completed - includes hotfix Story 1.7
   1-1-project-initialization: done
   1-2-extension-shell-with-sidebar-view: done
   1-3-server-manager-integration: done
   1-4-server-authentication-connection-status: done
   1-5-namespace-browsing: done
   1-6-table-browsing: done
+  1-7-connection-timeout-cancel: done  # HOTFIX - Sprint Change Proposal 2026-02-09
   epic-1-retrospective: optional
 
   # Epic 2: Table Data Display

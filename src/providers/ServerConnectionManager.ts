@@ -37,6 +37,7 @@ export class ServerConnectionManager {
     private _credentials: ICredentials | null = null;
     private _atelierApiService: AtelierApiService;
     private _schemaCache: Map<string, ISchemaCacheEntry> = new Map();
+    private _connectionAbortController: AbortController | null = null;
     private static readonly SCHEMA_CACHE_TTL_MS = 3600000; // 1 hour TTL
 
     constructor() {
@@ -229,13 +230,25 @@ export class ServerConnectionManager {
             };
         }
 
+        // Read timeout settings from VS Code configuration
+        const config = vscode.workspace.getConfiguration('iris-table-editor');
+        const connectionTimeoutSec = config.get<number>('connectionTimeout', 10);
+        const apiTimeoutSec = config.get<number>('apiTimeout', 30);
+
+        // Set connection timeout for testConnection
+        this._atelierApiService.setTimeout(connectionTimeoutSec * 1000);
+
+        // Create abort controller for external cancellation
+        this._connectionAbortController = new AbortController();
+
         try {
-            // 3. Test connection with Atelier API
-            console.debug(`${LOG_PREFIX} Testing connection with username: ${credentials.username}`);
+            // 3. Test connection with Atelier API (with external cancel signal)
+            console.debug(`${LOG_PREFIX} Testing connection with username: ${credentials.username} (timeout: ${connectionTimeoutSec}s)`);
             const testResult = await this._atelierApiService.testConnection(
                 spec,
                 credentials.username,
-                credentials.password
+                credentials.password,
+                this._connectionAbortController.signal
             );
 
             if (!testResult.success) {
@@ -261,6 +274,22 @@ export class ServerConnectionManager {
                     context: 'connect'
                 }
             };
+        } finally {
+            this._connectionAbortController = null;
+            // Ensure API timeout is restored even on failure
+            this._atelierApiService.setTimeout(apiTimeoutSec * 1000);
+        }
+    }
+
+    /**
+     * Cancel an in-progress connection attempt
+     * Story 1.7: User-initiated connection cancellation
+     */
+    public cancelConnection(): void {
+        if (this._connectionAbortController) {
+            console.debug(`${LOG_PREFIX} Cancelling connection attempt`);
+            this._connectionAbortController.abort();
+            this._connectionAbortController = null;
         }
     }
 

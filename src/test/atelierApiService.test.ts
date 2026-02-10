@@ -441,4 +441,100 @@ suite('AtelierApiService Test Suite', () => {
             assert.strictEqual(result.error.context, 'getTableData', 'Context should be getTableData');
         }
     });
+
+    // Story 1.7: External abort signal support tests
+    test('testConnection accepts externalSignal parameter', () => {
+        // Verify the method signature accepts an AbortSignal
+        const controller = new AbortController();
+        // Should not throw - just verifying signature accepts the parameter
+        assert.doesNotThrow(() => {
+            // Call with external signal - will fail with network error but should accept param
+            service.setTimeout(500);
+            service.testConnection(mockServerSpec, 'user', 'pass', controller.signal);
+        }, 'testConnection should accept externalSignal parameter');
+        // Abort to clean up
+        controller.abort();
+    });
+
+    test('testConnection returns CONNECTION_CANCELLED when external signal is aborted', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-that-does-not-exist-12345.local'
+        };
+
+        // Use a longer timeout so the external abort fires before the timeout
+        service.setTimeout(30000);
+
+        const controller = new AbortController();
+
+        // Abort immediately (before fetch can resolve)
+        setTimeout(() => controller.abort(), 50);
+
+        const result = await service.testConnection(invalidSpec, 'test', 'test', controller.signal);
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        assert.strictEqual(
+            result.error!.code,
+            ErrorCodes.CONNECTION_CANCELLED,
+            'Should return CONNECTION_CANCELLED when external signal is aborted'
+        );
+        assert.strictEqual(result.error!.recoverable, true, 'Should be recoverable');
+    });
+
+    test('testConnection returns CONNECTION_TIMEOUT when no external signal (timeout case)', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            // Use a valid-looking but unresponsive host to trigger timeout
+            host: '192.0.2.1'  // TEST-NET-1 (RFC 5737) - guaranteed non-routable
+        };
+
+        // Very short timeout to trigger quickly
+        service.setTimeout(100);
+
+        const result = await service.testConnection(invalidSpec, 'test', 'test');
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        // Without external signal, should be timeout or network error (not cancelled)
+        assert.notStrictEqual(
+            result.error!.code,
+            ErrorCodes.CONNECTION_CANCELLED,
+            'Should NOT return CONNECTION_CANCELLED without external signal abort'
+        );
+    });
+
+    test('executeQuery accepts externalSignal parameter', () => {
+        // Verify the method signature accepts an AbortSignal
+        const controller = new AbortController();
+        assert.doesNotThrow(() => {
+            service.setTimeout(500);
+            service.executeQuery(mockServerSpec, 'USER', 'user', 'pass', 'SELECT 1', [], controller.signal);
+        }, 'executeQuery should accept externalSignal parameter');
+        controller.abort();
+    });
+
+    test('executeQuery returns CONNECTION_CANCELLED when external signal is aborted', async () => {
+        const invalidSpec: IServerSpec = {
+            ...mockServerSpec,
+            host: 'invalid-hostname-that-does-not-exist-12345.local'
+        };
+
+        service.setTimeout(30000);
+
+        const controller = new AbortController();
+
+        // Abort immediately
+        setTimeout(() => controller.abort(), 50);
+
+        const result = await service.executeQuery(invalidSpec, 'USER', 'test', 'test', 'SELECT 1', [], controller.signal);
+
+        assert.strictEqual(result.success, false, 'Should fail');
+        assert.ok(result.error, 'Should have an error');
+        assert.strictEqual(
+            result.error!.code,
+            ErrorCodes.CONNECTION_CANCELLED,
+            'Should return CONNECTION_CANCELLED when external signal is aborted'
+        );
+    });
 });

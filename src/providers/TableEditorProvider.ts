@@ -9,6 +9,7 @@ import {
     ISelectServerPayload,
     IConnectionStatusPayload,
     IConnectionErrorPayload,
+    IConnectionProgressPayload,
     ISelectNamespacePayload,
     INamespaceListPayload,
     INamespaceSelectedPayload,
@@ -119,6 +120,9 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
             case 'openTable':
                 await this._handleOpenTable(message.payload as IOpenTablePayload);
                 break;
+            case 'cancelConnection':
+                this._handleCancelConnection();
+                break;
         }
     }
 
@@ -129,12 +133,30 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     private async _handleSelectServer(serverName: string): Promise<void> {
         console.debug(`${LOG_PREFIX} Connecting to server: ${serverName}`);
 
+        // Post connecting progress event
+        this._postMessage({
+            event: 'connectionProgress',
+            payload: {
+                status: 'connecting',
+                serverName
+            } as IConnectionProgressPayload
+        });
+
         const result = await this._serverConnectionManager.connect(serverName);
 
         if (result.success) {
             this._isConnected = true;
             this._connectedServer = serverName;
             this._selectedNamespace = null; // Reset namespace selection on new connection
+
+            // Post connected progress event
+            this._postMessage({
+                event: 'connectionProgress',
+                payload: {
+                    status: 'connected',
+                    serverName
+                } as IConnectionProgressPayload
+            });
 
             this._postMessage({
                 event: 'connectionStatus',
@@ -147,18 +169,57 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
             // Auto-fetch namespaces after successful connection
             await this._handleGetNamespaces();
         } else {
-            // Connection failed
+            const errorCode = result.error?.code || 'UNKNOWN_ERROR';
+
+            // Determine connection progress status based on error code
+            if (errorCode === 'CONNECTION_CANCELLED') {
+                this._postMessage({
+                    event: 'connectionProgress',
+                    payload: {
+                        status: 'cancelled',
+                        serverName
+                    } as IConnectionProgressPayload
+                });
+            } else if (errorCode === 'CONNECTION_TIMEOUT') {
+                this._postMessage({
+                    event: 'connectionProgress',
+                    payload: {
+                        status: 'timeout',
+                        serverName,
+                        message: result.error?.message
+                    } as IConnectionProgressPayload
+                });
+            } else {
+                this._postMessage({
+                    event: 'connectionProgress',
+                    payload: {
+                        status: 'error',
+                        serverName,
+                        message: result.error?.message
+                    } as IConnectionProgressPayload
+                });
+            }
+
+            // Also post the legacy connectionError for backwards compatibility
             this._postMessage({
                 event: 'connectionError',
                 payload: {
                     serverName: serverName,
                     message: result.error?.message || 'Connection failed',
-                    code: result.error?.code || 'UNKNOWN_ERROR',
+                    code: errorCode,
                     recoverable: result.error?.recoverable ?? true,
                     context: result.error?.context || 'connect'
                 } as IConnectionErrorPayload
             });
         }
+    }
+
+    /**
+     * Handle cancel connection command (Story 1.7)
+     */
+    private _handleCancelConnection(): void {
+        console.debug(`${LOG_PREFIX} Cancel connection requested`);
+        this._serverConnectionManager.cancelConnection();
     }
 
     /**

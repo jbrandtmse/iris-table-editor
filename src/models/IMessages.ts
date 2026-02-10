@@ -147,6 +147,21 @@ export interface IOpenTablePayload {
 }
 
 /**
+ * Payload for cancelConnection command (Story 1.7)
+ */
+export type ICancelConnectionPayload = IEmptyPayload;
+
+/**
+ * Payload for connectionProgress event (Story 1.7)
+ * Reports connection lifecycle updates to the webview
+ */
+export interface IConnectionProgressPayload {
+    status: 'connecting' | 'connected' | 'timeout' | 'cancelled' | 'error';
+    serverName: string;
+    message?: string;
+}
+
+/**
  * Payload for tableSchema event (extension to grid webview)
  */
 export interface ITableSchemaPayload {
@@ -316,7 +331,8 @@ export type ServerCommand =
     | { command: 'selectNamespace'; payload: ISelectNamespacePayload }
     | { command: 'getTables'; payload: IGetTablesPayload }
     | { command: 'selectTable'; payload: ISelectTablePayload }
-    | { command: 'openTable'; payload: IOpenTablePayload };
+    | { command: 'openTable'; payload: IOpenTablePayload }
+    | { command: 'cancelConnection'; payload: ICancelConnectionPayload };
 
 /**
  * Grid-related commands sent from grid webview to extension
@@ -343,6 +359,7 @@ export type ServerEvent =
     | { event: 'noServersConfigured'; payload: IEmptyPayload }
     | { event: 'connectionStatus'; payload: IConnectionStatusPayload }
     | { event: 'connectionError'; payload: IConnectionErrorPayload }
+    | { event: 'connectionProgress'; payload: IConnectionProgressPayload }
     | { event: 'namespaceList'; payload: INamespaceListPayload }
     | { event: 'namespaceSelected'; payload: INamespaceSelectedPayload }
     | { event: 'tableList'; payload: ITableListPayload }

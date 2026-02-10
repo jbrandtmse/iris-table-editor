@@ -145,16 +145,56 @@ npx --package yo --package generator-code -- yo code
 | Aspect | Decision |
 |--------|----------|
 | Technology | Node.js native `fetch` |
-| Rationale | Zero dependencies, built-in to Node 20+, sufficient for REST API |
+| Timeout | All fetch calls use `AbortController` with configurable timeout (default 30s) |
+| Cancellation | External callers can pass `AbortSignal` to cancel in-flight requests (e.g., cancel connection) |
+| Rationale | Zero dependencies, built-in to Node 20+, sufficient for REST API. AbortController is native to Node 20+ and integrates with fetch signal option. |
 | Affects | AtelierApiService |
+
+**Timeout/Cancellation Pattern (Story 1.7):**
+
+```typescript
+// Centralized fetch wrapper in AtelierApiService
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = 30000,
+  externalSignal?: AbortSignal
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  // If external signal aborts (e.g., user clicks Cancel), abort our controller too
+  const onExternalAbort = () => controller.abort();
+  externalSignal?.addEventListener('abort', onExternalAbort);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      if (externalSignal?.aborted) {
+        throw new Error('CONNECTION_CANCELLED');
+      }
+      throw new Error('CONNECTION_TIMEOUT');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', onExternalAbort);
+  }
+}
+```
 
 ### Extension-Webview Communication
 
 | Aspect | Decision |
 |--------|----------|
 | Pattern | Command/Event |
-| Commands (webview→extension) | selectServer, loadTables, selectTable, updateRow, insertRow, deleteRow, refreshData |
-| Events (extension→webview) | serverList, tableList, tableData, tableSchema, operationSuccess, error |
+| Commands (webview→extension) | selectServer, loadTables, selectTable, updateRow, insertRow, deleteRow, refreshData, cancelConnection |
+| Events (extension→webview) | serverList, tableList, tableData, tableSchema, operationSuccess, error, connectionProgress |
 | Type Safety | TypeScript interfaces for all message types |
 | Rationale | Clear directionality, matches PRD terminology, intuitive for implementation |
 
@@ -522,6 +562,15 @@ interface IErrorPayload {
   recoverable: boolean;
   context: string;
 }
+
+// Connection lifecycle types (Story 1.7)
+interface ICancelConnectionPayload {} // Empty - cancels current attempt
+
+interface IConnectionProgressPayload {
+  status: 'connecting' | 'connected' | 'timeout' | 'cancelled' | 'error';
+  serverName: string;
+  message?: string; // User-facing status text
+}
 ```
 
 **Error Response Format:**
@@ -550,6 +599,7 @@ const ErrorCodes = {
   // Connection errors
   CONNECTION_FAILED: 'CONNECTION_FAILED',
   CONNECTION_TIMEOUT: 'CONNECTION_TIMEOUT',
+  CONNECTION_CANCELLED: 'CONNECTION_CANCELLED',
   SERVER_UNREACHABLE: 'SERVER_UNREACHABLE',
 
   // Authentication errors
@@ -912,6 +962,7 @@ class AppState {
       pendingEdits: new Map(),
       isLoading: false,
       loadingContext: null,
+      connectionCancellable: false, // True when connecting, enables Cancel button
       error: null
     };
     this._listeners = [];

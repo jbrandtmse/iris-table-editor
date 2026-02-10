@@ -61,7 +61,7 @@
                 serversConfigured: true,
 
                 // Connection state (Story 1.4)
-                connectionState: initialState.connectionState || 'disconnected', // 'disconnected' | 'connecting' | 'connected'
+                connectionState: initialState.connectionState || 'disconnected', // 'disconnected' | 'connecting' | 'connected' | 'timeout'
                 connectedServer: initialState.connectedServer || null,
 
                 // Namespace state (Story 1.5)
@@ -77,7 +77,12 @@
                 tableError: null,
 
                 // Schema tree state (Story 6.1)
-                expandedSchema: initialState.expandedSchema || null
+                expandedSchema: initialState.expandedSchema || null,
+
+                // Connection timeout state (Story 1.7)
+                connectionCancellable: false,
+                connectionTimeoutServer: null,
+                connectionTimeoutMessage: null
             };
             this._listeners = [];
         }
@@ -156,6 +161,10 @@
 
             case 'connectionStatus':
                 handleConnectionStatus(message.payload);
+                break;
+
+            case 'connectionProgress':
+                handleConnectionProgress(message.payload);
                 break;
 
             case 'connectionError':
@@ -368,10 +377,79 @@
     }
 
     /**
+     * Handle connection progress event (Story 1.7)
+     * @param {object} payload - Connection progress payload
+     */
+    function handleConnectionProgress(payload) {
+        switch (payload.status) {
+            case 'connecting':
+                appState.update({
+                    connectionState: 'connecting',
+                    connectionCancellable: true,
+                    connectionTimeoutServer: null,
+                    connectionTimeoutMessage: null,
+                    isLoading: true,
+                    loadingContext: 'connecting',
+                    error: null
+                });
+                announce(`Connecting to ${payload.serverName}...`);
+                break;
+
+            case 'connected':
+                appState.update({
+                    connectionCancellable: false,
+                    connectionTimeoutServer: null,
+                    connectionTimeoutMessage: null
+                });
+                // connectionStatus event handles the rest
+                break;
+
+            case 'timeout':
+                appState.update({
+                    connectionState: 'timeout',
+                    connectionCancellable: false,
+                    connectionTimeoutServer: payload.serverName,
+                    connectionTimeoutMessage: payload.message || 'The server may be offline or slow.',
+                    isLoading: false,
+                    error: null
+                });
+                announce(`Could not reach ${payload.serverName}. The server may be offline.`);
+                break;
+
+            case 'cancelled':
+                appState.update({
+                    connectionState: 'disconnected',
+                    connectionCancellable: false,
+                    connectionTimeoutServer: null,
+                    connectionTimeoutMessage: null,
+                    isLoading: false,
+                    error: null
+                });
+                announce('Connection cancelled');
+                break;
+
+            case 'error':
+                appState.update({
+                    connectionCancellable: false,
+                    connectionTimeoutServer: null,
+                    connectionTimeoutMessage: null
+                });
+                // connectionError event handles the rest
+                break;
+        }
+    }
+
+    /**
      * Handle connection error event
      * @param {object} payload - Connection error payload
      */
     function handleConnectionError(payload) {
+        // Skip if already handled by connectionProgress (timeout/cancelled)
+        if (appState.state.connectionState === 'timeout' ||
+            payload.code === 'CONNECTION_CANCELLED') {
+            return;
+        }
+
         appState.update({
             connectionState: 'disconnected',
             isLoading: false,
@@ -399,10 +477,11 @@
      * @param {string} serverName - Selected server name
      */
     function selectServer(serverName) {
-        // Show connecting state
+        // Show connecting state with cancel button
         appState.update({
             selectedServer: serverName,
             connectionState: 'connecting',
+            connectionCancellable: true,
             isLoading: true,
             loadingContext: 'connecting',
             error: null
@@ -425,9 +504,15 @@
     function render(state) {
         const container = document.querySelector('.ite-container');
 
+        // Show connection timeout error state (Story 1.7)
+        if (state.connectionState === 'timeout' && state.connectionTimeoutServer) {
+            container.innerHTML = renderConnectionTimeout(state.connectionTimeoutServer, state.connectionTimeoutMessage);
+            return;
+        }
+
         // Show connecting state
         if (state.connectionState === 'connecting' || (state.isLoading && state.loadingContext === 'connecting')) {
-            container.innerHTML = renderConnecting(state.selectedServer);
+            container.innerHTML = renderConnecting(state.selectedServer, state.connectionCancellable);
             return;
         }
 
@@ -492,14 +577,51 @@
     /**
      * Render connecting state
      * @param {string} serverName - Server being connected to
+     * @param {boolean} cancellable - Whether the cancel button should be shown
      * @returns {string} HTML string
      */
-    function renderConnecting(serverName) {
+    function renderConnecting(serverName, cancellable) {
         const safeName = escapeHtml(serverName || 'server');
+        const cancelButton = cancellable
+            ? `<button class="ite-button ite-button--secondary ite-connecting__cancel"
+                        id="cancelConnectionBtn"
+                        aria-label="Cancel connection attempt">
+                    Cancel
+                </button>`
+            : '';
         return `
-            <div class="ite-loading">
-                <div class="ite-loading__spinner"></div>
-                <p class="ite-loading__text">Connecting to ${safeName}...</p>
+            <div class="ite-connecting">
+                <p class="ite-connecting__message">Connecting to ${safeName}...</p>
+                <div class="ite-connecting__progress" aria-label="Connecting to server">
+                    <div class="ite-loading__spinner"></div>
+                </div>
+                ${cancelButton}
+            </div>
+        `;
+    }
+
+    /**
+     * Render connection timeout error state (Story 1.7)
+     * @param {string} serverName - Server that timed out
+     * @param {string} message - Error message
+     * @returns {string} HTML string
+     */
+    function renderConnectionTimeout(serverName, message) {
+        const safeName = escapeHtml(serverName || 'server');
+        const safeMessage = escapeHtml(message || 'The server may be offline or slow.');
+        return `
+            <div class="ite-connection-error" role="alert">
+                <h3 class="ite-connection-error__title">Could not reach "${safeName}"</h3>
+                <p class="ite-connection-error__message">${safeMessage}</p>
+                <div class="ite-connection-error__actions">
+                    <button class="ite-button ite-button--primary" id="retryConnectionBtn">
+                        <span class="codicon codicon-refresh"></span>
+                        Retry
+                    </button>
+                    <button class="ite-button ite-button--secondary" id="selectDifferentServerBtn">
+                        Select Different Server
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -1170,6 +1292,32 @@
                 postCommand('openServerManager');
                 return;
             }
+            // Story 1.7: Cancel connection button
+            if (target.closest('#cancelConnectionBtn')) {
+                postCommand('cancelConnection');
+                return;
+            }
+            // Story 1.7: Retry connection after timeout
+            if (target.closest('#retryConnectionBtn')) {
+                const serverName = appState.state.connectionTimeoutServer || appState.state.selectedServer;
+                if (serverName) {
+                    selectServer(serverName);
+                }
+                return;
+            }
+            // Story 1.7: Select different server after timeout
+            if (target.closest('#selectDifferentServerBtn')) {
+                appState.update({
+                    connectionState: 'disconnected',
+                    connectionTimeoutServer: null,
+                    connectionTimeoutMessage: null,
+                    isLoading: true,
+                    loadingContext: 'loadingServers',
+                    error: null
+                });
+                postCommand('getServerList');
+                return;
+            }
         });
 
         // Keyboard navigation delegation
@@ -1357,12 +1505,14 @@
     // Request server list on load
     // Even if we were previously "connected", we need to reconnect because
     // the extension doesn't persist credentials across reloads
-    if (previousState.connectionState === 'connected' && previousState.connectedServer) {
-        // We had a previous connection - try to reconnect automatically
+    // Story 1.7: Also reconnect if previously connecting or timed out
+    if ((previousState.connectionState === 'connected' || previousState.connectionState === 'connecting') && previousState.connectedServer) {
+        // We had a previous connection - try to reconnect automatically with timeout/cancel flow
         console.debug(`${LOG_PREFIX} Webview initialized, reconnecting to ${previousState.connectedServer}`);
         appState.update({
             selectedServer: previousState.connectedServer,
             connectionState: 'connecting',
+            connectionCancellable: true,
             isLoading: true,
             loadingContext: 'connecting',
             // Preserve previous selections for restoration after reconnect

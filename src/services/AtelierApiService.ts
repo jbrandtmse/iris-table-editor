@@ -54,7 +54,7 @@ const VALID_SQL_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_%$.]*$/;
  * Service for communicating with InterSystems Atelier REST API
  */
 export class AtelierApiService {
-    private _timeout = 10000; // 10 second timeout
+    private _timeout = 30000; // 30 second default (matches iris-table-editor.apiTimeout setting)
 
     /**
      * Validate and escape a SQL identifier (table name, column name)
@@ -236,7 +236,8 @@ export class AtelierApiService {
     public async testConnection(
         spec: IServerSpec,
         username: string,
-        password: string
+        password: string,
+        externalSignal?: AbortSignal
     ): Promise<{ success: boolean; error?: IUserError }> {
         // Use root Atelier endpoint - doesn't require a namespace
         const url = UrlBuilder.buildBaseUrl(spec);
@@ -244,10 +245,14 @@ export class AtelierApiService {
 
         console.debug(`${LOG_PREFIX} Testing connection to ${url}`);
 
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this._timeout);
 
+        // Link external signal to internal controller for user cancellation
+        const onExternalAbort = () => controller.abort();
+        externalSignal?.addEventListener('abort', onExternalAbort);
+
+        try {
             const response = await fetch(url, {
                 method: 'GET',
                 headers,
@@ -293,7 +298,21 @@ export class AtelierApiService {
             return { success: true };
 
         } catch (error) {
+            clearTimeout(timeoutId);
             if (error instanceof Error && error.name === 'AbortError') {
+                // Distinguish user cancellation from timeout
+                if (externalSignal?.aborted) {
+                    console.debug(`${LOG_PREFIX} Connection test cancelled by user`);
+                    return {
+                        success: false,
+                        error: {
+                            message: 'Connection cancelled.',
+                            code: ErrorCodes.CONNECTION_CANCELLED,
+                            recoverable: true,
+                            context: 'testConnection'
+                        }
+                    };
+                }
                 console.debug(`${LOG_PREFIX} Connection test failed: Timeout`);
                 return {
                     success: false,
@@ -317,6 +336,8 @@ export class AtelierApiService {
                     context: 'testConnection'
                 }
             };
+        } finally {
+            externalSignal?.removeEventListener('abort', onExternalAbort);
         }
     }
 
@@ -336,7 +357,8 @@ export class AtelierApiService {
         username: string,
         password: string,
         query: string,
-        parameters: unknown[] = []
+        parameters: unknown[] = [],
+        externalSignal?: AbortSignal
     ): Promise<{ success: boolean; data?: unknown[]; error?: IUserError }> {
         const url = UrlBuilder.buildQueryUrl(
             UrlBuilder.buildBaseUrl(spec),
@@ -345,10 +367,14 @@ export class AtelierApiService {
 
         const headers = this._buildAuthHeaders(username, password);
 
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this._timeout);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this._timeout);
 
+        // Link external signal to internal controller for user cancellation
+        const onExternalAbort = () => controller.abort();
+        externalSignal?.addEventListener('abort', onExternalAbort);
+
+        try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers,
@@ -396,11 +422,25 @@ export class AtelierApiService {
             };
 
         } catch (error) {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError' && externalSignal?.aborted) {
+                return {
+                    success: false,
+                    error: {
+                        message: 'Operation cancelled.',
+                        code: ErrorCodes.CONNECTION_CANCELLED,
+                        recoverable: true,
+                        context: 'executeQuery'
+                    }
+                };
+            }
             const parsedError = ErrorHandler.parse(error, 'executeQuery');
             return {
                 success: false,
                 error: parsedError || ErrorHandler.createError(ErrorCodes.UNKNOWN_ERROR, 'executeQuery')
             };
+        } finally {
+            externalSignal?.removeEventListener('abort', onExternalAbort);
         }
     }
 

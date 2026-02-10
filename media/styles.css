@@ -577,6 +577,68 @@ body {
     white-space: nowrap;
 }
 
+/* Connecting State - Story 1.7 */
+.ite-connecting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 24px 16px;
+    gap: 16px;
+}
+
+.ite-connecting__message {
+    margin: 0;
+    font-size: 1em;
+    color: var(--vscode-foreground);
+}
+
+.ite-connecting__progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ite-connecting__cancel {
+    margin-top: 8px;
+}
+
+/* Connection Error State - Story 1.7 */
+.ite-connection-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 24px 16px;
+    gap: 8px;
+}
+
+.ite-connection-error__title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--vscode-errorForeground);
+}
+
+.ite-connection-error__message {
+    margin: 0 0 8px 0;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+}
+
+.ite-connection-error__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
@@ -597,6 +659,11 @@ body {
     }
 
     .ite-table-list__item {
+        transition: none;
+    }
+
+    /* Connection state reduced motion (Story 1.7) */
+    .ite-connecting__cancel {
         transition: none;
     }
 
@@ -709,6 +776,11 @@ body {
     .ite-schema-tree__table:focus {
         outline: 2px solid Highlight;
         outline-offset: -2px;
+    }
+
+    /* Connection error buttons (Story 1.7) */
+    .ite-connection-error__actions .ite-button {
+        border: 1px solid ButtonText;
     }
 
     /* Loading spinner visibility */

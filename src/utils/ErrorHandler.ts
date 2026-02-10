@@ -10,6 +10,7 @@ export const ErrorCodes = {
     // Connection errors
     CONNECTION_FAILED: 'CONNECTION_FAILED',
     CONNECTION_TIMEOUT: 'CONNECTION_TIMEOUT',
+    CONNECTION_CANCELLED: 'CONNECTION_CANCELLED',
     SERVER_UNREACHABLE: 'SERVER_UNREACHABLE',
 
     // Authentication errors
@@ -44,6 +45,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
     [ErrorCodes.AUTH_FAILED]: 'Authentication failed. Please check your username and password in Server Manager.',
     [ErrorCodes.AUTH_EXPIRED]: 'Your session has expired. Please reconnect to the server.',
     [ErrorCodes.CONNECTION_TIMEOUT]: 'Connection timed out. The server may be busy or unreachable.',
+    [ErrorCodes.CONNECTION_CANCELLED]: 'Connection cancelled.',
     [ErrorCodes.SERVER_UNREACHABLE]: 'Cannot reach server. Please verify the server address and that IRIS is running.',
     [ErrorCodes.CONNECTION_FAILED]: 'Connection failed. Please check your network and server settings.',
     [ErrorCodes.INVALID_RESPONSE]: 'Received unexpected response from server. Please try again.',

@@ -166,4 +166,33 @@ suite('ErrorHandler Test Suite', () => {
         const error = ErrorHandler.createError(ErrorCodes.AUTH_EXPIRED, 'test');
         assert.strictEqual(error.recoverable, false, 'AUTH_EXPIRED should not be recoverable');
     });
+
+    // Story 1.7: CONNECTION_CANCELLED error code tests
+    test('ErrorCodes contains CONNECTION_CANCELLED', () => {
+        assert.strictEqual(ErrorCodes.CONNECTION_CANCELLED, 'CONNECTION_CANCELLED');
+    });
+
+    test('getUserMessage returns correct message for CONNECTION_CANCELLED', () => {
+        const error: IUserError = {
+            message: 'Test',
+            code: ErrorCodes.CONNECTION_CANCELLED,
+            recoverable: true,
+            context: 'test'
+        };
+
+        const message = ErrorHandler.getUserMessage(error);
+        assert.ok(
+            message.toLowerCase().includes('cancelled'),
+            `CONNECTION_CANCELLED message should contain "cancelled", got: "${message}"`
+        );
+    });
+
+    test('createError creates CONNECTION_CANCELLED with recoverable true', () => {
+        const error = ErrorHandler.createError(ErrorCodes.CONNECTION_CANCELLED, 'connect');
+
+        assert.strictEqual(error.code, ErrorCodes.CONNECTION_CANCELLED);
+        assert.strictEqual(error.context, 'connect');
+        assert.strictEqual(error.recoverable, true, 'CONNECTION_CANCELLED should be recoverable');
+        assert.ok(error.message.length > 0, 'Should have a message');
+    });
 });

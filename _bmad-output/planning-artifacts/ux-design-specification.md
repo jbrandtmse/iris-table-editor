@@ -586,8 +586,16 @@ flowchart TD
     A[Receive support ticket] --> B[Open IRIS Table Editor]
     B --> C{Correct server selected?}
     C -->|No| D[Select production server]
-    D --> E[Verify: See server name prominently]
-    C -->|Yes| E
+    C -->|Yes| E2[Connecting to server...]
+    D --> E2
+    E2 --> E3{Connection result?}
+    E3 -->|Success| E[Verify: See server name prominently]
+    E3 -->|Timeout| E4[See timeout error]
+    E3 -->|User clicks Cancel| E5[Return to server selection]
+    E4 --> E6{Action?}
+    E6 -->|Retry| E2
+    E6 -->|Select Different Server| E5
+    E5 --> D
     E --> F[Navigate to table]
     F --> G[Grid loads with data]
     G --> H[Find target row]
@@ -850,11 +858,59 @@ flowchart TD
 
 | State | Display | Actions Available |
 |-------|---------|-------------------|
+| **Connecting** | "Connecting to [server]..." + progress ring + Cancel button | Cancel (returns to server selection) |
+| **Connection timeout** | "Could not reach [server]. The server may be offline." | Retry, Select Different Server |
+| **Connection cancelled** | Returns to server selection UI | Select server |
 | **Loading data** | Progress ring centered in grid area | Cancel (close tab) |
 | **No rows** | "No data in table" + "Add Row" button | Add Row |
 | **No tables** | "No tables in namespace" | Select different namespace |
 | **Connection error** | Error message + "Retry" button | Retry, select different server |
 | **Page loading** | Progress ring in pagination area | None (brief) |
+
+**Connecting State Layout (Story 1.7):**
+
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│    Connecting to dev-server...              │
+│                                             │
+│           [  progress ring  ]               │
+│                                             │
+│              [ Cancel ]                     │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+**Connection Timeout State Layout (Story 1.7):**
+
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│    Could not reach "dev-server"             │
+│    The server may be offline or slow.       │
+│                                             │
+│  [ Retry ]    [ Select Different Server ]   │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+**CSS Classes:**
+
+```css
+.ite-connecting { text-align: center; padding: var(--ite-space-lg); }
+.ite-connecting__message { margin-bottom: var(--ite-space-md); }
+.ite-connecting__progress { margin-bottom: var(--ite-space-md); }
+.ite-connecting__cancel { }
+.ite-connection-error { text-align: center; padding: var(--ite-space-lg); }
+.ite-connection-error__message { margin-bottom: var(--ite-space-md); }
+.ite-connection-error__actions { display: flex; gap: var(--ite-space-md); justify-content: center; }
+```
+
+**Accessibility:**
+- Progress ring has `aria-label="Connecting to server"`
+- Cancel button has `aria-label="Cancel connection attempt"`
+- Timeout state uses `role="alert"` for screen reader announcement
+- Retry and Select Different Server buttons are keyboard-focusable
 
 **Empty State Messaging:**
 - Keep text minimal and actionable

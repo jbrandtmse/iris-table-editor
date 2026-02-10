@@ -357,4 +357,31 @@ suite('ServerConnectionManager Test Suite', () => {
             testManager.disconnect();
         }, 'disconnect should not throw');
     });
+
+    // Story 1.7 - cancelConnection tests
+    test('cancelConnection method exists', () => {
+        assert.ok(typeof manager.cancelConnection === 'function', 'cancelConnection should be a function');
+    });
+
+    test('cancelConnection does not throw when no connection in progress', () => {
+        // Fresh manager - no connection in progress
+        assert.doesNotThrow(() => {
+            manager.cancelConnection();
+        }, 'cancelConnection should not throw when no connection in progress');
+    });
+
+    test('cancelConnection can be called multiple times safely', () => {
+        assert.doesNotThrow(() => {
+            manager.cancelConnection();
+            manager.cancelConnection();
+            manager.cancelConnection();
+        }, 'Multiple cancelConnection calls should not throw');
+    });
+
+    test('cancelConnection does not affect disconnected state', () => {
+        // Manager should still be disconnected after cancel
+        manager.cancelConnection();
+        assert.strictEqual(manager.isConnected(), false, 'Should still be disconnected after cancel');
+        assert.strictEqual(manager.getConnectedServer(), null, 'Should have no connected server after cancel');
+    });
 });
