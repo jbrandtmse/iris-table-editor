@@ -544,3 +544,41 @@ Proceeding to Epic 11: Electron Shell & Window Management...
 
 Proceeding to Epic 13: Build, Package & Distribution...
 
+## Story 13.1: Electron Builder Config
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/scripts/generate-icons.js (PNG-to-ICO conversion with Node.js built-in modules)
+- NEW: packages/desktop/scripts/stage-assets.js (asset staging with desktop/ nesting to preserve monorepo paths)
+- NEW: packages/desktop/electron-builder.yml (NSIS + DMG targets, asar packaging, build-resources)
+- NEW: packages/desktop/build-resources/icon.png, icon.ico (build resource icons)
+- NEW: packages/desktop/src/test/buildScripts.test.ts (24 tests)
+- MODIFIED: packages/desktop/package.json (electron-builder devDependency, build scripts)
+- MODIFIED: package.json (root dist:desktop script)
+- MODIFIED: .gitignore (app-dist/, release/)
+- MODIFIED: package-lock.json
+
+**Key design decisions:**
+- Desktop nesting pattern: app-dist/desktop/ preserves 3-level relative paths without string replacement
+- ICO directory entry declares 256x256 (0,0 convention) while embedding 128x128 PNG — passes electron-builder validation
+- electronVersion explicitly pinned in electron-builder.yml (monorepo auto-detection unreliable)
+- Staged package.json has main: desktop/dist/main/main.js (nested path)
+- @iris-te/core staged into app-dist/node_modules/ (workspace symlinks don't survive packaging)
+
+**Issues auto-resolved:** 6
+- HIGH: Non-recursive copyFiles for dist/main/ would skip future subdirectories (added copyDirRecursiveFiltered)
+- LOW: Tests use manual try/finally (stylistic, working)
+- LOW: Missing circular symlink protection in copyDirRecursive (pre-existing pattern)
+- LOW: dist:desktop causes double compilation (inefficient but correct)
+- LOW: Redundant mkdirSync in generate-icons (harmless)
+- LOW: Inconsistent .d.ts staging (intentional design)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: 6db9a01
+
+---
+

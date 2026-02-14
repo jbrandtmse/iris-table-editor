@@ -197,6 +197,9 @@ function stageAssets(options) {
         author: desktopPkg.author || 'IRIS Table Editor',
         dependencies: {
             '@iris-te/core': '*',
+            ...(desktopPkg.dependencies['electron-updater']
+                ? { 'electron-updater': desktopPkg.dependencies['electron-updater'] }
+                : {}),
         },
     };
     const stagedPkgPath = path.join(appDistDir, 'package.json');

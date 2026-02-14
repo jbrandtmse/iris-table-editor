@@ -23,6 +23,12 @@ files:
 
 asar: true
 
+# Auto-update: electron-updater checks GitHub Releases for new versions
+publish:
+  provider: github
+  owner: jbrandtmse
+  repo: iris-table-editor
+
 # Windows configuration
 win:
   target: nsis

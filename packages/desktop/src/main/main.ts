@@ -24,6 +24,7 @@ import {
     createDebouncedSave,
 } from './WindowStateManager';
 import type { AppPersistentState } from './WindowStateManager';
+import { AutoUpdateManager } from './AutoUpdateManager';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -37,6 +38,9 @@ let sessionManagerRef: SessionManager | null = null;
 // Story 11.5: Module-level state manager reference
 let windowStateManagerRef: WindowStateManager | null = null;
 let currentAppState: AppPersistentState | null = null;
+
+// Story 13.2: Auto-update manager reference
+let autoUpdateManagerRef: AutoUpdateManager | null = null;
 
 // Story 11.4: Menu state tracking
 const menuState: MenuState = {
@@ -172,6 +176,9 @@ function createWindow(
         onShowShortcuts: () => {
             sendEvent(win, 'menuAction', { action: 'showShortcuts' });
         },
+        onCheckForUpdates: () => {
+            autoUpdateManagerRef?.checkForUpdatesInteractive();
+        },
         onShowAbout: () => {
             if (win.isDestroyed()) {
                 return;
@@ -201,6 +208,15 @@ function createWindow(
         sendEvent(win, 'restoreAppState', {
             sidebar: savedState.sidebar,
         });
+
+        // Story 13.2: Initialize auto-updater after page loads
+        // Dispose previous instance to avoid duplicate event handlers
+        // (e.g., macOS window recreation via dock icon activate)
+        autoUpdateManagerRef?.dispose();
+        const autoUpdateManager = new AutoUpdateManager({ win });
+        autoUpdateManager.initialize();
+        autoUpdateManager.checkForUpdates();
+        autoUpdateManagerRef = autoUpdateManager;
     });
 
     // Story 11.5: Track window state changes

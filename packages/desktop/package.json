@@ -23,7 +23,8 @@
     "src/ui"
   ],
   "dependencies": {
-    "@iris-te/core": "*"
+    "@iris-te/core": "*",
+    "electron-updater": "^6.3.0"
   },
   "devDependencies": {
     "electron": "^33.0.0",

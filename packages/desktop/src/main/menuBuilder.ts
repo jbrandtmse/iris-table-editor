@@ -31,6 +31,7 @@ export interface MenuCallbacks {
     onToggleFilterPanel: () => void;
     onSetTheme: (theme: 'light' | 'dark' | 'system') => void;
     onShowShortcuts: () => void;
+    onCheckForUpdates: () => void;
     onShowAbout: () => void;
 }
 
@@ -198,6 +199,14 @@ export function buildApplicationMenu(
                         callbacks.onShowShortcuts();
                     },
                 },
+                {
+                    label: 'Check for Updates...',
+                    click: () => {
+                        console.log(`${LOG_PREFIX} Check for Updates`);
+                        callbacks.onCheckForUpdates();
+                    },
+                },
+                { type: 'separator' },
                 {
                     label: 'About IRIS Table Editor',
                     click: () => {
