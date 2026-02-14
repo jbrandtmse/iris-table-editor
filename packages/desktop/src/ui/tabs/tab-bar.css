@@ -1,0 +1,144 @@
+/* IRIS Table Editor - Tab Bar Component
+ * Story 11.3: Tab Bar
+ * BEM naming with ite- prefix, --ite-* CSS variables
+ */
+
+/* ============================================
+   Tab Bar Container
+   ============================================ */
+
+.ite-tab-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    min-height: 35px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ite-scrollbar-bg, rgba(128, 128, 128, 0.3)) transparent;
+    background-color: var(--ite-tab-inactive-bg, var(--ite-sidebar-bg, var(--ite-bg)));
+    border-bottom: 1px solid var(--ite-border);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+/* Hide tab bar when empty */
+.ite-tab-bar:empty {
+    display: none;
+}
+
+/* ============================================
+   Individual Tab
+   ============================================ */
+
+.ite-tab-bar__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    min-width: 100px;
+    max-width: 200px;
+    cursor: pointer;
+    border: none;
+    border-right: 1px solid var(--ite-border);
+    border-bottom: 2px solid transparent;
+    background-color: var(--ite-tab-inactive-bg, var(--ite-sidebar-bg, var(--ite-bg)));
+    color: var(--ite-tab-inactive-fg, var(--ite-description-fg));
+    font-family: inherit;
+    font-size: 0.85em;
+    white-space: nowrap;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.ite-tab-bar__tab:hover {
+    background-color: var(--ite-tab-hover-bg, var(--ite-list-hover-bg));
+}
+
+.ite-tab-bar__tab:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+}
+
+/* ============================================
+   Active Tab
+   ============================================ */
+
+.ite-tab-bar__tab--active {
+    background-color: var(--ite-tab-active-bg, var(--ite-editor-bg, var(--ite-bg)));
+    color: var(--ite-tab-active-fg, var(--ite-fg));
+    border-bottom-color: var(--ite-focus-ring, #007acc);
+}
+
+.ite-tab-bar__tab--active:hover {
+    background-color: var(--ite-tab-active-bg, var(--ite-editor-bg, var(--ite-bg)));
+}
+
+/* ============================================
+   Dirty (unsaved) Tab Indicator
+   ============================================ */
+
+.ite-tab-bar__tab--dirty .ite-tab-bar__label::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--ite-fg);
+    margin-left: 4px;
+    vertical-align: middle;
+    opacity: 0.6;
+}
+
+/* ============================================
+   Tab Label
+   ============================================ */
+
+.ite-tab-bar__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+/* ============================================
+   Tab Close Button
+   ============================================ */
+
+.ite-tab-bar__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s ease, background-color 0.1s ease;
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+.ite-tab-bar__tab:hover .ite-tab-bar__close,
+.ite-tab-bar__tab--active .ite-tab-bar__close {
+    opacity: 0.6;
+}
+
+.ite-tab-bar__close:hover {
+    opacity: 1 !important;
+    background-color: var(--ite-toolbar-hover-bg, rgba(128, 128, 128, 0.2));
+}
+
+.ite-tab-bar__close:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+    opacity: 1 !important;
+}

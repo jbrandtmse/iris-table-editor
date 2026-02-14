@@ -401,7 +401,50 @@ Proceeding to Epic 11: Electron Shell & Window Management...
 **User input required:** 0
 
 **Commits:**
-- Implementation: (pending)
+- Implementation: 447e164
+
+---
+
+## Story 11.3: Tab Bar
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/ui/app-shell.html (three-panel layout: sidebar + tab bar + grid)
+- NEW: packages/desktop/src/ui/app-shell.css (flexbox layout styling)
+- NEW: packages/desktop/src/ui/tabs/tab-bar.js (TabBarManager class)
+- NEW: packages/desktop/src/ui/tabs/tab-bar.css (tab bar styling)
+- NEW: packages/desktop/src/test/tabBar.test.ts (50 tests)
+- MODIFIED: packages/desktop/src/main/main.ts (load app-shell.html instead of server-list.html)
+- MODIFIED: packages/desktop/src/main/ipc.ts (activateTab command)
+- MODIFIED: packages/desktop/src/main/preload.ts (emitLocalEvent, local callback registry)
+- MODIFIED: packages/desktop/src/main/channelValidation.ts (activateTab command, restoreGridState event)
+- MODIFIED: packages/desktop/src/ui/connection/server-list.js (namespace/table browsing tree)
+- MODIFIED: packages/desktop/src/ui/connection/server-list.css (tree styles)
+- MODIFIED: packages/webview/src/grid.js (restoreGridState event handler)
+- MODIFIED: packages/desktop/src/test/channelValidation.test.ts (updated assertions)
+
+**Key design decisions:**
+- DOM-switching approach: single GridManager instance, swap state per tab via messageBridge getState/setState
+- emitLocalEvent in preload.ts enables renderer-side event dispatch without IPC round-trip
+- restoreGridState event in grid.js restores full grid state including Map reconstruction for filters/pendingSaves
+- activateTab IPC command updates SessionManager context without sending response events
+- Namespace/table browsing groups tables by schema prefix in collapsible tree
+- Tab bar uses ARIA tablist/tab/tabpanel roles with aria-labelledby association
+
+**Issues auto-resolved:** 6
+- HIGH: pendingSaves Map not reconstructed in restoreGridState (would crash cell editing after tab switch)
+- HIGH: Flawed modal dialog detection in keyboard shortcuts (fragile CSS selector)
+- MEDIUM: selectedCell not reset in restoreGridState (stale cell reference across tabs)
+- MEDIUM: Close button as span inside button (invalid HTML nesting for a11y)
+- MEDIUM: tabpanel without aria-labelledby association (screen reader gap)
+- LOW: Duplicate role="complementary" on nested sidebar elements
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: 1d3271d
 
 ---
 

@@ -1,0 +1,107 @@
+/* IRIS Table Editor - App Shell Layout
+ * Story 11.3: Tab Bar
+ * Three-panel layout: sidebar + tab bar + content area
+ * BEM naming with ite- prefix, --ite-* CSS variables
+ */
+
+/* ============================================
+   App Shell Root Layout
+   ============================================ */
+
+.ite-app-shell {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* ============================================
+   Sidebar Panel
+   ============================================ */
+
+.ite-app-shell__sidebar {
+    width: 280px;
+    min-width: 200px;
+    max-width: 400px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--ite-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--ite-sidebar-bg, var(--ite-bg));
+}
+
+.ite-app-shell__sidebar .ite-sidebar {
+    height: 100%;
+}
+
+/* ============================================
+   Main Panel (tab bar + content)
+   ============================================ */
+
+.ite-app-shell__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--ite-editor-bg, var(--ite-bg));
+}
+
+/* ============================================
+   Content Area
+   ============================================ */
+
+.ite-app-shell__content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Grid container fills the content area */
+.ite-app-shell__content .ite-grid-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ============================================
+   Welcome Placeholder (main content area)
+   ============================================ */
+
+.ite-welcome--main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--ite-description-fg);
+}
+
+.ite-welcome--main .ite-welcome__icon {
+    font-size: 4em;
+    margin-bottom: 20px;
+    opacity: 0.4;
+}
+
+.ite-welcome--main .ite-welcome__title {
+    font-size: 1.3em;
+    font-weight: 500;
+    color: var(--ite-fg);
+    margin: 0 0 12px 0;
+    opacity: 0.7;
+}
+
+.ite-welcome--main .ite-welcome__description {
+    max-width: 340px;
+    line-height: 1.6;
+    opacity: 0.6;
+}

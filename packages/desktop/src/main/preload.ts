@@ -2,6 +2,7 @@
  * Electron preload script - exposed as window.iteMessageBridge
  * Story 11.1: Electron Bootstrap
  * Story 11.2: IPC Bridge — channel validation
+ * Story 11.3: Tab Bar — emitLocalEvent for renderer-side event dispatch
  *
  * Exposes the IMessageBridge interface to the renderer process via contextBridge.
  * Uses ipcRenderer for communication with the main process.
@@ -13,6 +14,7 @@
  * IPC channel design:
  * - Outbound (renderer -> main): ipcRenderer.send('command', { command, payload })
  * - Inbound (main -> renderer): ipcRenderer.on('event:{eventName}', (_, payload) => ...)
+ * - Local (renderer only): emitLocalEvent dispatches to onEvent callbacks without IPC
  */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { isValidCommand, isValidEvent } from './channelValidation';
@@ -35,6 +37,13 @@ const handlerWrapperMap = new WeakMap<
     (payload: unknown) => void,
     Map<string, (event: IpcRendererEvent, payload: unknown) => void>
 >();
+
+/**
+ * Story 11.3: Local callback registry for renderer-side event dispatch.
+ * Parallel to ipcRenderer listeners, used by emitLocalEvent() to dispatch
+ * events that stay within the renderer (e.g., restoreGridState for tab switching).
+ */
+const localCallbacks = new Map<string, Set<(payload: unknown) => void>>();
 
 /**
  * Get or create a wrapper function for an event handler.
@@ -105,6 +114,7 @@ const messageBridge = {
 
     /**
      * Register a handler for events from the main process.
+     * Also registers in local callback registry for emitLocalEvent() support.
      * Validates event name against the allowlist before subscribing.
      * @param event - Event name (e.g., 'serversLoaded', 'connectionProgress')
      * @param handler - Callback receiving the event payload
@@ -114,21 +124,67 @@ const messageBridge = {
             console.warn(`${LOG_PREFIX} Rejected invalid event subscription: "${event}"`);
             return;
         }
+        // Register IPC listener
         const wrapper = getWrapper(event, handler);
         ipcRenderer.on(`event:${event}`, wrapper);
+
+        // Story 11.3: Also register in local callback registry
+        let callbacks = localCallbacks.get(event);
+        if (!callbacks) {
+            callbacks = new Set();
+            localCallbacks.set(event, callbacks);
+        }
+        callbacks.add(handler);
     },
 
     /**
      * Remove an event handler registered with onEvent.
+     * Also removes from local callback registry.
      * @param event - Event name to unsubscribe from
      * @param handler - The original handler passed to onEvent
      */
     offEvent(event: string, handler: (payload: unknown) => void): void {
+        // Remove IPC listener
         const wrapper = removeWrapper(event, handler);
         if (wrapper) {
             ipcRenderer.removeListener(`event:${event}`, wrapper);
         } else {
             console.warn(`${LOG_PREFIX} No wrapper found for offEvent("${event}"), handler may not have been registered`);
+        }
+
+        // Story 11.3: Also remove from local callback registry
+        const callbacks = localCallbacks.get(event);
+        if (callbacks) {
+            callbacks.delete(handler);
+            if (callbacks.size === 0) {
+                localCallbacks.delete(event);
+            }
+        }
+    },
+
+    /**
+     * Story 11.3: Emit an event locally within the renderer process.
+     * Dispatches to callbacks registered via onEvent() without going through IPC.
+     * Used for tab switching (e.g., restoreGridState) where grid.js needs to
+     * receive an event triggered by tab-bar.js in the same renderer.
+     *
+     * @param eventName - Event name (must pass channel validation)
+     * @param payload - Event payload data
+     */
+    emitLocalEvent(eventName: string, payload: unknown): void {
+        if (!isValidEvent(eventName)) {
+            console.warn(`${LOG_PREFIX} Invalid event name for local emit: "${eventName}"`);
+            return;
+        }
+        const callbacks = localCallbacks.get(eventName);
+        if (callbacks) {
+            callbacks.forEach(cb => {
+                try {
+                    cb(payload);
+                } catch (e) {
+                    console.error(`${LOG_PREFIX} Error in local event callback for "${eventName}":`, e);
+                }
+            });
         }
     },
 

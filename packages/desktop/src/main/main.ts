@@ -64,8 +64,8 @@ function createWindow(
     // Register IPC handlers for renderer communication
     registerIpcHandlers(win, connectionManager, lifecycleManager, sessionManager);
 
-    // Load the server list HTML from the UI directory
-    const htmlPath = path.join(__dirname, '../../src/ui/connection/server-list.html');
+    // Story 11.3: Load the app shell HTML (combines sidebar + tab bar + grid)
+    const htmlPath = path.join(__dirname, '../../src/ui/app-shell.html');
     win.loadFile(htmlPath);
 
     // Inject desktopThemeBridge.css after the page loads

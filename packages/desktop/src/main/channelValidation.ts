@@ -38,6 +38,8 @@ export const ALLOWED_COMMANDS = new Set([
     'saveCell',
     'insertRow',
     'deleteRow',
+    // Tab commands (Story 11.3)
+    'activateTab',
 ]);
 
 /**
@@ -66,6 +68,8 @@ export const ALLOWED_EVENTS = new Set([
     'saveCellResult',
     'insertRowResult',
     'deleteRowResult',
+    // Tab events (Story 11.3)
+    'restoreGridState',
 ]);
 
 /**

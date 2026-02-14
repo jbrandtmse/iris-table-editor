@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+    <title>IRIS Table Editor</title>
+    <!-- Connection sidebar styles -->
+    <link rel="stylesheet" href="connection/server-list.css">
+    <link rel="stylesheet" href="connection/server-form.css">
+    <!-- App shell layout styles -->
+    <link rel="stylesheet" href="app-shell.css">
+    <!-- Tab bar styles -->
+    <link rel="stylesheet" href="tabs/tab-bar.css">
+    <!-- Webview grid styles (relative path to webview package) -->
+    <link rel="stylesheet" href="../../../webview/src/theme.css">
+    <link rel="stylesheet" href="../../../webview/src/styles.css">
+    <link rel="stylesheet" href="../../../webview/src/grid-styles.css">
+</head>
+<body>
+    <div class="ite-app-shell">
+        <!-- ============================================
+             Sidebar Panel (existing server list content)
+             ============================================ -->
+        <div class="ite-app-shell__sidebar" role="complementary" aria-label="Server connections sidebar">
+            <div class="ite-sidebar">
+                <div class="ite-sidebar__header">
+                    <h2 class="ite-sidebar__title">Servers</h2>
+                    <button class="ite-button ite-button--icon" id="addServerBtn"
+                            title="Add Server" aria-label="Add a new server connection">
+                        +
+                    </button>
+                </div>
+                <div class="ite-sidebar__content" id="serverListContainer">
+                    <!-- Server list or welcome screen rendered here by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             Main Panel (tab bar + content area)
+             ============================================ -->
+        <div class="ite-app-shell__main">
+            <!-- Tab Bar -->
+            <div class="ite-tab-bar" id="tabBar" role="tablist" aria-label="Open tables"></div>
+
+            <!-- Content Area -->
+            <div class="ite-app-shell__content" id="contentArea" role="tabpanel" aria-label="Table content">
+                <!-- Welcome placeholder (shown when no tabs open) -->
+                <div class="ite-welcome ite-welcome--main" id="welcomePlaceholder">
+                    <div class="ite-welcome__icon" aria-hidden="true">&#128194;</div>
+                    <h3 class="ite-welcome__title">No Table Open</h3>
+                    <p class="ite-welcome__description">
+                        Connect to a server, then double-click a table in the sidebar to open it here.
+                    </p>
+                </div>
+
+                <!-- Grid container (hidden until first tab opens) -->
+                <div class="ite-grid-container" id="gridContainer" style="display: none;">
+                    <!-- Context bar is managed by tabs, not needed here -->
+
+                    <div class="ite-toolbar">
+                        <button class="ite-toolbar__button" id="refreshBtn" title="Refresh data">
+                            <i class="codicon codicon-refresh"></i>
+                        </button>
+                        <button class="ite-toolbar__button" id="addRowBtn" title="Add new row (Ctrl+N)">
+                            <i class="codicon codicon-add"></i>
+                        </button>
+                        <button class="ite-toolbar__button" id="saveRowBtn" title="Save new row (Ctrl+S)" disabled>
+                            <i class="codicon codicon-save"></i>
+                        </button>
+                        <button class="ite-toolbar__button" id="deleteRowBtn" title="Delete row (Del)" disabled>
+                            <i class="codicon codicon-trash"></i>
+                        </button>
+                        <span class="ite-toolbar__separator"></span>
+                        <button class="ite-toolbar__button" id="clearFiltersBtn" title="Clear all filters" disabled>
+                            <i class="codicon codicon-clear-all"></i>
+                        </button>
+                        <button class="ite-toolbar__button" id="toggleFiltersBtn" title="Disable filters">
+                            <i class="codicon codicon-filter"></i>
+                        </button>
+                        <button class="ite-toolbar__button" id="filterPanelBtn" title="Filter panel">
+                            <i class="codicon codicon-list-filter"></i>
+                            <span class="ite-toolbar__badge" id="filterBadge" style="display: none;">0</span>
+                        </button>
+                        <span class="ite-toolbar__separator"></span>
+                        <button class="ite-toolbar__button" id="importBtn" title="Import data">
+                            <i class="codicon codicon-cloud-upload"></i>
+                        </button>
+                        <div class="ite-toolbar__export-group" style="position: relative;">
+                            <button class="ite-toolbar__button" id="exportBtn" title="Export data (Ctrl+E)">
+                                <i class="codicon codicon-desktop-download"></i>
+                            </button>
+                            <div class="ite-export-menu" id="exportMenu" style="display: none;">
+                                <button class="ite-export-menu__item" id="exportCurrentPageCsv">
+                                    <i class="codicon codicon-file"></i> Export Current Page (CSV)
+                                </button>
+                                <button class="ite-export-menu__item" id="exportAllCsv">
+                                    <i class="codicon codicon-files"></i> Export All Data (CSV)
+                                </button>
+                                <button class="ite-export-menu__item" id="exportFilteredCsv" style="display: none;">
+                                    <i class="codicon codicon-filter"></i> Export Filtered Results (CSV)
+                                </button>
+                                <div class="ite-export-menu__divider"></div>
+                                <button class="ite-export-menu__item" id="exportCurrentPageExcel">
+                                    <i class="codicon codicon-file"></i> Export Current Page (Excel)
+                                </button>
+                                <button class="ite-export-menu__item" id="exportAllExcel">
+                                    <i class="codicon codicon-files"></i> Export All Data (Excel)
+                                </button>
+                                <button class="ite-export-menu__item" id="exportFilteredExcel" style="display: none;">
+                                    <i class="codicon codicon-filter"></i> Export Filtered Results (Excel)
+                                </button>
+                            </div>
+                        </div>
+                        <span class="ite-toolbar__separator"></span>
+                        <div class="ite-toolbar__slider-group">
+                            <i class="codicon codicon-text-size" title="Column width"></i>
+                            <input type="range"
+                                   id="columnWidthSlider"
+                                   class="ite-toolbar__slider"
+                                   min="80"
+                                   max="400"
+                                   value="150"
+                                   title="Adjust column width" />
+                        </div>
+                        <!-- Story 6.3: Filter Panel (hidden by default) -->
+                        <div class="ite-filter-panel" id="filterPanel" style="display: none;">
+                            <div class="ite-filter-panel__header">
+                                <h4 class="ite-filter-panel__title">Active Filters</h4>
+                                <button class="ite-filter-panel__close" id="filterPanelClose" title="Close panel">
+                                    <i class="codicon codicon-close"></i>
+                                </button>
+                            </div>
+                            <div class="ite-filter-panel__content" id="filterPanelContent">
+                                <p class="ite-filter-panel__empty">No active filters</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ite-grid-loading" id="loadingOverlay" style="display: flex;">
+                        <div class="ite-loading__spinner"></div>
+                        <p class="ite-loading__text">Loading table data...</p>
+                    </div>
+
+                    <div class="ite-grid-wrapper" id="gridWrapper" style="display: none;">
+                        <div class="ite-grid" id="dataGrid" role="grid" aria-label="Table data">
+                            <!-- Grid content will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <div class="ite-pagination" id="paginationContainer" role="navigation" aria-label="Table pagination" style="display: none;">
+                        <span class="ite-pagination__info" id="paginationInfo" aria-live="polite">
+                            Rows 1-50 of 0
+                        </span>
+                        <div class="ite-pagination__controls">
+                            <button class="ite-pagination__button ite-pagination__button--icon"
+                                    id="firstPageBtn"
+                                    aria-label="First page"
+                                    title="First page"
+                                    disabled>
+                                &#9198;
+                            </button>
+                            <button class="ite-pagination__button ite-pagination__button--icon"
+                                    id="prevPageBtn"
+                                    aria-label="Previous page"
+                                    title="Previous page"
+                                    disabled>
+                                &#9664;
+                            </button>
+                            <div class="ite-pagination__page-input-container">
+                                <input type="text"
+                                       class="ite-pagination__page-input"
+                                       id="pageInput"
+                                       aria-label="Page number"
+                                       value="1" />
+                                <span class="ite-pagination__page-total" id="pageTotalLabel">of 1</span>
+                            </div>
+                            <button class="ite-pagination__button ite-pagination__button--icon"
+                                    id="nextPageBtn"
+                                    aria-label="Next page"
+                                    title="Next page">
+                                &#9654;
+                            </button>
+                            <button class="ite-pagination__button ite-pagination__button--icon"
+                                    id="lastPageBtn"
+                                    aria-label="Last page"
+                                    title="Last page">
+                                &#9197;
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Toast notification container -->
+                    <div id="toastContainer" class="ite-toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+                    <!-- Delete confirmation dialog -->
+                    <div class="ite-dialog-overlay" id="deleteDialogOverlay" style="display: none;" role="presentation">
+                        <div class="ite-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle" aria-describedby="deleteDialogDesc">
+                            <div class="ite-dialog__content">
+                                <h2 id="deleteDialogTitle" class="ite-dialog__title">Delete Row</h2>
+                                <p id="deleteDialogDesc" class="ite-dialog__message">Delete this row? This action cannot be undone.</p>
+                            </div>
+                            <div class="ite-dialog__actions">
+                                <button type="button" class="ite-dialog__button ite-dialog__button--secondary" id="deleteDialogCancel">Cancel</button>
+                                <button type="button" class="ite-dialog__button ite-dialog__button--danger" id="deleteDialogConfirm">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context menu (hidden by default) -->
+    <div class="ite-context-menu" id="contextMenu" role="menu" aria-label="Server actions" hidden>
+        <button class="ite-context-menu__item" data-action="connect" role="menuitem">Connect</button>
+        <button class="ite-context-menu__item" data-action="disconnect" role="menuitem" hidden>Disconnect</button>
+        <button class="ite-context-menu__item" data-action="edit" role="menuitem">Edit</button>
+        <button class="ite-context-menu__item" data-action="delete" role="menuitem">Delete</button>
+        <div class="ite-context-menu__separator" role="separator"></div>
+        <button class="ite-context-menu__item" data-action="testConnection" role="menuitem">Test Connection</button>
+    </div>
+
+    <!-- Server Form (Story 12.2) -->
+    <div class="ite-form-overlay" id="serverFormOverlay" hidden>
+        <div class="ite-form" role="dialog" aria-labelledby="formTitle" aria-modal="true">
+            <div class="ite-form__header">
+                <h2 class="ite-form__title" id="formTitle">Add Server</h2>
+                <button class="ite-button ite-button--icon ite-form__close"
+                        id="formCloseBtn" title="Close" aria-label="Close form">&#10005;</button>
+            </div>
+
+            <form class="ite-form__body" id="serverForm" novalidate autocomplete="off">
+                <!-- Server Name -->
+                <div class="ite-form__field" data-field="name">
+                    <label class="ite-form__label" for="fieldName">
+                        Server Name <span class="ite-form__required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="ite-form__input" type="text" id="fieldName" name="name"
+                           required placeholder="e.g., My IRIS Server"
+                           aria-required="true" aria-describedby="fieldNameError">
+                    <span class="ite-form__error" id="fieldNameError" role="alert" aria-live="polite"></span>
+                </div>
+
+                <!-- Description -->
+                <div class="ite-form__field" data-field="description">
+                    <label class="ite-form__label" for="fieldDescription">Description</label>
+                    <input class="ite-form__input" type="text" id="fieldDescription" name="description"
+                           placeholder="Optional description">
+                </div>
+
+                <!-- Host -->
+                <div class="ite-form__field" data-field="hostname">
+                    <label class="ite-form__label" for="fieldHostname">
+                        Host <span class="ite-form__required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="ite-form__input" type="text" id="fieldHostname" name="hostname"
+                           required placeholder="e.g., localhost or 192.168.1.100"
+                           aria-required="true" aria-describedby="fieldHostnameError">
+                    <span class="ite-form__error" id="fieldHostnameError" role="alert" aria-live="polite"></span>
+                </div>
+
+                <!-- Port -->
+                <div class="ite-form__field" data-field="port">
+                    <label class="ite-form__label" for="fieldPort">
+                        Port <span class="ite-form__required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="ite-form__input" type="number" id="fieldPort" name="port"
+                           required value="52773" min="1" max="65535"
+                           aria-required="true" aria-describedby="fieldPortError">
+                    <span class="ite-form__error" id="fieldPortError" role="alert" aria-live="polite"></span>
+                </div>
+
+                <!-- Path Prefix -->
+                <div class="ite-form__field" data-field="pathPrefix">
+                    <label class="ite-form__label" for="fieldPathPrefix">Path Prefix</label>
+                    <input class="ite-form__input" type="text" id="fieldPathPrefix" name="pathPrefix"
+                           placeholder="e.g., /iris">
+                </div>
+
+                <!-- Use HTTPS -->
+                <div class="ite-form__field ite-form__field--checkbox" data-field="ssl">
+                    <label class="ite-form__checkbox-label">
+                        <input class="ite-form__checkbox" type="checkbox" id="fieldSsl" name="ssl">
+                        <span class="ite-form__checkbox-text">Use HTTPS</span>
+                    </label>
+                </div>
+
+                <!-- Username -->
+                <div class="ite-form__field" data-field="username">
+                    <label class="ite-form__label" for="fieldUsername">
+                        Username <span class="ite-form__required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="ite-form__input" type="text" id="fieldUsername" name="username"
+                           required placeholder="e.g., _SYSTEM"
+                           aria-required="true" aria-describedby="fieldUsernameError">
+                    <span class="ite-form__error" id="fieldUsernameError" role="alert" aria-live="polite"></span>
+                </div>
+
+                <!-- Password -->
+                <div class="ite-form__field" data-field="password">
+                    <label class="ite-form__label" for="fieldPassword">
+                        Password <span class="ite-form__required" aria-hidden="true">*</span>
+                    </label>
+                    <input class="ite-form__input" type="password" id="fieldPassword" name="password"
+                           required placeholder="Enter password"
+                           aria-required="true" aria-describedby="fieldPasswordError">
+                    <span class="ite-form__error" id="fieldPasswordError" role="alert" aria-live="polite"></span>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="ite-form__actions">
+                    <button class="ite-button ite-button--secondary" type="button"
+                            id="formCancelBtn">Cancel</button>
+                    <button class="ite-button ite-button--primary" type="submit"
+                            id="formSaveBtn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ARIA live region for screen reader announcements -->
+    <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+    <div id="ite-form-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Scripts: order matters — server-form before server-list, tab-bar after, grid last -->
+    <script src="connection/server-form.js"></script>
+    <script src="connection/server-list.js"></script>
+    <script src="tabs/tab-bar.js"></script>
+    <script src="../../../webview/src/grid.js"></script>
+</body>
+</html>

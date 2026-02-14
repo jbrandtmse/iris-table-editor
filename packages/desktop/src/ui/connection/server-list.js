@@ -98,7 +98,20 @@
         /** @type {Object|null} Current error */
         error: null,
         /** @type {string|null} Server name of the context menu target */
-        contextMenuServer: null
+        contextMenuServer: null,
+        // Story 11.3: Namespace/table browsing state
+        /** @type {string[]} Available namespaces */
+        namespaces: [],
+        /** @type {boolean} Whether namespaces are loading */
+        namespacesLoading: false,
+        /** @type {Object<string, string[]>} Tables per namespace */
+        namespaceTables: {},
+        /** @type {Object<string, boolean>} Loading state per namespace */
+        namespaceTablesLoading: {},
+        /** @type {Object<string, boolean>} Expanded state per namespace */
+        namespaceExpanded: {},
+        /** @type {Object<string, Object<string, boolean>>} Expanded state per schema group */
+        schemaExpanded: {}
     };
 
     /** @type {Function[]} */
@@ -281,6 +294,113 @@
     }
 
     /**
+     * Story 11.3: Render the namespace/table tree below the server list
+     * @param {typeof state} currentState
+     * @returns {string} HTML string for the tree
+     */
+    function renderNamespaceTree(currentState) {
+        if (!currentState.connectedServer) return '';
+        if (currentState.namespacesLoading) {
+            return '<div class="ite-sidebar__tree"><div class="ite-loading ite-loading--small"><div class="ite-loading__spinner"></div><p class="ite-loading__text">Loading namespaces...</p></div></div>';
+        }
+        if (currentState.namespaces.length === 0) return '';
+
+        var html = '<div class="ite-sidebar__tree" role="tree" aria-label="Namespace browser">';
+        html += '<div class="ite-sidebar__tree-header">Namespaces</div>';
+
+        currentState.namespaces.forEach(function (ns) {
+            var isExpanded = !!currentState.namespaceExpanded[ns];
+            var isLoading = !!currentState.namespaceTablesLoading[ns];
+            var tables = currentState.namespaceTables[ns] || [];
+            var safeNs = escapeHtml(ns);
+            var safeNsAttr = escapeAttr(ns);
+
+            html += '<div class="ite-sidebar__namespace' + (isExpanded ? ' ite-sidebar__namespace--expanded' : '') + '"' +
+                    ' data-namespace="' + safeNsAttr + '"' +
+                    ' role="treeitem" aria-expanded="' + isExpanded + '"' +
+                    ' tabindex="0">';
+            html += '<span class="ite-sidebar__namespace-icon" aria-hidden="true">' + (isExpanded ? '&#9660;' : '&#9654;') + '</span>';
+            html += '<span class="ite-sidebar__namespace-label">' + safeNs + '</span>';
+            html += '</div>';
+
+            if (isExpanded) {
+                if (isLoading) {
+                    html += '<div class="ite-sidebar__tree-loading"><div class="ite-loading__spinner ite-loading__spinner--small"></div></div>';
+                } else if (tables.length > 0) {
+                    // Group tables by schema
+                    var schemaGroups = {};
+                    tables.forEach(function (tableName) {
+                        var dotIndex = tableName.indexOf('.');
+                        var schema, table;
+                        if (dotIndex > 0) {
+                            schema = tableName.substring(0, dotIndex);
+                            table = tableName.substring(dotIndex + 1);
+                        } else {
+                            schema = '';
+                            table = tableName;
+                        }
+                        if (!schemaGroups[schema]) {
+                            schemaGroups[schema] = [];
+                        }
+                        schemaGroups[schema].push({ fullName: tableName, shortName: table });
+                    });
+
+                    var schemas = Object.keys(schemaGroups).sort();
+                    schemas.forEach(function (schema) {
+                        var schemaState = currentState.schemaExpanded[ns] || {};
+                        var schemaIsExpanded = !!schemaState[schema];
+                        var safeSchema = escapeHtml(schema || '(default)');
+                        var safeSchemaAttr = escapeAttr(schema);
+
+                        if (schemas.length === 1 && schema === '') {
+                            // No schema grouping needed — render tables directly
+                            schemaGroups[schema].forEach(function (t) {
+                                var safeName = escapeHtml(t.shortName);
+                                var safeFullAttr = escapeAttr(t.fullName);
+                                html += '<div class="ite-sidebar__table"' +
+                                        ' data-table="' + safeFullAttr + '"' +
+                                        ' data-table-ns="' + safeNsAttr + '"' +
+                                        ' role="treeitem" tabindex="0">';
+                                html += '<span class="ite-sidebar__table-icon" aria-hidden="true">&#128196;</span>';
+                                html += '<span class="ite-sidebar__table-label">' + safeName + '</span>';
+                                html += '</div>';
+                            });
+                        } else {
+                            html += '<div class="ite-sidebar__schema' + (schemaIsExpanded ? ' ite-sidebar__schema--expanded' : '') + '"' +
+                                    ' data-schema="' + safeSchemaAttr + '"' +
+                                    ' data-schema-ns="' + safeNsAttr + '"' +
+                                    ' role="treeitem" aria-expanded="' + schemaIsExpanded + '"' +
+                                    ' tabindex="0">';
+                            html += '<span class="ite-sidebar__schema-icon" aria-hidden="true">' + (schemaIsExpanded ? '&#9660;' : '&#9654;') + '</span>';
+                            html += '<span class="ite-sidebar__schema-label">' + safeSchema + '</span>';
+                            html += '</div>';
+
+                            if (schemaIsExpanded) {
+                                schemaGroups[schema].forEach(function (t) {
+                                    var safeName = escapeHtml(t.shortName);
+                                    var safeFullAttr = escapeAttr(t.fullName);
+                                    html += '<div class="ite-sidebar__table"' +
+                                            ' data-table="' + safeFullAttr + '"' +
+                                            ' data-table-ns="' + safeNsAttr + '"' +
+                                            ' role="treeitem" tabindex="0">';
+                                    html += '<span class="ite-sidebar__table-icon" aria-hidden="true">&#128196;</span>';
+                                    html += '<span class="ite-sidebar__table-label">' + safeName + '</span>';
+                                    html += '</div>';
+                                });
+                            }
+                        }
+                    });
+                } else {
+                    html += '<div class="ite-sidebar__tree-empty">No tables found</div>';
+                }
+            }
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    /**
      * Render error state
      * @param {Object} error - Error with message property
      * @returns {string} HTML string
@@ -328,7 +448,7 @@
             currentState.connectingServer,
             currentState.connectionError,
             currentState.connectionErrorServer
-        );
+        ) + renderNamespaceTree(currentState);
 
         // Focus management after render
         const serverList = container.querySelector('.ite-server-list');
@@ -501,6 +621,43 @@
                 return;
             }
 
+            // Story 11.3: Namespace click — toggle expand and load tables
+            const nsItem = target.closest('[data-namespace]');
+            if (nsItem) {
+                const ns = nsItem.getAttribute('data-namespace');
+                if (ns) {
+                    const expanded = Object.assign({}, state.namespaceExpanded);
+                    expanded[ns] = !expanded[ns];
+                    updateState({ namespaceExpanded: expanded });
+                    // Load tables if expanding and not yet loaded
+                    if (expanded[ns] && !state.namespaceTables[ns]) {
+                        const loading = Object.assign({}, state.namespaceTablesLoading);
+                        loading[ns] = true;
+                        updateState({ namespaceTablesLoading: loading });
+                        sendCommand('getTables', { namespace: ns });
+                    }
+                }
+                return;
+            }
+
+            // Story 11.3: Schema group click — toggle expand
+            const schemaItem = target.closest('[data-schema]');
+            if (schemaItem) {
+                const schema = schemaItem.getAttribute('data-schema');
+                const schemaNs = schemaItem.getAttribute('data-schema-ns');
+                if (schema !== null && schemaNs) {
+                    const schemaExp = Object.assign({}, state.schemaExpanded);
+                    if (!schemaExp[schemaNs]) schemaExp[schemaNs] = {};
+                    schemaExp[schemaNs] = Object.assign({}, schemaExp[schemaNs]);
+                    schemaExp[schemaNs][schema] = !schemaExp[schemaNs][schema];
+                    updateState({ schemaExpanded: schemaExp });
+                }
+                return;
+            }
+
+            // Story 11.3: Table double-click — open tab (handled below via dblclick)
+            // Single click on table does nothing extra
+
             // Welcome "Add First Server" button (Story 12.2: open form directly)
             if (target.closest('#welcomeAddServerBtn')) {
                 if (window.iteServerForm) {
@@ -514,6 +671,22 @@
                 updateState({ error: null, isLoading: true });
                 sendCommand('getServers', {});
                 return;
+            }
+        });
+
+        // Story 11.3: Double-click on table item — dispatch ite:openTable event
+        sidebarContent.addEventListener('dblclick', function (e) {
+            const target = /** @type {HTMLElement} */ (e.target);
+            const tableItem = target.closest('[data-table]');
+            if (tableItem) {
+                const tableName = tableItem.getAttribute('data-table');
+                const namespace = tableItem.getAttribute('data-table-ns');
+                if (tableName && namespace) {
+                    document.dispatchEvent(new CustomEvent('ite:openTable', {
+                        detail: { namespace: namespace, tableName: tableName },
+                        bubbles: true
+                    }));
+                }
             }
         });
 
@@ -704,8 +877,17 @@
                         connectedServer: payload.serverName,
                         connectingServer: null,
                         connectionError: null,
-                        connectionErrorServer: null
+                        connectionErrorServer: null,
+                        // Story 11.3: Reset namespace tree for new connection
+                        namespaces: [],
+                        namespacesLoading: true,
+                        namespaceTables: {},
+                        namespaceTablesLoading: {},
+                        namespaceExpanded: {},
+                        schemaExpanded: {}
                     });
+                    // Story 11.3: Fetch namespaces after successful connection
+                    sendCommand('getNamespaces', {});
                     announce('Connected to ' + payload.serverName);
                     break;
                 case 'disconnected':
@@ -713,7 +895,14 @@
                         connectedServer: null,
                         connectingServer: null,
                         connectionError: null,
-                        connectionErrorServer: null
+                        connectionErrorServer: null,
+                        // Story 11.3: Clear namespace tree on disconnect
+                        namespaces: [],
+                        namespacesLoading: false,
+                        namespaceTables: {},
+                        namespaceTablesLoading: {},
+                        namespaceExpanded: {},
+                        schemaExpanded: {}
                     });
                     announce('Disconnected');
                     break;
@@ -721,7 +910,14 @@
                     updateState({
                         connectingServer: null,
                         connectionError: null,
-                        connectionErrorServer: null
+                        connectionErrorServer: null,
+                        // Story 11.3: Clear namespace tree on cancel
+                        namespaces: [],
+                        namespacesLoading: false,
+                        namespaceTables: {},
+                        namespaceTablesLoading: {},
+                        namespaceExpanded: {},
+                        schemaExpanded: {}
                     });
                     announce('Connection cancelled');
                     break;
@@ -729,10 +925,39 @@
                     updateState({
                         connectingServer: null,
                         connectionError: payload.message || 'Connection failed.',
-                        connectionErrorServer: payload.serverName
+                        connectionErrorServer: payload.serverName,
+                        // Story 11.3: Clear namespace tree on error
+                        namespaces: [],
+                        namespacesLoading: false,
+                        namespaceTables: {},
+                        namespaceTablesLoading: {},
+                        namespaceExpanded: {},
+                        schemaExpanded: {}
                     });
                     announce('Connection error: ' + (payload.message || 'Connection failed.'));
                     break;
+            }
+        });
+
+        // Story 11.3: namespaceList event — receive available namespaces
+        messageBridge.onEvent('namespaceList', function (payload) {
+            console.debug(LOG_PREFIX, 'Received namespaceList:', payload);
+            updateState({
+                namespaces: payload.namespaces || [],
+                namespacesLoading: false
+            });
+        });
+
+        // Story 11.3: tableList event — receive tables for a namespace
+        messageBridge.onEvent('tableList', function (payload) {
+            console.debug(LOG_PREFIX, 'Received tableList:', payload);
+            var ns = payload.namespace;
+            if (ns) {
+                var tables = Object.assign({}, state.namespaceTables);
+                tables[ns] = payload.tables || [];
+                var loading = Object.assign({}, state.namespaceTablesLoading);
+                loading[ns] = false;
+                updateState({ namespaceTables: tables, namespaceTablesLoading: loading });
             }
         });
 

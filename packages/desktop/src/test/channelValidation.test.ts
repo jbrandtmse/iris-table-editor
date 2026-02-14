@@ -61,8 +61,18 @@ describe('Channel Validation', () => {
             }
         });
 
-        it('should have exactly 20 commands', () => {
-            assert.strictEqual(ALLOWED_COMMANDS.size, 20);
+        it('should include all tab commands (Story 11.3)', () => {
+            const tabCommands = [
+                'activateTab',
+            ];
+
+            for (const cmd of tabCommands) {
+                assert.ok(ALLOWED_COMMANDS.has(cmd), `Missing tab command: ${cmd}`);
+            }
+        });
+
+        it('should have exactly 21 commands', () => {
+            assert.strictEqual(ALLOWED_COMMANDS.size, 21);
         });
     });
 
@@ -104,8 +114,18 @@ describe('Channel Validation', () => {
             }
         });
 
-        it('should have exactly 19 events', () => {
-            assert.strictEqual(ALLOWED_EVENTS.size, 19);
+        it('should include all tab events (Story 11.3)', () => {
+            const tabEvents = [
+                'restoreGridState',
+            ];
+
+            for (const evt of tabEvents) {
+                assert.ok(ALLOWED_EVENTS.has(evt), `Missing tab event: ${evt}`);
+            }
+        });
+
+        it('should have exactly 20 events', () => {
+            assert.strictEqual(ALLOWED_EVENTS.size, 20);
         });
     });
 
@@ -117,6 +137,7 @@ describe('Channel Validation', () => {
             assert.strictEqual(isValidCommand('requestData'), true);
             assert.strictEqual(isValidCommand('saveCell'), true);
             assert.strictEqual(isValidCommand('deleteRow'), true);
+            assert.strictEqual(isValidCommand('activateTab'), true);
         });
 
         it('should return false for invalid commands', () => {
@@ -143,6 +164,7 @@ describe('Channel Validation', () => {
             assert.strictEqual(isValidEvent('tableData'), true);
             assert.strictEqual(isValidEvent('error'), true);
             assert.strictEqual(isValidEvent('saveCellResult'), true);
+            assert.strictEqual(isValidEvent('restoreGridState'), true);
         });
 
         it('should return false for invalid events', () => {

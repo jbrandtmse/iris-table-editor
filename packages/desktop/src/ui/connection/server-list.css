@@ -463,3 +463,160 @@ body {
 .ite-message--error .ite-message__title {
     color: var(--ite-error-fg);
 }
+
+/* ============================================
+   Namespace / Table Tree (Story 11.3)
+   ============================================ */
+
+.ite-sidebar__tree {
+    padding: 4px 0;
+    border-top: 1px solid var(--ite-border);
+}
+
+.ite-sidebar__tree-header {
+    padding: 6px 12px;
+    font-size: 0.82em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ite-sidebar-section-header-fg, var(--ite-description-fg));
+}
+
+.ite-sidebar__namespace {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    font-size: 0.92em;
+}
+
+.ite-sidebar__namespace:hover {
+    background-color: var(--ite-list-hover-bg);
+}
+
+.ite-sidebar__namespace:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+}
+
+.ite-sidebar__namespace-icon {
+    flex-shrink: 0;
+    width: 12px;
+    font-size: 0.7em;
+    text-align: center;
+    color: var(--ite-description-fg);
+}
+
+.ite-sidebar__namespace-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ite-sidebar__schema {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px 3px 28px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.88em;
+    color: var(--ite-description-fg);
+}
+
+.ite-sidebar__schema:hover {
+    background-color: var(--ite-list-hover-bg);
+}
+
+.ite-sidebar__schema:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+}
+
+.ite-sidebar__schema-icon {
+    flex-shrink: 0;
+    width: 12px;
+    font-size: 0.65em;
+    text-align: center;
+    color: var(--ite-description-fg);
+}
+
+.ite-sidebar__schema-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-style: italic;
+}
+
+.ite-sidebar__table {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px 3px 44px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.88em;
+}
+
+.ite-sidebar__table:hover {
+    background-color: var(--ite-list-hover-bg);
+}
+
+.ite-sidebar__table:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+}
+
+.ite-sidebar__table-icon {
+    flex-shrink: 0;
+    font-size: 0.85em;
+}
+
+.ite-sidebar__table-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ite-sidebar__tree-loading {
+    display: flex;
+    justify-content: center;
+    padding: 8px 12px 8px 28px;
+}
+
+.ite-loading__spinner--small {
+    width: 16px;
+    height: 16px;
+    border-width: 1.5px;
+}
+
+.ite-loading--small {
+    padding: 12px 16px;
+}
+
+.ite-loading--small .ite-loading__spinner {
+    width: 16px;
+    height: 16px;
+    border-width: 1.5px;
+}
+
+.ite-loading--small .ite-loading__text {
+    font-size: 0.82em;
+    margin-top: 4px;
+}
+
+.ite-sidebar__tree-empty {
+    padding: 4px 12px 4px 44px;
+    font-size: 0.82em;
+    color: var(--ite-description-fg);
+    font-style: italic;
+}

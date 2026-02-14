@@ -513,6 +513,25 @@ export async function routeCommand(
             break;
         }
 
+        case 'activateTab': {
+            // Story 11.3: Update SessionManager context for tab switching.
+            // No response event sent — this is a silent context update.
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const activatePayload = payload as { namespace?: string; tableName?: string; schema?: unknown };
+            if (activatePayload.namespace) {
+                sessionManager!.setNamespace(activatePayload.namespace);
+            }
+            if (activatePayload.tableName && activatePayload.schema) {
+                sessionManager!.setTable(
+                    activatePayload.tableName,
+                    activatePayload.schema as import('@iris-te/core').ITableSchema
+                );
+            }
+            break;
+        }
+
         case 'deleteRow': {
             const session = requireSession(sessionManager, win, command);
             if (!session) { return; }

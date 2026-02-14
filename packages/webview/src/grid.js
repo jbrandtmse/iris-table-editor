@@ -5553,6 +5553,47 @@
             case 'error':
                 handleError(message.payload);
                 break;
+            case 'restoreGridState': {
+                // Story 11.3: Restore grid state from messageBridge state (tab switching)
+                const savedState = messageBridge ? messageBridge.getState() : null;
+                if (savedState) {
+                    state = Object.assign(new AppState(), savedState);
+                    // Reconstruct Map from plain object (JSON serialization loses Map type)
+                    if (savedState.filters && !(savedState.filters instanceof Map)) {
+                        state.filters = new Map(Object.entries(savedState.filters));
+                    }
+                    if (!state.filters) {
+                        state.filters = new Map();
+                    }
+                    // Reconstruct pendingSaves Map from plain object
+                    if (savedState.pendingSaves && !(savedState.pendingSaves instanceof Map)) {
+                        state.pendingSaves = new Map(Object.entries(savedState.pendingSaves));
+                    }
+                    if (!state.pendingSaves || !(state.pendingSaves instanceof Map)) {
+                        state.pendingSaves = new Map();
+                    }
+                    // Never persist edit/selection state across tab switches
+                    state.selectedCell = { rowIndex: null, colIndex: null };
+                    state.editingCell = { rowIndex: null, colIndex: null };
+                    state.editOriginalValue = null;
+                    if (!state.newRows) {
+                        state.newRows = [];
+                    }
+                    if (state.selectedRowIndex === undefined) {
+                        state.selectedRowIndex = null;
+                    }
+                    if (state.filtersEnabled === undefined) {
+                        state.filtersEnabled = true;
+                    }
+                    if (state.columns.length > 0) {
+                        renderGrid();
+                        updateDeleteButtonState();
+                        updateFilterToolbarButtons();
+                        updateFilterBadge();
+                    }
+                }
+                break;
+            }
             default:
                 console.debug(`${LOG_PREFIX} Unknown event:`, message.event);
         }
@@ -5608,7 +5649,8 @@
             'tableSchema', 'tableData', 'tableLoading',
             'saveCellResult', 'insertRowResult', 'deleteRowResult',
             'importPreview', 'importProgress', 'importResult', 'importValidationResult',
-            'exportProgress', 'exportResult', 'error'
+            'exportProgress', 'exportResult', 'error',
+            'restoreGridState'
         ];
         if (!messageBridge) {
             console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);
