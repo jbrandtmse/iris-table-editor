@@ -5,6 +5,8 @@ import * as path from 'path';
 import { SessionManager } from './sessionManager';
 import { setupApiProxy } from './apiProxy';
 import type { ApiProxyOptions } from './apiProxy';
+import { setupWebSocket } from './wsServer';
+import type { SetupWebSocketOptions, WebSocketServerHandle } from './wsServer';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -14,6 +16,8 @@ const LOG_PREFIX = '[IRIS-TE]';
 export interface CreateServerOptions {
     /** Options passed to setupApiProxy (e.g., custom fetchFn for testing) */
     proxyOptions?: ApiProxyOptions;
+    /** Options passed to setupWebSocket (e.g., custom service factory for testing) */
+    wsOptions?: SetupWebSocketOptions;
 }
 
 /**
@@ -49,11 +53,14 @@ export function createAppServer(options?: CreateServerOptions) {
         });
     });
 
-    return { app: appInstance, server: httpServer, sessionManager: sessionMgr };
+    // WebSocket server - attach to HTTP server (Story 15.3)
+    const wsHandle = setupWebSocket(httpServer, sessionMgr, options?.wsOptions);
+
+    return { app: appInstance, server: httpServer, sessionManager: sessionMgr, wsHandle };
 }
 
 // Default instance for production use and backward compatibility
-const { app, server, sessionManager } = createAppServer();
+const { app, server, sessionManager, wsHandle } = createAppServer();
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -76,4 +83,4 @@ if (require.main === module) {
     });
 }
 
-export { app, server, startServer, sessionManager };
+export { app, server, startServer, sessionManager, wsHandle };
