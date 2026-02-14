@@ -455,3 +455,344 @@ The following features are available in the VS Code extension but **not yet** in
 - **VS Code**: Inherits CSS variables from VS Code (e.g., `--vscode-editor-background`)
 - **Desktop**: Uses `nativeTheme` + `desktopThemeBridge.js` to map OS theme to CSS variables
 - **Both share the same base `theme.css`** from `@iris-te/webview`
+
+---
+
+## Cross-Platform Testing (Story 14.2)
+
+The following sections cover platform-specific manual testing for Windows and macOS.
+Automated cross-platform verification tests are in `crossPlatform.test.ts`.
+
+---
+
+### Windows-Specific Tests
+
+#### W1. Windows Installer (NSIS)
+
+**Description**: Verify the NSIS installer works correctly on Windows.
+
+**Steps to test**:
+1. Build the Windows installer: `npx electron-builder --win` (from packages/desktop)
+2. Run the generated `.exe` installer from `release/`
+3. Verify the installer shows installation directory selection (not one-click)
+4. Choose a custom installation directory and proceed
+5. Verify the app installs and launches
+
+**Expected behavior**: Installer allows directory selection, installs app, creates desktop shortcut and Start Menu entry.
+
+**Config reference**: `electron-builder.yml` nsis section: `oneClick: false`, `allowToChangeInstallationDirectory: true`, `createDesktopShortcut: true`, `createStartMenuShortcut: true`
+
+**Status**: [ ] Not tested
+
+---
+
+#### W2. Windows Desktop Shortcut
+
+**Description**: Desktop shortcut is created during installation.
+
+**Steps to test**:
+1. After installing, check the Windows Desktop for an "IRIS Table Editor" shortcut
+2. Double-click the shortcut to launch the app
+
+**Expected behavior**: Shortcut exists with correct name and icon (icon.ico). App launches from shortcut.
+
+**Status**: [ ] Not tested
+
+---
+
+#### W3. Windows Start Menu Shortcut
+
+**Description**: Start Menu shortcut is created during installation.
+
+**Steps to test**:
+1. Open the Windows Start Menu
+2. Search for "IRIS Table Editor"
+3. Click to launch
+
+**Expected behavior**: App appears in Start Menu with correct name and icon.
+
+**Status**: [ ] Not tested
+
+---
+
+#### W4. Windows Menu Bar Position
+
+**Description**: Native menu appears in the window title bar area.
+
+**Steps to test**:
+1. Launch the app on Windows
+2. Observe the menu bar position
+
+**Expected behavior**: File, Edit, View, Help menus appear at the top of the application window, within the window chrome (not in a system-level menu bar).
+
+**Status**: [ ] Not tested
+
+---
+
+#### W5. Windows Keyboard Shortcuts
+
+**Description**: Verify Ctrl-based shortcuts work on Windows.
+
+**Steps to test**:
+1. Open a table
+2. Test: Ctrl+N (new row), Ctrl+S (save), Ctrl+W (close tab)
+3. Test: Ctrl+B (toggle sidebar), Ctrl+Shift+N (set null)
+4. Test: Ctrl+R (refresh), Ctrl+F (filter), Ctrl+G (go to row)
+5. Test: Ctrl+Z (undo in edit mode), Ctrl+D (duplicate row)
+6. Test: F5 (refresh), F1 (shortcuts help)
+
+**Expected behavior**: All Ctrl-based shortcuts trigger the expected action. Menu items display "Ctrl+..." in accelerator text.
+
+**Status**: [ ] Not tested
+
+---
+
+#### W6. Windows Credential Storage
+
+**Description**: Passwords are encrypted using Node.js crypto (AES-256-GCM).
+
+**Steps to test**:
+1. Add a server with a password
+2. Navigate to `%APPDATA%/IRIS Table Editor/` and inspect the config file
+3. Verify password value is base64-encoded (not plaintext)
+
+**Expected behavior**: Password stored as encrypted base64 string. App can decrypt and connect successfully.
+
+**Status**: [ ] Not tested
+
+---
+
+#### W7. Windows Auto-Update
+
+**Description**: Auto-update checks GitHub Releases for new versions.
+
+**Steps to test**:
+1. Launch the app (auto-update check happens on startup)
+2. Go to Help > Check for Updates...
+3. Observe the update check behavior
+
+**Expected behavior**: If no update available, shows "You are up to date" dialog. If update available, downloads in background and prompts restart. Update metadata uses `latest.yml`.
+
+**Status**: [ ] Not tested
+
+---
+
+### macOS-Specific Tests
+
+#### M1. macOS Installer (DMG)
+
+**Description**: Verify the DMG installer works correctly on macOS.
+
+**Steps to test**:
+1. Build the macOS installer: `npx electron-builder --mac` (from packages/desktop)
+2. Open the generated `.dmg` file from `release/`
+3. Verify the DMG window shows the app icon and an Applications folder link
+4. Drag the app to Applications
+5. Launch from Applications
+
+**Expected behavior**: DMG opens with app icon and Applications alias. Drag-to-install works. App launches from Applications.
+
+**Config reference**: `electron-builder.yml` dmg section has `contents` with app position and `/Applications` link
+
+**Status**: [ ] Not tested
+
+---
+
+#### M2. macOS Application Category
+
+**Description**: App is categorized as a developer tool in macOS.
+
+**Steps to test**:
+1. After installing, right-click the app in Applications > Get Info
+2. Check the "Kind" field
+
+**Expected behavior**: App is categorized under Developer Tools (`public.app-category.developer-tools`).
+
+**Status**: [ ] Not tested
+
+---
+
+#### M3. macOS System Menu Bar
+
+**Description**: Native menu appears in the macOS system menu bar.
+
+**Steps to test**:
+1. Launch the app on macOS
+2. Observe the system menu bar at the top of the screen
+
+**Expected behavior**: Menu bar shows: IRIS Table Editor (app menu), File, Edit, View, Help in the macOS system menu bar (not in the window).
+
+**Status**: [ ] Not tested
+
+---
+
+#### M4. macOS Dock Behavior
+
+**Description**: Clicking the dock icon recreates the window if all windows are closed.
+
+**Steps to test**:
+1. Launch the app
+2. Close all windows (Cmd+W or close button)
+3. Click the dock icon
+
+**Expected behavior**: A new window is created. Current MVP behavior: app quits when all windows close (future improvement: keep alive in dock on macOS). If window was already closed and app is still running, dock click recreates it.
+
+**Note**: Current implementation calls `app.quit()` on `window-all-closed` for all platforms (MVP). The `activate` handler exists for future macOS-specific behavior.
+
+**Status**: [ ] Not tested
+
+---
+
+#### M5. macOS Keyboard Shortcuts (Cmd)
+
+**Description**: Verify Cmd-based shortcuts work on macOS.
+
+**Steps to test**:
+1. Open a table
+2. Test: Cmd+N (new row), Cmd+S (save), Cmd+W (close tab)
+3. Test: Cmd+B (toggle sidebar), Cmd+Shift+N (set null via menu)
+4. Test: Cmd+R (refresh), Cmd+F (filter), Cmd+G (go to row)
+5. Test: Cmd+Z (undo in edit mode), Cmd+D (duplicate row)
+6. Test: F5 (refresh), F1 (shortcuts help)
+
+**Expected behavior**: All Cmd-based shortcuts trigger the expected action. Menu items display the Cmd symbol in accelerator text.
+
+**Known gap**: The grid-level Ctrl+Shift+N handler (`handleCellKeydown`) checks `event.ctrlKey` only, not `event.metaKey`. However, the native menu accelerator `CommandOrControl+Shift+N` provides macOS coverage through the menu system.
+
+**Status**: [ ] Not tested
+
+---
+
+#### M6. macOS Credential Storage
+
+**Description**: Passwords are encrypted using Node.js crypto (AES-256-GCM).
+
+**Steps to test**:
+1. Add a server with a password
+2. Navigate to `~/Library/Application Support/IRIS Table Editor/` and inspect the config file
+3. Verify password value is base64-encoded (not plaintext)
+
+**Expected behavior**: Password stored as encrypted base64 string. App can decrypt and connect successfully.
+
+**Note**: Current implementation uses `NodeCryptoCredentialStore` (Node.js crypto), not macOS Keychain/safeStorage. This is a cross-platform solution that works on all platforms.
+
+**Status**: [ ] Not tested
+
+---
+
+#### M7. macOS Auto-Update
+
+**Description**: Auto-update checks GitHub Releases for new versions.
+
+**Steps to test**:
+1. Launch the app (auto-update check happens on startup)
+2. Go to Help > Check for Updates...
+3. Observe the update check behavior
+
+**Expected behavior**: If no update available, shows "You are up to date" dialog. If update available, downloads in background and prompts restart. Update metadata uses `latest-mac.yml`.
+
+**Status**: [ ] Not tested
+
+---
+
+### Keyboard Shortcut Cross-Platform Verification Table
+
+The following table maps each keyboard shortcut to its Windows and macOS equivalents.
+All menu accelerators use `CommandOrControl` which maps to Ctrl on Windows and Cmd on macOS.
+Grid.js keyboard handlers use `(event.ctrlKey || event.metaKey)` for cross-platform support.
+
+| Action | Windows | macOS | Source | Cross-Platform |
+|---|---|---|---|---|
+| Close Tab | Ctrl+W | Cmd+W | Menu accelerator | Yes (CommandOrControl) |
+| Close All Tabs | Ctrl+Shift+W | Cmd+Shift+W | Menu accelerator | Yes (CommandOrControl) |
+| Set NULL | Ctrl+Shift+N | Cmd+Shift+N | Menu accelerator + grid.js | Partial (menu: yes, grid handler: ctrlKey only) |
+| Toggle Sidebar | Ctrl+B | Cmd+B | Menu accelerator | Yes (CommandOrControl) |
+| Keyboard Shortcuts | Ctrl+/ | Cmd+/ | Menu accelerator | Yes (CommandOrControl) |
+| New Row | Ctrl+N | Cmd+N | grid.js handler | Yes (ctrlKey or metaKey) |
+| Save Row | Ctrl+S | Cmd+S | grid.js handler | Yes (ctrlKey or metaKey) |
+| Duplicate Row | Ctrl+D | Cmd+D | grid.js handler | Yes (ctrlKey or metaKey) |
+| Delete Row | Ctrl+- | Cmd+- | grid.js handler | Yes (ctrlKey or metaKey) |
+| New Row (Alt) | Ctrl+Shift+= | Cmd+Shift+= | grid.js handler | Yes (ctrlKey or metaKey) |
+| Refresh | Ctrl+R / F5 | Cmd+R / F5 | grid.js handler | Yes (ctrlKey or metaKey) |
+| Filter Column | Ctrl+F | Cmd+F | grid.js handler | Yes (ctrlKey or metaKey) |
+| Clear All Filters | Ctrl+Shift+F | Cmd+Shift+F | grid.js handler | Yes (ctrlKey or metaKey) |
+| Go to Row | Ctrl+G | Cmd+G | grid.js handler | Yes (ctrlKey or metaKey) |
+| Export Menu | Ctrl+E | Cmd+E | grid.js handler | Yes (ctrlKey or metaKey) |
+| Undo (edit mode) | Ctrl+Z | Cmd+Z | grid.js handler | Yes (ctrlKey or metaKey) |
+| Save & Stay (edit) | Ctrl+Enter | Cmd+Enter | grid.js handler | Yes (ctrlKey or metaKey) |
+| Next Page | Ctrl+PageDown | Alt+Right | grid.js handler | Yes (dual binding) |
+| Previous Page | Ctrl+PageUp | Alt+Left | grid.js handler | Yes (dual binding) |
+| Ctrl+Home/End | Ctrl+Home | Ctrl+Home | grid.js handler | Windows-centric (no Cmd equiv) |
+| Help / Shortcuts | F1 / ? | F1 / ? | grid.js handler | Yes (no modifier needed) |
+
+---
+
+### Auto-Update Manual Verification
+
+#### AU1. Background Update Check (Both Platforms)
+
+**Steps to test**:
+1. Build a version with a lower version number than the latest GitHub Release
+2. Launch the app
+3. Observe the console output for update check messages
+
+**Expected behavior**: App logs "Checking for update..." then either "Update available: vX.Y.Z" (downloads automatically) or "No update available". No user-facing dialog on background check unless update is downloaded.
+
+**Status**: [ ] Not tested
+
+---
+
+#### AU2. Interactive Update Check (Both Platforms)
+
+**Steps to test**:
+1. Launch the app
+2. Go to Help > Check for Updates...
+3. If already up to date, verify "You are up to date" dialog appears
+4. If update available, verify it downloads and shows restart prompt
+
+**Expected behavior**: Interactive check shows feedback dialog. "You are up to date" shows current version. Update downloaded shows "Restart Now" / "Later" buttons.
+
+**Status**: [ ] Not tested
+
+---
+
+#### AU3. Update Download and Install (Both Platforms)
+
+**Steps to test**:
+1. Ensure a newer version is published as a GitHub Release
+2. Launch the older version
+3. Wait for auto-download to complete
+4. Verify the restart dialog appears
+5. Click "Restart Now" to apply the update
+6. After restart, verify the app version has updated (Help > About)
+
+**Expected behavior**: Update downloads in background. Restart applies the update. New version visible in About dialog.
+
+**Status**: [ ] Not tested
+
+---
+
+#### AU4. Update Error Handling (Both Platforms)
+
+**Steps to test**:
+1. Disconnect from the internet
+2. Go to Help > Check for Updates...
+3. Observe the behavior
+
+**Expected behavior**: Error is logged silently. No crash or error dialog. App continues to function normally.
+
+**Status**: [ ] Not tested
+
+---
+
+### Cross-Platform Known Gaps
+
+The following items are documented cross-platform gaps discovered during the Story 14.2 audit:
+
+1. **handleCellKeydown Ctrl+Shift+N (Set NULL)**: The grid-level keyboard handler at `grid.js` line ~3386 checks `event.ctrlKey` only, not `event.metaKey`. On macOS, this shortcut only works via the native menu (which uses `CommandOrControl+Shift+N`). The grid-level handler will not fire when pressing Cmd+Shift+N directly in the grid. Severity: Low (menu provides coverage).
+
+2. **Home/End + Ctrl navigation**: The `handleCellKeydown` Home/End handlers check `event.ctrlKey` only. macOS keyboards do not typically have Home/End keys, so this is a non-issue in practice.
+
+3. **window-all-closed quits on macOS**: Current MVP implementation calls `app.quit()` on all platforms. macOS convention is to keep the app alive in the dock when all windows close. The `activate` handler exists to recreate windows, but since the app quits immediately, it never fires. This is documented as an MVP trade-off.
+
+4. **Credential storage uses Node.js crypto**: The app uses `NodeCryptoCredentialStore` (AES-256-GCM) instead of Electron's `safeStorage` (which wraps OS keychain). This works cross-platform but does not provide OS-level keychain integration. This is an intentional architectural decision for the current phase.
