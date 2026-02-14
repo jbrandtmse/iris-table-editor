@@ -156,7 +156,7 @@ development_status:
   epic-13: in-progress
   13-1-electron-builder-config: done
   13-2-auto-update: done
-  13-3-ci-cd-pipeline: backlog
+  13-3-ci-cd-pipeline: done
   13-4-code-signing: backlog  # Optional - can ship unsigned initially
   epic-13-retrospective: optional
 

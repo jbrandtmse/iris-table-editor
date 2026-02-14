@@ -1,5 +1,6 @@
 {
   "name": "iris-table-editor-root",
+  "version": "0.1.1",
   "private": true,
   "workspaces": [
     "packages/*"
@@ -11,7 +12,8 @@
     "watch": "npm run watch --workspace=packages/vscode",
     "package": "npm run package --workspace=packages/vscode",
     "start:desktop": "npm run start --workspace=packages/desktop",
-    "dist:desktop": "npm run compile && npm run dist --workspace=packages/desktop"
+    "dist:desktop": "npm run compile && npm run dist --workspace=packages/desktop",
+    "version:sync": "node scripts/sync-version.js"
   },
   "devDependencies": {
     "eslint": "^9.39.2",

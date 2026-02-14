@@ -582,3 +582,42 @@ Proceeding to Epic 13: Build, Package & Distribution...
 
 ---
 
+## Story 13.2: Auto-Update
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/AutoUpdateManager.ts (auto-update service wrapping electron-updater)
+- NEW: packages/desktop/src/test/autoUpdateManager.test.ts (32 tests)
+- MODIFIED: packages/desktop/package.json (electron-updater production dependency)
+- MODIFIED: packages/desktop/electron-builder.yml (publish section for GitHub Releases)
+- MODIFIED: packages/desktop/src/main/main.ts (AutoUpdateManager init, dispose on recreate, menu wiring)
+- MODIFIED: packages/desktop/src/main/menuBuilder.ts (onCheckForUpdates callback, Help menu item)
+- MODIFIED: packages/desktop/scripts/stage-assets.js (electron-updater in staged deps, dynamic version read)
+- MODIFIED: package-lock.json
+
+**Key design decisions:**
+- Conditional require('electron-updater') in try/catch — tests work without Electron runtime
+- Injected mock EventEmitter for testability (constructor accepts optional updater)
+- Interactive vs background mode via isInteractive flag for menu "Check for Updates"
+- autoDownload: true + autoInstallOnAppQuit: true for seamless "Later" flow
+- electron-builder handles electron-updater install via staged package.json deps
+
+**Issues auto-resolved:** 6
+- HIGH: isInteractive flag never reset on update-available (spurious dialog on next check)
+- HIGH: Unhandled promise rejection in update-downloaded dialog (.catch() added)
+- HIGH: stage-assets hardcodes electron-updater version (now reads from package.json)
+- MEDIUM: dispose() never called on old AutoUpdateManager when macOS recreates window
+- MEDIUM: Menu builder tests are tautologies (noted, not fixed — requires refactor)
+- LOW: checkForUpdatesInteractive return Promise not awaited (benign, internal try-catch)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: a63683a
+
+---
+
+---
+

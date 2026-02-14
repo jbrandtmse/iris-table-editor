@@ -1,0 +1,161 @@
+# Release workflow — runs when a version tag is pushed
+# Story 13.3: CI/CD Pipeline
+#
+# Pipeline structure:
+#   1. lint-and-test (quality gate)
+#   2. build-vsix, build-windows, build-macos (parallel, after quality gate)
+#   3. create-release (after all builds succeed)
+#
+# Trigger by pushing a tag: git tag v1.0.0 && git push origin v1.0.0
+
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Quality gate — must pass before any builds run
+  # ──────────────────────────────────────────────
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run version:sync
+
+      - run: npm run compile
+
+      - run: npm run lint
+
+      # Desktop tests — no display server needed
+      - run: npm run test --workspace=packages/desktop
+
+      # VS Code extension tests — need xvfb for display server
+      - run: xvfb-run -a npm run test --workspace=packages/vscode
+
+  # ──────────────────────────────────────────────
+  # Build VS Code extension (.vsix)
+  # ──────────────────────────────────────────────
+  build-vsix:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run version:sync
+
+      # Full monorepo compile: @iris-te/core must be built first so that
+      # tsc --noEmit in the vscode workspace can resolve its type declarations.
+      - run: npm run compile
+
+      - run: npx vsce package --no-dependencies
+        working-directory: packages/vscode
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: packages/vscode/*.vsix
+
+  # ──────────────────────────────────────────────
+  # Build Windows installer (.exe + latest.yml)
+  # ──────────────────────────────────────────────
+  build-windows:
+    needs: lint-and-test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run version:sync
+
+      - run: npm run compile
+
+      - run: npm run stage-assets --workspace=packages/desktop
+
+      - run: npx electron-builder --win --publish never
+        working-directory: packages/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            packages/desktop/release/*.exe
+            packages/desktop/release/latest.yml
+
+  # ──────────────────────────────────────────────
+  # Build macOS installer (.dmg + latest-mac.yml)
+  # ──────────────────────────────────────────────
+  build-macos:
+    needs: lint-and-test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run version:sync
+
+      - run: npm run compile
+
+      - run: npm run stage-assets --workspace=packages/desktop
+
+      - run: npx electron-builder --mac --publish never
+        working-directory: packages/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: |
+            packages/desktop/release/*.dmg
+            packages/desktop/release/latest-mac.yml
+
+  # ──────────────────────────────────────────────
+  # Create GitHub Release with all artifacts
+  # ──────────────────────────────────────────────
+  create-release:
+    needs: [build-vsix, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            vsix/*.vsix
+            windows-installer/*.exe
+            windows-installer/latest.yml
+            macos-installer/*.dmg
+            macos-installer/latest-mac.yml
+          generate_release_notes: true
+          draft: false
+          prerelease: false

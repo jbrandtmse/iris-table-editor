@@ -1,0 +1,39 @@
+# CI workflow — runs on PRs and pushes to main
+# Story 13.3: CI/CD Pipeline
+#
+# Validates code quality across the monorepo:
+# - Compiles all workspace packages
+# - Runs ESLint on all packages
+# - Runs desktop tests (node:test, no display needed)
+# - Runs VS Code extension tests (needs xvfb for display server)
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run compile
+
+      - run: npm run lint
+
+      # Desktop tests use node:test — no display server needed
+      - run: npm run test --workspace=packages/desktop
+
+      # VS Code extension tests need a display server on Linux
+      - run: xvfb-run -a npm run test --workspace=packages/vscode
