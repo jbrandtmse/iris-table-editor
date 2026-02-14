@@ -6,8 +6,15 @@
     <!-- Fallback CSP for when server-side helmet is not active (e.g., static file serving).
          When helmet is active, the server's CSP header also applies (browsers enforce ALL policies).
          The server CSP adds ws:/wss: to connect-src for WebSocket support. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self' ws: wss:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws: wss:;">
     <title>IRIS Table Editor</title>
+    <!-- Loading spinner styles: inline to show before external CSS loads (Story 19.5) -->
+    <style>
+        .ite-loading{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;background:var(--ite-theme-bg,#1e1e1e);color:var(--ite-theme-fg,#d4d4d4);font-family:system-ui,-apple-system,sans-serif}
+        .ite-loading__spinner{width:40px;height:40px;border:3px solid rgba(128,128,128,0.3);border-top-color:#007acc;border-radius:50%;animation:ite-loading-spin .8s linear infinite}
+        @keyframes ite-loading-spin{to{transform:rotate(360deg)}}
+        .ite-loading__text{margin-top:16px;font-size:14px;opacity:0.7}
+    </style>
     <!-- Web theme bridge FIRST: provides --ite-* variables for light/dark themes (Story 17.3) -->
     <link rel="stylesheet" href="webThemeBridge.css">
     <!-- Theme initialization: sets data-theme before first paint to prevent flash (Story 17.3) -->
@@ -27,6 +34,10 @@
             </div>
         </div>
     </noscript>
+    <div id="ite-loading" class="ite-loading">
+        <div class="ite-loading__spinner"></div>
+        <p class="ite-loading__text">Loading IRIS Table Editor...</p>
+    </div>
     <div class="ite-page">
         <!-- Reconnection Banner (Story 16.5, Task 3.6) -->
         <div class="ite-reconnect-banner" id="reconnectBanner" role="alert" aria-live="assertive" hidden>

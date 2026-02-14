@@ -1041,6 +1041,10 @@
     // Render recent connections
     renderRecentConnections();
 
+    // Hide loading spinner (Story 19.5)
+    var loading = document.getElementById('ite-loading');
+    if (loading) { loading.style.display = 'none'; }
+
     console.debug(LOG_PREFIX, 'Connection form initialized');
 
     /**
