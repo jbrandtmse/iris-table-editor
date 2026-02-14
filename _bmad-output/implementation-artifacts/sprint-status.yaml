@@ -130,7 +130,7 @@ development_status:
   epic-10: in-progress
   10-1-monorepo-initialization: done
   10-2-shared-core-extraction: done
-  10-3-webview-extraction-theme-abstraction: backlog
+  10-3-webview-extraction-theme-abstraction: done
   10-4-vscode-regression-verification: backlog
   epic-10-retrospective: optional
 

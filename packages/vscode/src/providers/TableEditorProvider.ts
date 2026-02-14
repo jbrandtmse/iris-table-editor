@@ -55,7 +55,8 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             localResourceRoots: [
                 vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src'),
-                vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist')
+                vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist'),
+                vscode.Uri.joinPath(this._extensionUri, 'src')
             ]
         };
 
@@ -98,6 +99,9 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
                 break;
             case 'openServerManager':
                 await vscode.commands.executeCommand('workbench.view.extension.intersystems-community-servermanager');
+                break;
+            case 'installServerManager':
+                await vscode.commands.executeCommand('workbench.extensions.installExtension', 'intersystems-community.servermanager');
                 break;
             case 'selectServer':
                 await this._handleSelectServer((message.payload as ISelectServerPayload).serverName);
@@ -400,11 +404,22 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
+        // Theme CSS load order: theme.css -> vscodeThemeBridge.css -> styles.css
+        const themeUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'theme.css')
+        );
+        const themeBridgeUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'src', 'vscodeThemeBridge.css')
+        );
         const styleUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'styles.css')
         );
         const codiconUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')
+        );
+        // JS load order: VSCodeMessageBridge -> main.js
+        const bridgeScriptUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'src', 'VSCodeMessageBridge.js')
         );
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'main.js')
@@ -419,6 +434,8 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
     <link href="${codiconUri}" rel="stylesheet">
+    <link href="${themeUri}" rel="stylesheet">
+    <link href="${themeBridgeUri}" rel="stylesheet">
     <link href="${styleUri}" rel="stylesheet">
     <title>IRIS Table Editor</title>
 </head>
@@ -430,6 +447,8 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+    <script nonce="${nonce}" src="${bridgeScriptUri}"></script>
+    <script nonce="${nonce}">window.iteMessageBridge = new VSCodeMessageBridge();</script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

@@ -1,0 +1,136 @@
+/* VS Code Theme Bridge
+ * Maps --ite-theme-* variables to --vscode-* CSS custom properties.
+ * Loaded by the VS Code webview to provide theme values.
+ * High contrast themes are handled automatically since --vscode-* variables
+ * are always set by VS Code regardless of theme type.
+ */
+
+:root {
+    /* Core colors */
+    --ite-theme-fg: var(--vscode-foreground);
+    --ite-theme-bg: var(--vscode-editor-background);
+    --ite-theme-bg-secondary: var(--vscode-sideBar-background);
+    --ite-theme-description-fg: var(--vscode-descriptionForeground);
+    --ite-theme-error-fg: var(--vscode-errorForeground);
+    --ite-theme-warning-fg: var(--vscode-editorWarning-foreground);
+    --ite-theme-info-fg: var(--vscode-editorInfo-foreground);
+    --ite-theme-icon-fg: var(--vscode-icon-foreground);
+
+    /* Typography */
+    --ite-theme-font-family: var(--vscode-font-family);
+    --ite-theme-font-size: var(--vscode-font-size);
+    --ite-theme-editor-font-family: var(--vscode-editor-font-family);
+
+    /* Borders and focus */
+    --ite-theme-border: var(--vscode-panel-border, var(--vscode-sideBarSectionHeader-border));
+    --ite-theme-focus-ring: var(--vscode-focusBorder);
+    --ite-theme-contrast-border: var(--vscode-contrastBorder);
+    --ite-theme-contrast-active-border: var(--vscode-contrastActiveBorder);
+    --ite-theme-widget-border: var(--vscode-widget-border);
+    --ite-theme-widget-shadow: var(--vscode-widget-shadow);
+
+    /* Buttons */
+    --ite-theme-button-bg: var(--vscode-button-background);
+    --ite-theme-button-fg: var(--vscode-button-foreground);
+    --ite-theme-button-hover-bg: var(--vscode-button-hoverBackground);
+    --ite-theme-button-border: var(--vscode-button-border);
+    --ite-theme-button-secondary-bg: var(--vscode-button-secondaryBackground);
+    --ite-theme-button-secondary-fg: var(--vscode-button-secondaryForeground);
+    --ite-theme-button-secondary-hover-bg: var(--vscode-button-secondaryHoverBackground);
+
+    /* Inputs */
+    --ite-theme-input-bg: var(--vscode-input-background);
+    --ite-theme-input-fg: var(--vscode-input-foreground);
+    --ite-theme-input-border: var(--vscode-input-border);
+    --ite-theme-input-placeholder-fg: var(--vscode-input-placeholderForeground);
+    --ite-theme-input-option-active-bg: var(--vscode-inputOption-activeBackground);
+    --ite-theme-input-option-active-border: var(--vscode-inputOption-activeBorder);
+    --ite-theme-input-validation-error-bg: var(--vscode-inputValidation-errorBackground);
+    --ite-theme-input-validation-error-border: var(--vscode-inputValidation-errorBorder);
+    --ite-theme-input-validation-warning-bg: var(--vscode-inputValidation-warningBackground);
+    --ite-theme-input-validation-warning-border: var(--vscode-inputValidation-warningBorder);
+    --ite-theme-input-validation-info-bg: var(--vscode-inputValidation-infoBackground);
+    --ite-theme-input-validation-info-border: var(--vscode-inputValidation-infoBorder);
+
+    /* Checkbox */
+    --ite-theme-checkbox-bg: var(--vscode-checkbox-background);
+    --ite-theme-checkbox-fg: var(--vscode-checkbox-foreground);
+    --ite-theme-checkbox-select-bg: var(--vscode-checkbox-selectBackground);
+
+    /* Dropdown */
+    --ite-theme-dropdown-bg: var(--vscode-dropdown-background);
+    --ite-theme-dropdown-fg: var(--vscode-dropdown-foreground);
+    --ite-theme-dropdown-border: var(--vscode-dropdown-border);
+
+    /* Lists */
+    --ite-theme-list-hover-bg: var(--vscode-list-hoverBackground);
+    --ite-theme-list-focus-bg: var(--vscode-list-focusBackground);
+    --ite-theme-list-active-selection-bg: var(--vscode-list-activeSelectionBackground);
+    --ite-theme-list-active-selection-fg: var(--vscode-list-activeSelectionForeground);
+
+    /* Sidebar */
+    --ite-theme-sidebar-bg: var(--vscode-sideBar-background);
+    --ite-theme-sidebar-section-header-fg: var(--vscode-sideBarSectionHeader-foreground);
+    --ite-theme-sidebar-section-header-border: var(--vscode-sideBarSectionHeader-border);
+    --ite-theme-sidebar-section-header-bg: var(--vscode-sideBarSectionHeader-background);
+
+    /* Toolbar */
+    --ite-theme-toolbar-hover-bg: var(--vscode-toolbar-hoverBackground);
+    --ite-theme-toolbar-active-bg: var(--vscode-toolbar-activeBackground);
+
+    /* Badge */
+    --ite-theme-badge-bg: var(--vscode-badge-background);
+    --ite-theme-badge-fg: var(--vscode-badge-foreground);
+
+    /* Progress */
+    --ite-theme-progress-bg: var(--vscode-progressBar-background);
+
+    /* Scrollbar */
+    --ite-theme-scrollbar-bg: var(--vscode-scrollbarSlider-background);
+
+    /* Editor */
+    --ite-theme-editor-selection-bg: var(--vscode-editor-selectionBackground);
+    --ite-theme-editor-widget-bg: var(--vscode-editorWidget-background);
+
+    /* Status bar */
+    --ite-theme-statusbar-bg: var(--vscode-statusBar-background);
+    --ite-theme-statusbar-fg: var(--vscode-statusBar-foreground);
+
+    /* Notifications */
+    --ite-theme-notifications-bg: var(--vscode-notifications-background);
+    --ite-theme-notifications-fg: var(--vscode-notifications-foreground);
+    --ite-theme-notifications-border: var(--vscode-notifications-border);
+
+    /* Menu */
+    --ite-theme-menu-bg: var(--vscode-menu-background);
+    --ite-theme-menu-fg: var(--vscode-menu-foreground);
+    --ite-theme-menu-border: var(--vscode-menu-border);
+    --ite-theme-menu-selection-bg: var(--vscode-menu-selectionBackground);
+    --ite-theme-menu-selection-fg: var(--vscode-menu-selectionForeground);
+
+    /* Breadcrumb */
+    --ite-theme-breadcrumb-bg: var(--vscode-breadcrumb-background);
+    --ite-theme-breadcrumb-fg: var(--vscode-breadcrumb-foreground);
+    --ite-theme-breadcrumb-focus-fg: var(--vscode-breadcrumb-focusForeground);
+
+    /* Text / Code blocks */
+    --ite-theme-text-link-fg: var(--vscode-textLink-foreground);
+    --ite-theme-text-blockquote-bg: var(--vscode-textBlockQuote-background);
+    --ite-theme-text-codeblock-bg: var(--vscode-textCodeBlock-background);
+
+    /* Symbol icons */
+    --ite-theme-symbol-class-fg: var(--vscode-symbolIcon-classForeground, var(--vscode-foreground));
+    --ite-theme-symbol-folder-fg: var(--vscode-symbolIcon-folderForeground, var(--vscode-foreground));
+    --ite-theme-symbol-namespace-fg: var(--vscode-symbolIcon-namespaceForeground, var(--vscode-foreground));
+
+    /* Git / Testing */
+    --ite-theme-success: var(--vscode-testing-iconPassed, var(--vscode-terminal-ansiGreen, var(--vscode-gitDecoration-addedResourceForeground)));
+    --ite-theme-success-glow: var(--vscode-testing-iconPassed, var(--vscode-terminal-ansiGreen));
+    --ite-theme-git-added-fg: var(--vscode-gitDecoration-addedResourceForeground);
+    --ite-theme-testing-passed: var(--vscode-testing-iconPassed);
+    --ite-theme-testing-failed: var(--vscode-testing-iconFailed);
+
+    /* Diff */
+    --ite-theme-diff-inserted-bg: var(--vscode-diffEditor-insertedTextBackground);
+    --ite-theme-diff-inserted-line-bg: var(--vscode-diffEditor-insertedLineBackground);
+}

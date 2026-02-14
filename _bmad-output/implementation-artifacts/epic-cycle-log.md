@@ -37,3 +37,35 @@ Execution sequence: 10 → 12 → 11 → 13 → 14
 
 ---
 
+## Story 10.2: Shared Core Extraction
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/core/src/services/QueryExecutor.ts, TableMetadataService.ts
+- NEW: packages/core/src/utils/SqlBuilder.ts, DataTypeFormatter.ts
+- MODIFIED: packages/core/src/services/AtelierApiService.ts (1587→305 lines)
+- MODIFIED: packages/core/src/index.ts (barrel exports)
+- MODIFIED: packages/vscode/src/providers/ServerConnectionManager.ts (new service imports)
+- MODIFIED: packages/vscode/src/test/atelierApiService.test.ts (new test suites)
+
+**Key design decisions:**
+- AtelierApiService reduced to thin HTTP transport (testConnection, executeQuery, buildAuthHeaders)
+- QueryExecutor takes AtelierApiService dependency for HTTP delegation
+- TableMetadataService.getNamespaces uses raw fetch (GET to root endpoint, not POST query)
+- SqlBuilder allows % prefix for IRIS system identifiers (%Dictionary)
+- DataTypeFormatter is standalone with zero dependencies
+- formatCellValue intentionally NOT extracted (UI-coupled with CSS classes)
+
+**Issues auto-resolved:** 2
+- MEDIUM: Duplicate IAtelierServerDescriptor interface → Exported from AtelierApiService, imported in TableMetadataService
+- MEDIUM: Unused ErrorHandler import in TableMetadataService → Removed
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: 1180001
+
+---
+

@@ -1,0 +1,135 @@
+/* IRIS Table Editor - Theme Abstraction Layer
+ * All shared styles use --ite-* variables.
+ * Each target provides values via a bridge CSS file that sets --ite-theme-* values.
+ * Load order: theme.css -> [target]ThemeBridge.css -> styles.css -> grid-styles.css
+ */
+
+:root {
+    /* Core colors */
+    --ite-fg: var(--ite-theme-fg);
+    --ite-bg: var(--ite-theme-bg);
+    --ite-bg-secondary: var(--ite-theme-bg-secondary);
+    --ite-description-fg: var(--ite-theme-description-fg);
+    --ite-error-fg: var(--ite-theme-error-fg);
+    --ite-warning-fg: var(--ite-theme-warning-fg);
+    --ite-info-fg: var(--ite-theme-info-fg);
+    --ite-icon-fg: var(--ite-theme-icon-fg);
+
+    /* Typography */
+    --ite-font-family: var(--ite-theme-font-family);
+    --ite-font-size: var(--ite-theme-font-size);
+    --ite-editor-font-family: var(--ite-theme-editor-font-family);
+
+    /* Borders and focus */
+    --ite-border: var(--ite-theme-border);
+    --ite-focus-ring: var(--ite-theme-focus-ring);
+    --ite-contrast-border: var(--ite-theme-contrast-border);
+    --ite-contrast-active-border: var(--ite-theme-contrast-active-border);
+    --ite-widget-border: var(--ite-theme-widget-border);
+    --ite-widget-shadow: var(--ite-theme-widget-shadow);
+
+    /* Buttons */
+    --ite-button-bg: var(--ite-theme-button-bg);
+    --ite-button-fg: var(--ite-theme-button-fg);
+    --ite-button-hover-bg: var(--ite-theme-button-hover-bg);
+    --ite-button-border: var(--ite-theme-button-border);
+    --ite-button-secondary-bg: var(--ite-theme-button-secondary-bg);
+    --ite-button-secondary-fg: var(--ite-theme-button-secondary-fg);
+    --ite-button-secondary-hover-bg: var(--ite-theme-button-secondary-hover-bg);
+
+    /* Inputs */
+    --ite-input-bg: var(--ite-theme-input-bg);
+    --ite-input-fg: var(--ite-theme-input-fg);
+    --ite-input-border: var(--ite-theme-input-border);
+    --ite-input-placeholder-fg: var(--ite-theme-input-placeholder-fg);
+    --ite-input-option-active-bg: var(--ite-theme-input-option-active-bg);
+    --ite-input-option-active-border: var(--ite-theme-input-option-active-border);
+    --ite-input-validation-error-bg: var(--ite-theme-input-validation-error-bg);
+    --ite-input-validation-error-border: var(--ite-theme-input-validation-error-border);
+    --ite-input-validation-warning-bg: var(--ite-theme-input-validation-warning-bg);
+    --ite-input-validation-warning-border: var(--ite-theme-input-validation-warning-border);
+    --ite-input-validation-info-bg: var(--ite-theme-input-validation-info-bg);
+    --ite-input-validation-info-border: var(--ite-theme-input-validation-info-border);
+
+    /* Checkbox */
+    --ite-checkbox-bg: var(--ite-theme-checkbox-bg);
+    --ite-checkbox-fg: var(--ite-theme-checkbox-fg);
+    --ite-checkbox-select-bg: var(--ite-theme-checkbox-select-bg);
+
+    /* Dropdown */
+    --ite-dropdown-bg: var(--ite-theme-dropdown-bg);
+    --ite-dropdown-fg: var(--ite-theme-dropdown-fg);
+    --ite-dropdown-border: var(--ite-theme-dropdown-border);
+
+    /* Lists */
+    --ite-list-hover-bg: var(--ite-theme-list-hover-bg);
+    --ite-list-focus-bg: var(--ite-theme-list-focus-bg);
+    --ite-list-active-selection-bg: var(--ite-theme-list-active-selection-bg);
+    --ite-list-active-selection-fg: var(--ite-theme-list-active-selection-fg);
+
+    /* Sidebar */
+    --ite-sidebar-bg: var(--ite-theme-sidebar-bg);
+    --ite-sidebar-section-header-fg: var(--ite-theme-sidebar-section-header-fg);
+    --ite-sidebar-section-header-border: var(--ite-theme-sidebar-section-header-border);
+    --ite-sidebar-section-header-bg: var(--ite-theme-sidebar-section-header-bg);
+
+    /* Toolbar */
+    --ite-toolbar-hover-bg: var(--ite-theme-toolbar-hover-bg);
+    --ite-toolbar-active-bg: var(--ite-theme-toolbar-active-bg);
+
+    /* Badge */
+    --ite-badge-bg: var(--ite-theme-badge-bg);
+    --ite-badge-fg: var(--ite-theme-badge-fg);
+
+    /* Progress */
+    --ite-progress-bg: var(--ite-theme-progress-bg);
+
+    /* Scrollbar */
+    --ite-scrollbar-bg: var(--ite-theme-scrollbar-bg);
+
+    /* Editor */
+    --ite-editor-selection-bg: var(--ite-theme-editor-selection-bg);
+    --ite-editor-widget-bg: var(--ite-theme-editor-widget-bg);
+
+    /* Status bar */
+    --ite-statusbar-bg: var(--ite-theme-statusbar-bg);
+    --ite-statusbar-fg: var(--ite-theme-statusbar-fg);
+
+    /* Notifications */
+    --ite-notifications-bg: var(--ite-theme-notifications-bg);
+    --ite-notifications-fg: var(--ite-theme-notifications-fg);
+    --ite-notifications-border: var(--ite-theme-notifications-border);
+
+    /* Menu */
+    --ite-menu-bg: var(--ite-theme-menu-bg);
+    --ite-menu-fg: var(--ite-theme-menu-fg);
+    --ite-menu-border: var(--ite-theme-menu-border);
+    --ite-menu-selection-bg: var(--ite-theme-menu-selection-bg);
+    --ite-menu-selection-fg: var(--ite-theme-menu-selection-fg);
+
+    /* Breadcrumb */
+    --ite-breadcrumb-bg: var(--ite-theme-breadcrumb-bg);
+    --ite-breadcrumb-fg: var(--ite-theme-breadcrumb-fg);
+    --ite-breadcrumb-focus-fg: var(--ite-theme-breadcrumb-focus-fg);
+
+    /* Text / Code blocks */
+    --ite-text-link-fg: var(--ite-theme-text-link-fg);
+    --ite-text-blockquote-bg: var(--ite-theme-text-blockquote-bg);
+    --ite-text-codeblock-bg: var(--ite-theme-text-codeblock-bg);
+
+    /* Symbol icons */
+    --ite-symbol-class-fg: var(--ite-theme-symbol-class-fg);
+    --ite-symbol-folder-fg: var(--ite-theme-symbol-folder-fg);
+    --ite-symbol-namespace-fg: var(--ite-theme-symbol-namespace-fg);
+
+    /* Git / Testing */
+    --ite-success: var(--ite-theme-success);
+    --ite-success-glow: var(--ite-theme-success-glow);
+    --ite-git-added-fg: var(--ite-theme-git-added-fg);
+    --ite-testing-passed: var(--ite-theme-testing-passed);
+    --ite-testing-failed: var(--ite-theme-testing-failed);
+
+    /* Diff */
+    --ite-diff-inserted-bg: var(--ite-theme-diff-inserted-bg);
+    --ite-diff-inserted-line-bg: var(--ite-theme-diff-inserted-line-bg);
+}

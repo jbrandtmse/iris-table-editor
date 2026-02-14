@@ -83,7 +83,8 @@ export class GridPanelManager {
                 retainContextWhenHidden: true,
                 localResourceRoots: [
                     vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src'),
-                    vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist')
+                    vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist'),
+                    vscode.Uri.joinPath(this._extensionUri, 'src')
                 ]
             }
         );
@@ -1806,11 +1807,22 @@ export class GridPanelManager {
      * Generate HTML for grid webview
      */
     private _getGridHtml(webview: vscode.Webview, serverName: string, namespace: string, tableName: string): string {
+        // Theme CSS load order: theme.css -> vscodeThemeBridge.css -> grid-styles.css
+        const themeUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'theme.css')
+        );
+        const themeBridgeUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'src', 'vscodeThemeBridge.css')
+        );
         const styleUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'grid-styles.css')
         );
         const codiconUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')
+        );
+        // JS load order: VSCodeMessageBridge -> grid.js
+        const bridgeScriptUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, 'src', 'VSCodeMessageBridge.js')
         );
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'grid.js')
@@ -1833,6 +1845,8 @@ export class GridPanelManager {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
     <link href="${codiconUri}" rel="stylesheet">
+    <link href="${themeUri}" rel="stylesheet">
+    <link href="${themeBridgeUri}" rel="stylesheet">
     <link href="${styleUri}" rel="stylesheet">
     <title>${escapeHtml(tableName)} - IRIS Table Editor</title>
 </head>
@@ -2000,13 +2014,15 @@ export class GridPanelManager {
         </div>
     </div>
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+    <script nonce="${nonce}" src="${bridgeScriptUri}"></script>
     <script nonce="${nonce}">
-        // Pass initial context to webview - JSON-escaped for security
+        // Initialize message bridge and pass initial context
+        window.iteMessageBridge = new VSCodeMessageBridge();
         window.iteContext = ${JSON.stringify({
             serverName: serverName,
             namespace: namespace,
             tableName: tableName
-        })};
+        }).replace(/</g, '\\u003c')};
     </script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

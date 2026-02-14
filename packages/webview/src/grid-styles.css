@@ -4,10 +4,10 @@
 body {
     padding: 0;
     margin: 0;
-    color: var(--vscode-foreground);
-    background-color: var(--vscode-editor-background);
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
+    color: var(--ite-fg);
+    background-color: var(--ite-bg);
+    font-family: var(--ite-font-family);
+    font-size: var(--ite-font-size);
     overflow: hidden;
 }
 
@@ -39,8 +39,8 @@ body {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background-color: var(--vscode-breadcrumb-background);
-    border-bottom: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-breadcrumb-bg);
+    border-bottom: 1px solid var(--ite-widget-border);
     font-size: 0.9em;
     flex-shrink: 0;
     /* Story 2.5: Enable truncation behavior */
@@ -50,7 +50,7 @@ body {
 
 .ite-context-bar__server,
 .ite-context-bar__namespace {
-    color: var(--vscode-breadcrumb-foreground);
+    color: var(--ite-breadcrumb-fg);
     /* Story 2.5: Truncation - can shrink, show ellipsis */
     flex: 0 1 auto;
     overflow: hidden;
@@ -62,7 +62,7 @@ body {
 
 .ite-context-bar__table {
     /* Table name uses foreground color, not breadcrumb color */
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     font-weight: 600;
     /* Story 2.5: Truncation - table name gets more space */
     flex: 1 1 auto;
@@ -75,11 +75,11 @@ body {
 .ite-context-bar__server:hover,
 .ite-context-bar__namespace:hover,
 .ite-context-bar__table:hover {
-    color: var(--vscode-breadcrumb-focusForeground);
+    color: var(--ite-breadcrumb-focus-fg);
 }
 
 .ite-context-bar__separator {
-    color: var(--vscode-breadcrumb-foreground);
+    color: var(--ite-breadcrumb-fg);
     opacity: 0.6;
     /* Story 2.5: Separators don't shrink */
     flex-shrink: 0;
@@ -91,8 +91,8 @@ body {
     align-items: center;
     gap: 4px;
     padding: 4px 8px;
-    background-color: var(--vscode-editor-background);
-    border-bottom: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-bg);
+    border-bottom: 1px solid var(--ite-widget-border);
     flex-shrink: 0;
     position: relative; /* For filter panel absolute positioning */
 }
@@ -106,23 +106,23 @@ body {
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     cursor: pointer;
     opacity: 0.8;
 }
 
 .ite-toolbar__button:hover {
-    background-color: var(--vscode-toolbar-hoverBackground);
+    background-color: var(--ite-toolbar-hover-bg);
     opacity: 1;
 }
 
 .ite-toolbar__button:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: -1px;
 }
 
 .ite-toolbar__button:active {
-    background-color: var(--vscode-toolbar-activeBackground);
+    background-color: var(--ite-toolbar-active-bg);
 }
 
 .ite-toolbar__button:disabled {
@@ -134,13 +134,13 @@ body {
 .ite-toolbar__separator {
     width: 1px;
     height: 20px;
-    background-color: var(--vscode-widget-border);
+    background-color: var(--ite-widget-border);
     margin: 0 4px;
 }
 
 /* Story 6.2: Toggled filter button state */
 .ite-toolbar__button--toggled {
-    background-color: var(--vscode-toolbar-activeBackground, rgba(255, 255, 255, 0.1));
+    background-color: var(--ite-toolbar-active-bg, rgba(255, 255, 255, 0.1));
     opacity: 0.5;
 }
 
@@ -149,7 +149,7 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     opacity: 0.8;
 }
 
@@ -163,7 +163,7 @@ body {
     cursor: pointer;
     -webkit-appearance: none;
     appearance: none;
-    background: var(--vscode-scrollbarSlider-background);
+    background: var(--ite-scrollbar-bg);
     border-radius: 2px;
 }
 
@@ -173,16 +173,16 @@ body {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: var(--vscode-button-background);
+    background: var(--ite-button-bg);
     cursor: pointer;
 }
 
 .ite-toolbar__slider::-webkit-slider-thumb:hover {
-    background: var(--vscode-button-hoverBackground);
+    background: var(--ite-button-hover-bg);
 }
 
 .ite-toolbar__slider:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: 2px;
 }
 
@@ -194,13 +194,13 @@ body {
     justify-content: center;
     flex: 1;
     text-align: center;
-    background-color: var(--vscode-editor-background);
+    background-color: var(--ite-bg);
 }
 
 .ite-loading__spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid var(--vscode-progressBar-background);
+    border: 3px solid var(--ite-progress-bg);
     border-top-color: transparent;
     border-radius: 50%;
     animation: ite-spin 1s linear infinite;
@@ -214,7 +214,7 @@ body {
 
 .ite-loading__text {
     margin-top: 12px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
 }
 
 /* Grid Wrapper */
@@ -244,11 +244,11 @@ body {
     font-size: 0.85em;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     /* Solid opaque background - critical for sticky */
-    background: var(--vscode-editorWidget-background, #252526);
-    border-bottom: 2px solid var(--vscode-widget-border);
-    border-right: 1px solid var(--vscode-widget-border);
+    background: var(--ite-editor-widget-bg, #252526);
+    border-bottom: 2px solid var(--ite-widget-border);
+    border-right: 1px solid var(--ite-widget-border);
     white-space: nowrap;
     user-select: none;
     /* Sticky header cells */
@@ -256,7 +256,7 @@ body {
     top: 0;
     z-index: 10;
     /* Box shadow creates solid backdrop to hide content scrolling underneath */
-    box-shadow: inset 0 0 0 1000px var(--vscode-editorWidget-background, #252526);
+    box-shadow: inset 0 0 0 1000px var(--ite-editor-widget-bg, #252526);
 }
 
 .ite-grid__header-cell:last-child {
@@ -269,11 +269,11 @@ body {
 }
 
 .ite-grid__header-cell--sortable:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 .ite-grid__header-cell--sortable:focus {
-    outline: 2px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--ite-focus-ring);
     outline-offset: -2px;
 }
 
@@ -304,7 +304,7 @@ body {
 
 .ite-grid__sort-indicator--active {
     opacity: 1 !important;
-    color: var(--vscode-textLink-foreground);
+    color: var(--ite-text-link-fg);
 }
 
 /* Story 6.2: Filter Row */
@@ -318,18 +318,18 @@ body {
 
 .ite-grid__filter-cell {
     padding: 4px 6px;
-    border-bottom: 1px solid var(--vscode-widget-border);
-    border-right: 1px solid var(--vscode-widget-border);
+    border-bottom: 1px solid var(--ite-widget-border);
+    border-right: 1px solid var(--ite-widget-border);
     display: flex;
     align-items: center;
     /* Solid opaque background - critical for sticky */
-    background: var(--vscode-editorWidget-background, #252526);
+    background: var(--ite-editor-widget-bg, #252526);
     /* Sticky filter cells - positioned below header */
     position: sticky;
     top: 35px;
     z-index: 9;
     /* Box shadow creates solid backdrop to hide content scrolling underneath */
-    box-shadow: inset 0 0 0 1000px var(--vscode-editorWidget-background, #252526);
+    box-shadow: inset 0 0 0 1000px var(--ite-editor-widget-bg, #252526);
 }
 
 .ite-grid__filter-cell:last-child {
@@ -346,10 +346,10 @@ body {
 .ite-grid__filter-input {
     width: 100%;
     padding: 4px 8px;
-    border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+    border: 1px solid var(--ite-input-border, var(--ite-widget-border));
     border-radius: 3px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
+    background-color: var(--ite-input-bg);
+    color: var(--ite-input-fg);
     font-family: inherit;
     font-size: 0.9em;
     box-sizing: border-box;
@@ -357,17 +357,17 @@ body {
 
 .ite-grid__filter-input:focus {
     outline: none;
-    border-color: var(--vscode-focusBorder);
+    border-color: var(--ite-focus-ring);
 }
 
 .ite-grid__filter-input::placeholder {
-    color: var(--vscode-input-placeholderForeground);
+    color: var(--ite-input-placeholder-fg);
     opacity: 0.7;
 }
 
 .ite-grid__filter-input--active {
-    border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-inputOption-activeBackground, rgba(0, 120, 215, 0.1));
+    border-color: var(--ite-focus-ring);
+    background-color: var(--ite-input-option-active-bg, rgba(0, 120, 215, 0.1));
 }
 
 .ite-grid__filter-input:disabled {
@@ -383,8 +383,8 @@ body {
 }
 
 .ite-grid__filter-select option {
-    background-color: var(--vscode-dropdown-background);
-    color: var(--vscode-dropdown-foreground);
+    background-color: var(--ite-dropdown-bg);
+    color: var(--ite-dropdown-fg);
 }
 
 /* Story 6.3: Toolbar badge for filter count */
@@ -399,8 +399,8 @@ body {
     font-weight: 600;
     line-height: 16px;
     text-align: center;
-    color: var(--vscode-badge-foreground);
-    background-color: var(--vscode-badge-background);
+    color: var(--ite-badge-fg);
+    background-color: var(--ite-badge-bg);
     border-radius: 8px;
 }
 
@@ -420,8 +420,8 @@ body {
     left: 0;
     z-index: 100;
     min-width: 220px;
-    background-color: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-editor-widget-bg);
+    border: 1px solid var(--ite-widget-border);
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     padding: 4px 0;
@@ -435,20 +435,20 @@ body {
     padding: 6px 12px;
     border: none;
     background: none;
-    color: var(--vscode-foreground);
-    font-size: var(--vscode-font-size);
-    font-family: var(--vscode-font-family);
+    color: var(--ite-fg);
+    font-size: var(--ite-font-size);
+    font-family: var(--ite-font-family);
     cursor: pointer;
     text-align: left;
     white-space: nowrap;
 }
 
 .ite-export-menu__item:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 .ite-export-menu__item:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: -1px;
 }
 
@@ -459,7 +459,7 @@ body {
 
 .ite-export-menu__divider {
     height: 1px;
-    background-color: var(--vscode-widget-border);
+    background-color: var(--ite-widget-border);
     margin: 4px 0;
 }
 
@@ -470,8 +470,8 @@ body {
     left: 50%;
     transform: translateX(-50%);
     z-index: 200;
-    background-color: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-editor-widget-bg);
+    border: 1px solid var(--ite-widget-border);
     border-radius: 6px;
     padding: 12px 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -489,7 +489,7 @@ body {
 .ite-export-progress__text {
     margin: 0 0 8px 0;
     font-size: 0.9em;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-export-progress__cancel {
@@ -502,27 +502,27 @@ body {
     margin-bottom: 8px;
     border: none;
     background: transparent;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     cursor: pointer;
     border-radius: 3px;
     flex-shrink: 0;
 }
 
 .ite-export-progress__cancel:hover {
-    background: var(--vscode-toolbar-hoverBackground);
+    background: var(--ite-toolbar-hover-bg);
 }
 
 .ite-export-progress__bar {
     width: 100%;
     height: 4px;
-    background-color: var(--vscode-progressBar-background, var(--vscode-widget-border));
+    background-color: var(--ite-progress-bg, var(--ite-widget-border));
     border-radius: 2px;
     overflow: hidden;
 }
 
 .ite-export-progress__fill {
     height: 100%;
-    background-color: var(--vscode-progressBar-background, var(--vscode-button-background));
+    background-color: var(--ite-progress-bg, var(--ite-button-bg));
     border-radius: 2px;
     transition: width 0.3s ease;
 }
@@ -547,7 +547,7 @@ body {
     margin: 12px 0 8px;
     font-size: 0.85em;
     text-transform: uppercase;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
 }
 
 .ite-import-mapping {
@@ -564,7 +564,7 @@ body {
     align-items: center;
     font-weight: 600;
     font-size: 0.85em;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     padding: 4px 0;
 }
 
@@ -577,10 +577,10 @@ body {
 }
 
 .ite-import-mapping__csv-col {
-    font-family: var(--vscode-editor-font-family, monospace);
+    font-family: var(--ite-editor-font-family, monospace);
     font-size: 0.9em;
     padding: 2px 6px;
-    background: var(--vscode-textCodeBlock-background);
+    background: var(--ite-text-codeblock-bg);
     border-radius: 3px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -589,14 +589,14 @@ body {
 
 .ite-import-mapping__arrow {
     text-align: center;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
 }
 
 .ite-import-mapping__select {
     padding: 3px 6px;
-    background: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+    background: var(--ite-input-bg);
+    color: var(--ite-input-fg);
+    border: 1px solid var(--ite-input-border, var(--ite-widget-border));
     border-radius: 3px;
     font-size: 0.9em;
 }
@@ -605,7 +605,7 @@ body {
     overflow-x: auto;
     max-height: 200px;
     overflow-y: auto;
-    border: 1px solid var(--vscode-widget-border);
+    border: 1px solid var(--ite-widget-border);
     border-radius: 3px;
 }
 
@@ -618,7 +618,7 @@ body {
 .ite-import-preview__table th,
 .ite-import-preview__table td {
     padding: 4px 8px;
-    border: 1px solid var(--vscode-widget-border);
+    border: 1px solid var(--ite-widget-border);
     white-space: nowrap;
     max-width: 150px;
     overflow: hidden;
@@ -626,7 +626,7 @@ body {
 }
 
 .ite-import-preview__table th {
-    background: var(--vscode-editorWidget-background);
+    background: var(--ite-editor-widget-bg);
     font-weight: 600;
     position: sticky;
     top: 0;
@@ -643,11 +643,11 @@ body {
     gap: 6px;
     cursor: pointer;
     font-size: 0.9em;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-import-checkbox input[type="checkbox"] {
-    accent-color: var(--vscode-checkbox-background);
+    accent-color: var(--ite-checkbox-bg);
 }
 
 .ite-validation-summary {
@@ -664,18 +664,18 @@ body {
 
 .ite-validation-stat--success {
     background: rgba(51, 153, 51, 0.15);
-    color: var(--vscode-testing-iconPassed, #3b9a3b);
+    color: var(--ite-testing-passed, #3b9a3b);
 }
 
 .ite-validation-stat--error {
     background: rgba(204, 51, 51, 0.15);
-    color: var(--vscode-testing-iconFailed, #cc3333);
+    color: var(--ite-testing-failed, #cc3333);
 }
 
 .ite-validation-errors {
     max-height: 250px;
     overflow-y: auto;
-    border: 1px solid var(--vscode-widget-border);
+    border: 1px solid var(--ite-widget-border);
     border-radius: 4px;
     margin-top: 4px;
 }
@@ -684,7 +684,7 @@ body {
     display: flex;
     gap: 12px;
     padding: 6px 10px;
-    border-bottom: 1px solid var(--vscode-widget-border);
+    border-bottom: 1px solid var(--ite-widget-border);
     font-size: 0.85em;
 }
 
@@ -695,12 +695,12 @@ body {
 .ite-validation-error__row {
     font-weight: 600;
     white-space: nowrap;
-    color: var(--vscode-testing-iconFailed, #cc3333);
+    color: var(--ite-testing-failed, #cc3333);
     min-width: 50px;
 }
 
 .ite-validation-error__msg {
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     word-break: break-word;
 }
 
@@ -708,7 +708,7 @@ body {
     padding: 6px 10px;
     font-size: 0.85em;
     font-style: italic;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
 }
 
 /* Story 6.3: Filter Panel */
@@ -721,8 +721,8 @@ body {
     min-width: 250px;
     max-width: 350px;
     max-height: 300px;
-    background-color: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-editor-widget-bg);
+    border: 1px solid var(--ite-widget-border);
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     overflow: hidden;
@@ -733,15 +733,15 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background-color: var(--vscode-sideBarSectionHeader-background);
-    border-bottom: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-sidebar-section-header-bg);
+    border-bottom: 1px solid var(--ite-widget-border);
 }
 
 .ite-filter-panel__title {
     margin: 0;
     font-size: 0.9em;
     font-weight: 600;
-    color: var(--vscode-sideBarSectionHeader-foreground);
+    color: var(--ite-sidebar-section-header-fg);
 }
 
 .ite-filter-panel__close {
@@ -754,18 +754,18 @@ body {
     border: none;
     border-radius: 2px;
     background: transparent;
-    color: var(--vscode-icon-foreground);
+    color: var(--ite-icon-fg);
     cursor: pointer;
     opacity: 0.7;
 }
 
 .ite-filter-panel__close:hover {
     opacity: 1;
-    background-color: var(--vscode-toolbar-hoverBackground);
+    background-color: var(--ite-toolbar-hover-bg);
 }
 
 .ite-filter-panel__close:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: -1px;
 }
 
@@ -777,7 +777,7 @@ body {
 
 .ite-filter-panel__empty {
     margin: 8px 0;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     font-style: italic;
     text-align: center;
 }
@@ -789,8 +789,8 @@ body {
     gap: 8px;
     padding: 6px 8px;
     margin-bottom: 4px;
-    background-color: var(--vscode-inputOption-activeBackground, rgba(0, 120, 215, 0.1));
-    border: 1px solid var(--vscode-inputOption-activeBorder, var(--vscode-focusBorder));
+    background-color: var(--ite-input-option-active-bg, rgba(0, 120, 215, 0.1));
+    border: 1px solid var(--ite-input-option-active-border, var(--ite-focus-ring));
     border-radius: 4px;
 }
 
@@ -800,13 +800,13 @@ body {
 
 .ite-filter-chip__column {
     font-weight: 500;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     min-width: 60px;
 }
 
 .ite-filter-chip__value {
     flex: 1;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -822,7 +822,7 @@ body {
     border: none;
     border-radius: 2px;
     background: transparent;
-    color: var(--vscode-icon-foreground);
+    color: var(--ite-icon-fg);
     cursor: pointer;
     opacity: 0.6;
     flex-shrink: 0;
@@ -830,11 +830,11 @@ body {
 
 .ite-filter-chip__remove:hover {
     opacity: 1;
-    background-color: var(--vscode-toolbar-hoverBackground);
+    background-color: var(--ite-toolbar-hover-bg);
 }
 
 .ite-filter-chip__remove:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: -1px;
 }
 
@@ -854,12 +854,12 @@ body {
     width: 16px;
     height: 16px;
     cursor: pointer;
-    accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
+    accent-color: var(--ite-checkbox-select-bg, var(--ite-focus-ring));
     margin: 0;
 }
 
 .ite-row-selector__checkbox:focus {
-    outline: 2px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--ite-focus-ring);
     outline-offset: 1px;
 }
 
@@ -870,40 +870,40 @@ body {
 
 /* Alternating row colors - applied to cells since rows use display:contents */
 .ite-grid__row:nth-child(even) .ite-grid__cell {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 /* Row hover - applied to cells */
 .ite-grid__row:hover .ite-grid__cell {
-    background-color: var(--vscode-list-activeSelectionBackground);
-    color: var(--vscode-list-activeSelectionForeground);
+    background-color: var(--ite-list-active-selection-bg);
+    color: var(--ite-list-active-selection-fg);
 }
 
 /* Story 5.1: Selected Row for Deletion */
 .ite-grid__row--selected .ite-grid__cell {
-    background-color: var(--vscode-list-activeSelectionBackground) !important;
-    color: var(--vscode-list-activeSelectionForeground);
+    background-color: var(--ite-list-active-selection-bg) !important;
+    color: var(--ite-list-active-selection-fg);
 }
 
 /* Story 3.1: Ensure selected cell keeps its styling even on row hover */
 .ite-grid__cell--selected {
-    background-color: var(--vscode-list-activeSelectionBackground) !important;
-    color: var(--vscode-list-activeSelectionForeground) !important;
+    background-color: var(--ite-list-active-selection-bg) !important;
+    color: var(--ite-list-active-selection-fg) !important;
 }
 
 /* Story 4.1: New Row (pending INSERT) */
 .ite-grid__row--new .ite-grid__cell {
-    background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15));
+    background-color: var(--ite-diff-inserted-line-bg, rgba(155, 185, 85, 0.15));
 }
 
 /* New row indicator - left border on first cell */
 .ite-grid__row--new .ite-grid__cell:first-of-type {
-    border-left: 3px solid var(--vscode-gitDecoration-addedResourceForeground, #73c991);
+    border-left: 3px solid var(--ite-git-added-fg, #73c991);
 }
 
 /* New row hover state - slightly more pronounced */
 .ite-grid__row--new:hover .ite-grid__cell {
-    background-color: var(--vscode-diffEditor-insertedTextBackground, rgba(155, 185, 85, 0.25));
+    background-color: var(--ite-diff-inserted-bg, rgba(155, 185, 85, 0.25));
 }
 
 /* High contrast support for new rows */
@@ -926,8 +926,8 @@ body {
 
 /* Story 4.3: New Row Save Success Animation */
 @keyframes ite-row-save-success {
-    0% { background-color: var(--vscode-diffEditor-insertedLineBackground, rgba(155, 185, 85, 0.15)); }
-    50% { background-color: var(--vscode-testing-iconPassed, rgba(76, 175, 80, 0.3)); }
+    0% { background-color: var(--ite-diff-inserted-line-bg, rgba(155, 185, 85, 0.15)); }
+    50% { background-color: var(--ite-testing-passed, rgba(76, 175, 80, 0.3)); }
     100% { background-color: transparent; }
 }
 
@@ -937,22 +937,22 @@ body {
 
 /* Story 4.3: New Row Error State */
 .ite-grid__row--error {
-    outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    outline: 2px solid var(--ite-input-validation-error-border, #be1100);
     outline-offset: -2px;
 }
 
 /* Grid Cell */
 .ite-grid__cell {
     padding: 6px 12px;
-    border-bottom: 1px solid var(--vscode-widget-border);
-    border-right: 1px solid var(--vscode-widget-border);
+    border-bottom: 1px solid var(--ite-widget-border);
+    border-right: 1px solid var(--ite-widget-border);
     display: flex;
     align-items: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 300px;
-    background-color: var(--vscode-editor-background);
+    background-color: var(--ite-bg);
 }
 
 .ite-grid__cell:last-child {
@@ -961,10 +961,10 @@ body {
 
 /* Story 3.1: Cell Selection Styling */
 .ite-grid__cell--selected {
-    outline: 2px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--ite-focus-ring);
     outline-offset: -2px;
-    background-color: var(--vscode-list-activeSelectionBackground);
-    color: var(--vscode-list-activeSelectionForeground);
+    background-color: var(--ite-list-active-selection-bg);
+    color: var(--ite-list-active-selection-fg);
     /* Ensure selected cell is above adjacent cells for outline visibility */
     position: relative;
     z-index: 1;
@@ -972,18 +972,18 @@ body {
 
 /* Story 3.1: Focus visible state for keyboard users */
 .ite-grid__cell:focus {
-    outline: 2px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--ite-focus-ring);
     outline-offset: -2px;
 }
 
 .ite-grid__cell:focus:not(.ite-grid__cell--selected) {
     /* Cell has focus but isn't selected (edge case) */
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 /* Cell Data Type Styling */
 .ite-grid__cell--null {
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     font-style: italic;
 }
 
@@ -1021,20 +1021,20 @@ body {
 }
 
 .ite-checkbox:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 .ite-checkbox--checked {
-    color: var(--vscode-checkbox-foreground, var(--vscode-foreground));
+    color: var(--ite-checkbox-fg, var(--ite-fg));
 }
 
 .ite-checkbox--unchecked {
-    color: var(--vscode-checkbox-foreground, var(--vscode-foreground));
+    color: var(--ite-checkbox-fg, var(--ite-fg));
     opacity: 0.6;
 }
 
 .ite-checkbox--null {
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     font-style: normal;
     opacity: 0.8;
 }
@@ -1056,10 +1056,10 @@ body {
 
 .ite-context-menu {
     position: fixed;
-    background-color: var(--vscode-menu-background);
-    border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
+    background-color: var(--ite-menu-bg);
+    border: 1px solid var(--ite-menu-border, var(--ite-widget-border));
     border-radius: 4px;
-    box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.2));
+    box-shadow: 0 2px 8px var(--ite-widget-shadow, rgba(0, 0, 0, 0.2));
     z-index: 1000;
     min-width: 120px;
     padding: 4px 0;
@@ -1069,15 +1069,15 @@ body {
 .ite-context-menu__item {
     padding: 6px 12px;
     cursor: pointer;
-    color: var(--vscode-menu-foreground);
+    color: var(--ite-menu-fg);
     font-size: 13px;
     outline: none;
 }
 
 .ite-context-menu__item:hover,
 .ite-context-menu__item:focus {
-    background-color: var(--vscode-menu-selectionBackground);
-    color: var(--vscode-menu-selectionForeground);
+    background-color: var(--ite-menu-selection-bg);
+    color: var(--ite-menu-selection-fg);
 }
 
 /* ==========================================
@@ -1090,8 +1090,8 @@ body {
     width: 100%;
     height: 100%;
     min-height: 28px;
-    background-color: var(--vscode-input-background);
-    border: 2px solid var(--vscode-focusBorder);
+    background-color: var(--ite-input-bg);
+    border: 2px solid var(--ite-focus-ring);
 }
 
 .ite-date-editor__input {
@@ -1101,14 +1101,14 @@ body {
     padding: 5px 8px;
     border: none;
     background-color: transparent;
-    color: var(--vscode-input-foreground);
+    color: var(--ite-input-fg);
     font-family: inherit;
     font-size: inherit;
     outline: none;
 }
 
 .ite-date-editor__input::placeholder {
-    color: var(--vscode-input-placeholderForeground);
+    color: var(--ite-input-placeholder-fg);
 }
 
 .ite-date-editor__calendar-btn {
@@ -1119,7 +1119,7 @@ body {
     margin: 0;
     border: none;
     background: transparent;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1131,7 +1131,7 @@ body {
 
 .ite-date-editor__calendar-btn:hover {
     opacity: 1;
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 /* ==========================================
@@ -1141,10 +1141,10 @@ body {
 .ite-date-picker {
     position: fixed;
     z-index: 1000;
-    background-color: var(--vscode-dropdown-background, var(--vscode-editorWidget-background));
-    border: 1px solid var(--vscode-dropdown-border, var(--vscode-widget-border));
+    background-color: var(--ite-dropdown-bg, var(--ite-editor-widget-bg));
+    border: 1px solid var(--ite-dropdown-border, var(--ite-widget-border));
     border-radius: 4px;
-    box-shadow: 0 4px 12px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+    box-shadow: 0 4px 12px var(--ite-widget-shadow, rgba(0, 0, 0, 0.3));
     padding: 12px;
     min-width: 240px;
     outline: none;
@@ -1163,7 +1163,7 @@ body {
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     cursor: pointer;
     border-radius: 4px;
     font-size: 12px;
@@ -1173,13 +1173,13 @@ body {
 }
 
 .ite-date-picker__nav-btn:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 .ite-date-picker__month-year {
     font-weight: 600;
     font-size: 14px;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-date-picker__week-header {
@@ -1197,7 +1197,7 @@ body {
     justify-content: center;
     font-size: 11px;
     font-weight: 600;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     text-transform: uppercase;
 }
 
@@ -1213,7 +1213,7 @@ body {
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     font-size: 13px;
     cursor: pointer;
     border-radius: 4px;
@@ -1224,7 +1224,7 @@ body {
 }
 
 .ite-date-picker__day:hover:not(.ite-date-picker__day--empty) {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--ite-list-hover-bg);
 }
 
 .ite-date-picker__day--empty {
@@ -1232,20 +1232,20 @@ body {
 }
 
 .ite-date-picker__day--today {
-    border: 1px solid var(--vscode-focusBorder);
+    border: 1px solid var(--ite-focus-ring);
 }
 
 .ite-date-picker__day--selected {
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
+    background-color: var(--ite-button-bg);
+    color: var(--ite-button-fg);
 }
 
 .ite-date-picker__day--selected:hover {
-    background-color: var(--vscode-button-hoverBackground);
+    background-color: var(--ite-button-hover-bg);
 }
 
 .ite-date-picker__day--focused {
-    outline: 2px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--ite-focus-ring);
     outline-offset: -2px;
 }
 
@@ -1253,16 +1253,16 @@ body {
     width: 100%;
     margin-top: 12px;
     padding: 6px 12px;
-    border: 1px solid var(--vscode-button-border, transparent);
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+    border: 1px solid var(--ite-button-border, transparent);
+    background-color: var(--ite-button-secondary-bg);
+    color: var(--ite-button-secondary-fg);
     font-size: 13px;
     cursor: pointer;
     border-radius: 4px;
 }
 
 .ite-date-picker__today-btn:hover {
-    background-color: var(--vscode-button-secondaryHoverBackground);
+    background-color: var(--ite-button-secondary-hover-bg);
 }
 
 /* Story 3.2: Cell Editing Styles */
@@ -1279,10 +1279,10 @@ body {
     height: 100%;
     min-height: 28px;
     padding: 5px 11px; /* Slightly less than cell for border */
-    border: 2px solid var(--vscode-focusBorder);
+    border: 2px solid var(--ite-focus-ring);
     border-radius: 0;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
+    background-color: var(--ite-input-bg);
+    color: var(--ite-input-fg);
     font-family: inherit;
     font-size: inherit;
     line-height: inherit;
@@ -1291,21 +1291,21 @@ body {
 }
 
 .ite-grid__cell-input:focus {
-    border-color: var(--vscode-inputOption-activeBorder, var(--vscode-focusBorder));
+    border-color: var(--ite-input-option-active-border, var(--ite-focus-ring));
 }
 
 .ite-grid__cell-input::placeholder {
-    color: var(--vscode-input-placeholderForeground);
+    color: var(--ite-input-placeholder-fg);
 }
 
 .ite-grid__cell-input::selection {
-    background-color: var(--vscode-editor-selectionBackground);
+    background-color: var(--ite-editor-selection-bg);
 }
 
 /* Story 3.4: Modified Cell State (unsaved changes while editing) */
 .ite-grid__cell--modified {
     position: relative;
-    background-color: var(--vscode-inputValidation-warningBackground, rgba(204, 167, 0, 0.15));
+    background-color: var(--ite-input-validation-warning-bg, rgba(204, 167, 0, 0.15));
 }
 
 /* Modified indicator dot in corner */
@@ -1316,7 +1316,7 @@ body {
     right: 3px;
     width: 6px;
     height: 6px;
-    background-color: var(--vscode-inputValidation-warningBorder, #cca700);
+    background-color: var(--ite-input-validation-warning-border, #cca700);
     border-radius: 50%;
 }
 
@@ -1339,9 +1339,9 @@ body {
 }
 
 @keyframes ite-save-success {
-    0% { background-color: var(--vscode-list-activeSelectionBackground); }
-    50% { background-color: var(--vscode-testing-iconPassed, #4caf50); }
-    100% { background-color: var(--vscode-list-activeSelectionBackground); }
+    0% { background-color: var(--ite-list-active-selection-bg); }
+    50% { background-color: var(--ite-testing-passed, #4caf50); }
+    100% { background-color: var(--ite-list-active-selection-bg); }
 }
 
 .ite-grid__cell--save-success {
@@ -1350,14 +1350,14 @@ body {
 
 /* Story 3.5: Cell Error State */
 .ite-grid__cell--error {
-    outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    outline: 2px solid var(--ite-input-validation-error-border, #be1100);
     outline-offset: -2px;
     position: relative;
 }
 
 /* Ensure error state is visible above other states */
 .ite-grid__cell--error.ite-grid__cell--selected {
-    outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    outline: 2px solid var(--ite-input-validation-error-border, #be1100);
 }
 
 /* High contrast support for error state */
@@ -1381,10 +1381,10 @@ body {
     pointer-events: auto;
     padding: 10px 16px;
     margin-bottom: 8px;
-    background-color: var(--vscode-notifications-background);
-    border: 1px solid var(--vscode-notifications-border);
+    background-color: var(--ite-notifications-bg);
+    border: 1px solid var(--ite-notifications-border);
     border-radius: 4px;
-    color: var(--vscode-notifications-foreground);
+    color: var(--ite-notifications-fg);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1394,24 +1394,24 @@ body {
 }
 
 .ite-toast--error {
-    background-color: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.1));
-    border-color: var(--vscode-inputValidation-errorBorder, #be1100);
+    background-color: var(--ite-input-validation-error-bg, rgba(190, 17, 0, 0.1));
+    border-color: var(--ite-input-validation-error-border, #be1100);
 }
 
 .ite-toast--warning {
-    background-color: var(--vscode-inputValidation-warningBackground, rgba(204, 167, 0, 0.1));
-    border-color: var(--vscode-inputValidation-warningBorder, #cca700);
+    background-color: var(--ite-input-validation-warning-bg, rgba(204, 167, 0, 0.1));
+    border-color: var(--ite-input-validation-warning-border, #cca700);
 }
 
 .ite-toast--info {
-    background-color: var(--vscode-inputValidation-infoBackground, rgba(0, 120, 212, 0.1));
-    border-color: var(--vscode-inputValidation-infoBorder, #0078d4);
+    background-color: var(--ite-input-validation-info-bg, rgba(0, 120, 212, 0.1));
+    border-color: var(--ite-input-validation-info-border, #0078d4);
 }
 
 /* Story 5.3: Success toast for delete confirmation */
 .ite-toast--success {
     background-color: rgba(46, 125, 50, 0.1);
-    border-color: var(--vscode-testing-iconPassed, #2e7d32);
+    border-color: var(--ite-testing-passed, #2e7d32);
 }
 
 .ite-toast__icon {
@@ -1420,20 +1420,20 @@ body {
 }
 
 .ite-toast--error .ite-toast__icon {
-    color: var(--vscode-errorForeground, #f48771);
+    color: var(--ite-error-fg, #f48771);
 }
 
 .ite-toast--warning .ite-toast__icon {
-    color: var(--vscode-editorWarning-foreground, #cca700);
+    color: var(--ite-warning-fg, #cca700);
 }
 
 .ite-toast--info .ite-toast__icon {
-    color: var(--vscode-editorInfo-foreground, #75beff);
+    color: var(--ite-info-fg, #75beff);
 }
 
 /* Story 5.3: Success toast icon color */
 .ite-toast--success .ite-toast__icon {
-    color: var(--vscode-testing-iconPassed, #2e7d32);
+    color: var(--ite-testing-passed, #2e7d32);
 }
 
 .ite-toast__message {
@@ -1446,7 +1446,7 @@ body {
     flex-shrink: 0;
     background: none;
     border: none;
-    color: var(--vscode-icon-foreground);
+    color: var(--ite-icon-fg);
     cursor: pointer;
     padding: 2px 4px;
     font-size: 14px;
@@ -1456,11 +1456,11 @@ body {
 
 .ite-toast__dismiss:hover {
     opacity: 1;
-    background-color: var(--vscode-toolbar-hoverBackground);
+    background-color: var(--ite-toolbar-hover-bg);
 }
 
 .ite-toast__dismiss:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: 1px;
 }
 
@@ -1516,7 +1516,7 @@ body {
 
 /* Story 3.3: Error state in status bar */
 .ite-status-bar__text--error {
-    color: var(--vscode-errorForeground);
+    color: var(--ite-error-fg);
 }
 
 /* Status Bar */
@@ -1525,14 +1525,14 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px;
-    background-color: var(--vscode-statusBar-background);
-    border-top: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-statusbar-bg);
+    border-top: 1px solid var(--ite-widget-border);
     flex-shrink: 0;
 }
 
 .ite-status-bar__text {
     font-size: 0.85em;
-    color: var(--vscode-statusBar-foreground);
+    color: var(--ite-statusbar-fg);
 }
 
 /* Error State */
@@ -1548,7 +1548,7 @@ body {
 
 .ite-grid-error__icon {
     font-size: 48px;
-    color: var(--vscode-errorForeground);
+    color: var(--ite-error-fg);
     margin-bottom: 16px;
 }
 
@@ -1556,30 +1556,30 @@ body {
     margin: 0 0 8px 0;
     font-size: 1.1em;
     font-weight: 600;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-grid-error__message {
     margin: 0 0 16px 0;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
 }
 
 .ite-grid-error__button {
     padding: 8px 16px;
     border: none;
     border-radius: 4px;
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
+    background-color: var(--ite-button-bg);
+    color: var(--ite-button-fg);
     cursor: pointer;
     font-size: 1em;
 }
 
 .ite-grid-error__button:hover {
-    background-color: var(--vscode-button-hoverBackground);
+    background-color: var(--ite-button-hover-bg);
 }
 
 .ite-grid-error__button:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: 1px;
 }
 
@@ -1596,14 +1596,14 @@ body {
 
 .ite-grid-empty__icon {
     font-size: 48px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     margin-bottom: 16px;
     opacity: 0.5;
 }
 
 .ite-grid-empty__text {
     margin: 0;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
 }
 
 /* Story 2.2: Empty Row State (for tables with schema but no data) */
@@ -1615,7 +1615,7 @@ body {
     grid-column: 1 / -1; /* Span all columns */
     padding: 24px;
     text-align: center;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     font-style: italic;
 }
 
@@ -1625,14 +1625,14 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background-color: var(--vscode-editorWidget-background);
-    border-top: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-editor-widget-bg);
+    border-top: 1px solid var(--ite-widget-border);
     flex-shrink: 0;
 }
 
 .ite-pagination__info {
     font-size: 0.9em;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-pagination__controls {
@@ -1646,21 +1646,21 @@ body {
     align-items: center;
     gap: 4px;
     padding: 4px 12px;
-    border: 1px solid var(--vscode-button-border, transparent);
+    border: 1px solid var(--ite-button-border, transparent);
     border-radius: 4px;
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+    background-color: var(--ite-button-secondary-bg);
+    color: var(--ite-button-secondary-fg);
     font-size: 0.9em;
     cursor: pointer;
     transition: background-color 0.1s ease;
 }
 
 .ite-pagination__button:hover:not(:disabled) {
-    background-color: var(--vscode-button-secondaryHoverBackground);
+    background-color: var(--ite-button-secondary-hover-bg);
 }
 
 .ite-pagination__button:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: 1px;
 }
 
@@ -1692,18 +1692,18 @@ body {
 .ite-pagination__page-input {
     width: 50px;
     padding: 3px 6px;
-    border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+    border: 1px solid var(--ite-input-border, var(--ite-widget-border));
     border-radius: 4px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
+    background-color: var(--ite-input-bg);
+    color: var(--ite-input-fg);
     font-size: 0.9em;
     text-align: center;
 }
 
 .ite-pagination__page-input:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--ite-focus-ring);
     outline-offset: -1px;
-    border-color: var(--vscode-focusBorder);
+    border-color: var(--ite-focus-ring);
 }
 
 .ite-pagination__page-input:disabled {
@@ -1713,14 +1713,14 @@ body {
 
 /* Story 6.5: Error state for invalid page input */
 .ite-pagination__page-input--error {
-    border-color: var(--vscode-inputValidation-errorBorder, #f44336);
-    background-color: var(--vscode-inputValidation-errorBackground, rgba(244, 67, 54, 0.1));
+    border-color: var(--ite-input-validation-error-border, #f44336);
+    background-color: var(--ite-input-validation-error-bg, rgba(244, 67, 54, 0.1));
 }
 
 /* Story 6.5: Page total label */
 .ite-pagination__page-total {
     font-size: 0.9em;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     white-space: nowrap;
 }
 
@@ -1728,7 +1728,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .ite-loading__spinner {
         animation: none;
-        border-color: var(--vscode-progressBar-background);
+        border-color: var(--ite-progress-bg);
     }
 
     .ite-grid__row {
@@ -1745,46 +1745,46 @@ body {
 }
 
 /* High Contrast Theme Support
-   VS Code provides --vscode-contrastBorder and --vscode-contrastActiveBorder
+   The theme bridge provides --ite-contrast-border and --ite-contrast-active-border
    in high contrast themes. We use these with fallbacks for regular themes.
    This ensures the grid is fully usable in High Contrast Light/Dark modes. */
 
 /* High contrast borders for grid elements */
 .ite-grid__header-cell {
-    border-bottom-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
-    border-right-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
+    border-bottom-color: var(--ite-contrast-border, var(--ite-widget-border));
+    border-right-color: var(--ite-contrast-border, var(--ite-widget-border));
 }
 
 .ite-grid__cell {
-    border-bottom-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
-    border-right-color: var(--vscode-contrastBorder, var(--vscode-widget-border));
+    border-bottom-color: var(--ite-contrast-border, var(--ite-widget-border));
+    border-right-color: var(--ite-contrast-border, var(--ite-widget-border));
 }
 
 /* Enhanced focus indicators for high contrast - 2px solid border per UX12 */
 .ite-toolbar__button:focus-visible {
-    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline: 2px solid var(--ite-contrast-active-border, var(--ite-focus-ring));
     outline-offset: 1px;
 }
 
 .ite-pagination__button:focus-visible {
-    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline: 2px solid var(--ite-contrast-active-border, var(--ite-focus-ring));
     outline-offset: 1px;
 }
 
 .ite-grid-error__button:focus-visible {
-    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline: 2px solid var(--ite-contrast-active-border, var(--ite-focus-ring));
     outline-offset: 1px;
 }
 
 /* Story 3.1: High contrast cell selection */
 .ite-grid__cell--selected:focus-visible {
-    outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    outline: 2px solid var(--ite-contrast-active-border, var(--ite-focus-ring));
     outline-offset: -2px;
 }
 
 /* Story 3.2: High contrast cell editing */
 .ite-grid__cell-input:focus {
-    border-color: var(--vscode-contrastActiveBorder, var(--vscode-focusBorder));
+    border-color: var(--ite-contrast-active-border, var(--ite-focus-ring));
 }
 
 /* Windows High Contrast Mode (forced-colors)
@@ -1898,8 +1898,8 @@ body {
 
 /* Dialog Box */
 .ite-dialog {
-    background-color: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-widget-border);
+    background-color: var(--ite-bg);
+    border: 1px solid var(--ite-widget-border);
     border-radius: 6px;
     padding: 20px;
     min-width: 300px;
@@ -1915,12 +1915,12 @@ body {
     margin: 0 0 8px 0;
     font-size: 1.1em;
     font-weight: 600;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-dialog__message {
     margin: 0;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     line-height: 1.4;
 }
 
@@ -1941,27 +1941,27 @@ body {
 }
 
 .ite-dialog__button--secondary {
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+    background-color: var(--ite-button-secondary-bg);
+    color: var(--ite-button-secondary-fg);
 }
 
 .ite-dialog__button--secondary:hover {
-    background-color: var(--vscode-button-secondaryHoverBackground);
+    background-color: var(--ite-button-secondary-hover-bg);
 }
 
 .ite-dialog__button--danger {
-    background-color: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.2));
-    color: var(--vscode-errorForeground, #f48771);
-    border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    background-color: var(--ite-input-validation-error-bg, rgba(190, 17, 0, 0.2));
+    color: var(--ite-error-fg, #f48771);
+    border: 1px solid var(--ite-input-validation-error-border, #be1100);
 }
 
 .ite-dialog__button--danger:hover {
-    background-color: var(--vscode-inputValidation-errorBorder, #be1100);
-    color: var(--vscode-editor-background);
+    background-color: var(--ite-input-validation-error-border, #be1100);
+    color: var(--ite-bg);
 }
 
 .ite-dialog__button:focus {
-    outline: 2px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--ite-focus-ring);
     outline-offset: 2px;
 }
 
@@ -1969,33 +1969,33 @@ body {
 .ite-dialog__label {
     display: block;
     margin-bottom: 8px;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     font-size: 13px;
 }
 
 .ite-dialog__input {
     width: 100%;
     padding: 6px 10px;
-    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    border: 1px solid var(--ite-input-border, #3c3c3c);
     border-radius: 4px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
+    background-color: var(--ite-input-bg);
+    color: var(--ite-input-fg);
     font-size: 14px;
     font-family: inherit;
 }
 
 .ite-dialog__input:focus {
     outline: none;
-    border-color: var(--vscode-focusBorder);
+    border-color: var(--ite-focus-ring);
 }
 
 .ite-dialog__input--error {
-    border-color: var(--vscode-inputValidation-errorBorder, #be1100);
-    background-color: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.1));
+    border-color: var(--ite-input-validation-error-border, #be1100);
+    background-color: var(--ite-input-validation-error-bg, rgba(190, 17, 0, 0.1));
 }
 
 .ite-dialog__input::placeholder {
-    color: var(--vscode-input-placeholderForeground);
+    color: var(--ite-input-placeholder-fg);
 }
 
 /* Story 8.5: Keyboard shortcuts help dialog */
@@ -2007,10 +2007,10 @@ body {
 
 .ite-help-note {
     font-size: 12px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ite-description-fg);
     margin: 0 0 12px 0;
     padding: 6px 10px;
-    background-color: var(--vscode-textBlockQuote-background, rgba(128, 128, 128, 0.1));
+    background-color: var(--ite-text-blockquote-bg, rgba(128, 128, 128, 0.1));
     border-radius: 4px;
 }
 
@@ -2027,10 +2027,10 @@ body {
 .ite-help-category__title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
     margin: 0 0 8px 0;
     padding-bottom: 4px;
-    border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+    border-bottom: 1px solid var(--ite-widget-border, rgba(128, 128, 128, 0.35));
 }
 
 .ite-help-shortcut {
@@ -2039,19 +2039,19 @@ body {
     gap: 8px;
     margin-bottom: 4px;
     font-size: 12px;
-    color: var(--vscode-foreground);
+    color: var(--ite-fg);
 }
 
 .ite-help-key {
     display: inline-block;
     min-width: 90px;
     padding: 2px 6px;
-    background-color: var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.2));
-    border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+    background-color: var(--ite-button-secondary-bg, rgba(128, 128, 128, 0.2));
+    border: 1px solid var(--ite-widget-border, rgba(128, 128, 128, 0.35));
     border-radius: 4px;
-    font-family: var(--vscode-editor-font-family, monospace);
+    font-family: var(--ite-editor-font-family, monospace);
     font-size: 11px;
-    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+    color: var(--ite-button-secondary-fg, var(--ite-fg));
     text-align: center;
     flex-shrink: 0;
 }

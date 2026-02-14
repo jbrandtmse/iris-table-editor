@@ -7,9 +7,9 @@
 
     const LOG_PREFIX = '[IRIS-TE Grid]';
 
-    // Get VS Code API
-    // @ts-ignore
-    const vscode = acquireVsCodeApi();
+    // Message bridge is injected by the host environment
+    // eslint-disable-next-line no-undef
+    const messageBridge = window.iteMessageBridge;
 
     /**
      * Grid application state
@@ -182,11 +182,13 @@
     let state = new AppState();
 
     /**
-     * Save state immediately to VS Code
+     * Save state immediately via the message bridge
      * Called after any state change to ensure persistence
      */
     function saveState() {
-        vscode.setState(state);
+        if (messageBridge) {
+            messageBridge.setState(state);
+        }
     }
 
     /**
@@ -4878,7 +4880,7 @@
             </div>
             <div class="ite-dialog__actions">
                 <button id="import-cancel-btn" class="ite-dialog__button ite-dialog__button--secondary">Cancel</button>
-                <button id="import-execute-btn" class="ite-dialog__button ite-dialog__button--danger" style="background-color: var(--vscode-button-background); color: var(--vscode-button-foreground);">Import ${importState.totalRows.toLocaleString()} rows</button>
+                <button id="import-execute-btn" class="ite-dialog__button ite-dialog__button--danger" style="background-color: var(--ite-button-bg); color: var(--ite-button-fg);">Import ${importState.totalRows.toLocaleString()} rows</button>
             </div>
         `;
 
@@ -5127,7 +5129,7 @@
             </div>
             <div class="ite-dialog__actions">
                 <button id="validation-cancel-btn" class="ite-dialog__button ite-dialog__button--secondary">Cancel</button>
-                <button id="validation-import-valid-btn" class="ite-dialog__button" style="background-color: var(--vscode-button-background); color: var(--vscode-button-foreground);">Import ${payload.validCount.toLocaleString()} valid rows</button>
+                <button id="validation-import-valid-btn" class="ite-dialog__button" style="background-color: var(--ite-button-bg); color: var(--ite-button-fg);">Import ${payload.validCount.toLocaleString()} valid rows</button>
             </div>
         `;
 
@@ -5469,7 +5471,11 @@
      * @param {unknown} payload
      */
     function sendCommand(command, payload) {
-        vscode.postMessage({ command, payload });
+        if (!messageBridge) {
+            console.error(`${LOG_PREFIX} Message bridge not initialized`);
+            return;
+        }
+        messageBridge.sendCommand(command, payload);
     }
 
     /**
@@ -5561,7 +5567,7 @@
         console.debug(`${LOG_PREFIX} Initializing grid`);
 
         // Restore state if available
-        const previousState = vscode.getState();
+        const previousState = messageBridge ? messageBridge.getState() : undefined;
         if (previousState) {
             state = Object.assign(new AppState(), previousState);
             // Story 3.1: Ensure selectedCell is properly initialized
@@ -5597,8 +5603,23 @@
             }
         }
 
-        // Listen for messages from extension
-        window.addEventListener('message', handleMessage);
+        // Listen for messages from extension via message bridge
+        const gridEventTypes = [
+            'tableSchema', 'tableData', 'tableLoading',
+            'saveCellResult', 'insertRowResult', 'deleteRowResult',
+            'importPreview', 'importProgress', 'importResult', 'importValidationResult',
+            'exportProgress', 'exportResult', 'error'
+        ];
+        if (!messageBridge) {
+            console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);
+            return;
+        }
+        gridEventTypes.forEach(eventName => {
+            messageBridge.onEvent(eventName, (payload) => {
+                console.debug(`${LOG_PREFIX} Received event:`, eventName);
+                handleMessage({ data: { event: eventName, payload } });
+            });
+        });
 
         // Setup refresh button
         const refreshBtn = document.getElementById('refreshBtn');

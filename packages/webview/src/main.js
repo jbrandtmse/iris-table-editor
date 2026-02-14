@@ -3,11 +3,12 @@
 (function() {
     const LOG_PREFIX = '[IRIS-TE Webview]';
 
-    // Acquire VS Code API
-    const vscode = acquireVsCodeApi();
+    // Message bridge is injected by the host environment
+    // eslint-disable-next-line no-undef
+    const messageBridge = window.iteMessageBridge;
 
     // Restore previous state if available
-    const previousState = vscode.getState() || {};
+    const previousState = (messageBridge && messageBridge.getState()) || {};
 
     /**
      * HTML escaping to prevent XSS in text content
@@ -94,14 +95,16 @@
         update(changes) {
             this._state = { ...this._state, ...changes };
             // Persist state for webview restoration
-            vscode.setState({
-                selectedServer: this._state.selectedServer,
-                connectionState: this._state.connectionState,
-                connectedServer: this._state.connectedServer,
-                selectedNamespace: this._state.selectedNamespace,
-                selectedTable: this._state.selectedTable,
-                expandedSchema: this._state.expandedSchema
-            });
+            if (messageBridge) {
+                messageBridge.setState({
+                    selectedServer: this._state.selectedServer,
+                    connectionState: this._state.connectionState,
+                    connectedServer: this._state.connectedServer,
+                    selectedNamespace: this._state.selectedNamespace,
+                    selectedTable: this._state.selectedTable,
+                    expandedSchema: this._state.expandedSchema
+                });
+            }
             this._notifyListeners();
         }
 
@@ -469,7 +472,11 @@
      * @param {object} payload - Command payload
      */
     function postCommand(command, payload = {}) {
-        vscode.postMessage({ command, payload });
+        if (!messageBridge) {
+            console.error(`${LOG_PREFIX} Message bridge not initialized`);
+            return;
+        }
+        messageBridge.sendCommand(command, payload);
     }
 
     /**
@@ -907,10 +914,9 @@
             <div class="ite-message ite-message--warning">
                 <h3 class="ite-message__title">InterSystems Server Manager extension required</h3>
                 <p class="ite-message__text">Install the Server Manager extension to connect to IRIS servers.</p>
-                <a href="vscode:extension/intersystems-community.servermanager"
-                   class="ite-button ite-button--primary">
+                <button class="ite-button ite-button--primary" id="installServerManagerBtn">
                     Install Server Manager
-                </a>
+                </button>
             </div>
         `;
     }
@@ -1203,8 +1209,24 @@
         postCommand('getServerList');
     }
 
-    // Initialize
-    window.addEventListener('message', handleMessage);
+    // Initialize - register for all host events via message bridge
+    // Register a handler for each event type the webview can receive
+    const eventTypes = [
+        'serverList', 'serverManagerNotInstalled', 'noServersConfigured',
+        'connectionStatus', 'connectionProgress', 'connectionError',
+        'namespaceList', 'namespaceSelected',
+        'tableList', 'tableSelected', 'error'
+    ];
+    if (!messageBridge) {
+        console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);
+    } else {
+        eventTypes.forEach(eventName => {
+            messageBridge.onEvent(eventName, (payload) => {
+                console.debug(`${LOG_PREFIX} Received event: ${eventName}`);
+                handleMessage({ data: { event: eventName, payload } });
+            });
+        });
+    }
     appState.subscribe(render);
 
     // Event delegation on container - persists across renders
@@ -1290,6 +1312,10 @@
             }
             if (target.closest('#openServerManagerBtn')) {
                 postCommand('openServerManager');
+                return;
+            }
+            if (target.closest('#installServerManagerBtn')) {
+                postCommand('installServerManager');
                 return;
             }
             // Story 1.7: Cancel connection button

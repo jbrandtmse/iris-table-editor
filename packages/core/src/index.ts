@@ -1,4 +1,5 @@
 // Models
+export type { IMessageBridge } from './models/IMessageBridge';
 export type { IServerSpec } from './models/IServerSpec';
 export type { IColumnInfo, ITableSchema } from './models/ITableSchema';
 export type { ITableRow, ITableDataResult } from './models/ITableData';
