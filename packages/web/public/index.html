@@ -126,11 +126,20 @@
                 </div>
             </div>
 
-            <!-- Connected View (placeholder for grid) -->
+            <!-- Connected View -->
             <div id="connectedView" class="ite-connected-view" hidden>
-                <h2 class="ite-connected-view__title">Connected</h2>
-                <p class="ite-connected-view__description">Grid view coming soon</p>
-                <button class="ite-button ite-button--secondary" id="disconnectBtn">Disconnect</button>
+                <!-- Connection Header Bar -->
+                <div class="ite-connection-header" id="connectionHeader">
+                    <span class="ite-connection-header__info" id="connectionInfo"></span>
+                    <button class="ite-button ite-button--secondary ite-connection-header__disconnect" id="disconnectBtn">
+                        Disconnect
+                    </button>
+                </div>
+
+                <!-- Placeholder content for future grid/tabs -->
+                <div class="ite-connected-view__body">
+                    <p class="ite-connected-view__description">Grid view coming soon</p>
+                </div>
             </div>
         </div>
     </div>

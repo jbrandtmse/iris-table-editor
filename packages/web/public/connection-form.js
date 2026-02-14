@@ -21,6 +21,7 @@
     var state = {
         csrfToken: null,
         isConnecting: false,
+        isConnected: false,
         isTesting: false,
         testAbortController: null
     };
@@ -44,6 +45,8 @@
     var recentSection = document.getElementById('recentConnections');
     var recentList = document.getElementById('recentList');
     var disconnectBtn = document.getElementById('disconnectBtn');
+    var connectionHeader = document.getElementById('connectionHeader');
+    var connectionInfo = document.getElementById('connectionInfo');
 
     var fields = {
         host: document.getElementById('fieldHost'),
@@ -294,6 +297,99 @@
         }
     }
 
+    // ============================================
+    // Connection Header
+    // ============================================
+
+    /**
+     * Update the connection header bar with namespace and username.
+     * @param {string} namespace
+     * @param {string} username
+     */
+    function updateConnectionHeader(namespace, username) {
+        if (connectionInfo) {
+            connectionInfo.textContent = 'Connected to ' + namespace + ' as ' + username;
+        }
+    }
+
+    /**
+     * Clear the connection header info text.
+     */
+    function clearConnectionHeader() {
+        if (connectionInfo) {
+            connectionInfo.textContent = '';
+        }
+    }
+
+    /**
+     * Fetch session info from GET /api/session and populate the header.
+     * @returns {Promise<void>}
+     */
+    function fetchSessionInfo() {
+        return fetch('/api/session', { credentials: 'same-origin' })
+            .then(function (res) {
+                if (!res.ok) {
+                    return null;
+                }
+                return res.json();
+            })
+            .then(function (data) {
+                // Guard: only update header if still connected (user may have disconnected while fetch was in-flight)
+                if (state.isConnected && data && data.status === 'connected' && data.server) {
+                    updateConnectionHeader(data.server.namespace || '', data.server.username || '');
+                }
+            })
+            .catch(function (err) {
+                console.warn(LOG_PREFIX, 'Failed to fetch session info:', err);
+            });
+    }
+
+    /**
+     * Disconnect from the current server (internal helper, returns a Promise).
+     * Used before connecting to a new server.
+     * @returns {Promise<void>}
+     */
+    function disconnectCurrent() {
+        var headers = {
+            'Content-Type': 'application/json'
+        };
+        if (state.csrfToken) {
+            headers['X-CSRF-Token'] = state.csrfToken;
+        }
+
+        return fetch('/api/disconnect', {
+            method: 'POST',
+            headers: headers,
+            credentials: 'same-origin'
+        })
+        .then(function (res) {
+            // Handle CSRF token expiry - retry with fresh token
+            if (res.status === 403) {
+                return refreshCsrfToken().then(function (newToken) {
+                    if (newToken) {
+                        headers['X-CSRF-Token'] = newToken;
+                        return fetch('/api/disconnect', {
+                            method: 'POST',
+                            headers: headers,
+                            credentials: 'same-origin'
+                        });
+                    }
+                    return res;
+                });
+            }
+            return res;
+        })
+        .then(function () {
+            state.isConnected = false;
+            clearConnectionHeader();
+        })
+        .catch(function (err) {
+            console.warn(LOG_PREFIX, 'Pre-connect disconnect error:', err);
+            state.isConnected = false;
+            clearConnectionHeader();
+        });
+    }
+
     /**
      * Handle form submission: validate, send to /api/connect, handle response.
      */
@@ -326,41 +422,46 @@
             password: fields.password ? fields.password.value : ''
         };
 
-        var headers = {
-            'Content-Type': 'application/json'
-        };
-        if (state.csrfToken) {
-            headers['X-CSRF-Token'] = state.csrfToken;
-        }
+        // If already connected, disconnect first (Story 16.4, Task 3.2)
+        var preStep = state.isConnected ? disconnectCurrent() : Promise.resolve();
 
-        fetch('/api/connect', {
-            method: 'POST',
-            headers: headers,
-            credentials: 'same-origin',
-            body: JSON.stringify(data)
-        })
-        .then(function (res) {
-            // Handle CSRF token expiry - retry with fresh token
-            if (res.status === 403) {
-                return refreshCsrfToken().then(function (newToken) {
-                    if (newToken) {
-                        headers['X-CSRF-Token'] = newToken;
-                        return fetch('/api/connect', {
-                            method: 'POST',
-                            headers: headers,
-                            credentials: 'same-origin',
-                            body: JSON.stringify(data)
-                        });
-                    }
-                    // No token available, return original response
-                    return res;
-                });
+        preStep.then(function () {
+            var headers = {
+                'Content-Type': 'application/json'
+            };
+            if (state.csrfToken) {
+                headers['X-CSRF-Token'] = state.csrfToken;
             }
-            return res;
-        })
-        .then(function (res) {
-            return res.json().then(function (body) {
-                return { status: res.status, ok: res.ok, body: body };
+
+            return fetch('/api/connect', {
+                method: 'POST',
+                headers: headers,
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            })
+            .then(function (res) {
+                // Handle CSRF token expiry - retry with fresh token
+                if (res.status === 403) {
+                    return refreshCsrfToken().then(function (newToken) {
+                        if (newToken) {
+                            headers['X-CSRF-Token'] = newToken;
+                            return fetch('/api/connect', {
+                                method: 'POST',
+                                headers: headers,
+                                credentials: 'same-origin',
+                                body: JSON.stringify(data)
+                            });
+                        }
+                        // No token available, return original response
+                        return res;
+                    });
+                }
+                return res;
+            })
+            .then(function (res) {
+                return res.json().then(function (body) {
+                    return { status: res.status, ok: res.ok, body: body };
+                });
             });
         })
         .then(function (result) {
@@ -379,8 +480,12 @@
                     saveRecentConnection(data);
                 }
 
+                state.isConnected = true;
                 announce('Connected to server');
                 showConnectedView();
+
+                // Fetch session info to populate the connection header (Task 3.5)
+                fetchSessionInfo();
             } else {
                 var errorMsg = result.body.error || 'Connection failed. Please check your settings.';
                 showFormMessage(errorMsg, 'error');
@@ -411,13 +516,34 @@
             headers: headers,
             credentials: 'same-origin'
         })
+        .then(function (res) {
+            // Handle CSRF token expiry - retry with fresh token
+            if (res.status === 403) {
+                return refreshCsrfToken().then(function (newToken) {
+                    if (newToken) {
+                        headers['X-CSRF-Token'] = newToken;
+                        return fetch('/api/disconnect', {
+                            method: 'POST',
+                            headers: headers,
+                            credentials: 'same-origin'
+                        });
+                    }
+                    return res;
+                });
+            }
+            return res;
+        })
         .then(function () {
+            state.isConnected = false;
+            clearConnectionHeader();
             showConnectionForm();
             announce('Disconnected from server');
         })
         .catch(function (err) {
             console.error(LOG_PREFIX, 'Disconnect error:', err);
             // Show the connection form anyway
+            state.isConnected = false;
+            clearConnectionHeader();
             showConnectionForm();
         });
     }
@@ -773,12 +899,18 @@
             })
             .then(function (data) {
                 if (data && data.status === 'connected') {
+                    state.isConnected = true;
+                    if (data.server) {
+                        updateConnectionHeader(data.server.namespace || '', data.server.username || '');
+                    }
                     showConnectedView();
                 } else {
+                    state.isConnected = false;
                     showConnectionForm();
                 }
             })
             .catch(function () {
+                state.isConnected = false;
                 showConnectionForm();
             });
     }
@@ -903,6 +1035,9 @@
         getState: function () { return state; },
         clearErrors: clearErrors,
         setFieldError: setFieldError,
-        escapeAttr: escapeAttr
+        escapeAttr: escapeAttr,
+        updateConnectionHeader: updateConnectionHeader,
+        clearConnectionHeader: clearConnectionHeader,
+        fetchSessionInfo: fetchSessionInfo
     };
 })();

@@ -323,6 +323,12 @@ export function setupApiProxy(app: Express, sessionManager: SessionManager, opti
         const irisResponse = await probeIrisServer(details, timeout, irisFetch, res, 'Connect');
         if (!irisResponse) { return; }
 
+        // Destroy any existing session before creating a new one (Story 16.4, Task 3.1)
+        const existingToken = sessionManager.extractToken(req);
+        if (existingToken) {
+            sessionManager.destroySession(existingToken);
+        }
+
         // Connection successful - create session (Task 3.3)
         const token = sessionManager.createSession(details);
         setSessionCookie(res, token);

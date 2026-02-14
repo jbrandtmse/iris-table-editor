@@ -101,6 +101,10 @@ body {
     padding: 32px 16px;
 }
 
+.ite-page__content:has(.ite-connected-view:not([hidden])) {
+    padding: 0;
+}
+
 /* ============================================
    Connection Form Container
    ============================================ */
@@ -460,10 +464,45 @@ body {
 }
 
 /* ============================================
-   Connected View Placeholder
+   Connection Header Bar
+   ============================================ */
+
+.ite-connection-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 16px;
+    background-color: var(--ite-bg-secondary);
+    border-bottom: 1px solid var(--ite-border);
+    width: 100%;
+}
+
+.ite-connection-header__info {
+    font-size: 0.9em;
+    color: var(--ite-description-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.ite-connection-header__disconnect {
+    flex-shrink: 0;
+}
+
+/* ============================================
+   Connected View
    ============================================ */
 
 .ite-connected-view {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+}
+
+.ite-connected-view__body {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -473,16 +512,8 @@ body {
     padding: 48px 24px;
 }
 
-.ite-connected-view__title {
-    font-size: 1.3em;
-    font-weight: 500;
-    color: var(--ite-fg);
-    margin-bottom: 8px;
-}
-
 .ite-connected-view__description {
     color: var(--ite-description-fg);
-    margin-bottom: 16px;
 }
 
 /* ============================================
