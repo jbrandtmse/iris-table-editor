@@ -147,6 +147,7 @@ async function startTestServer(): Promise<void> {
 
     const result = createAppServer({
         wsOptions: { serviceFactory: createMockServiceFactory() },
+        skipSecurity: true,
     });
 
     httpServer = result.server;

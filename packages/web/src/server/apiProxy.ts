@@ -59,11 +59,13 @@ function buildAuthHeader(session: SessionData): string {
 }
 
 /**
- * Set session cookie on response
+ * Set session cookie on response.
+ * Includes Secure flag in production (Story 15.4, Task 4.3).
  */
 function setSessionCookie(res: Response, token: string): void {
+    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie',
-        `${SESSION_COOKIE_NAME}=${token}; HttpOnly; SameSite=Strict; Path=/`
+        `${SESSION_COOKIE_NAME}=${token}; HttpOnly; SameSite=Strict; Path=/${secure}`
     );
 }
 

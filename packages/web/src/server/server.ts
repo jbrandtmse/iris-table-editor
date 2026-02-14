@@ -7,6 +7,8 @@ import { setupApiProxy } from './apiProxy';
 import type { ApiProxyOptions } from './apiProxy';
 import { setupWebSocket } from './wsServer';
 import type { SetupWebSocketOptions, WebSocketServerHandle } from './wsServer';
+import { setupSecurity } from './security';
+import type { SecurityOptions, SecurityHandle } from './security';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -18,6 +20,10 @@ export interface CreateServerOptions {
     proxyOptions?: ApiProxyOptions;
     /** Options passed to setupWebSocket (e.g., custom service factory for testing) */
     wsOptions?: SetupWebSocketOptions;
+    /** Options passed to setupSecurity (e.g., custom CSRF secret for testing) */
+    securityOptions?: SecurityOptions;
+    /** Skip security middleware entirely (for legacy tests that don't need it) */
+    skipSecurity?: boolean;
 }
 
 /**
@@ -29,7 +35,13 @@ export function createAppServer(options?: CreateServerOptions) {
     const httpServer = createServer(appInstance);
     const sessionMgr = new SessionManager();
 
-    // Body parser
+    // Security middleware FIRST: helmet -> cors -> csrf -> rate-limit (Story 15.4)
+    let securityHandle: SecurityHandle | undefined;
+    if (!options?.skipSecurity) {
+        securityHandle = setupSecurity(appInstance, options?.securityOptions);
+    }
+
+    // Body parser (after security middleware)
     appInstance.use(express.json({ limit: '10mb' }));
 
     // Serve static files from public directory
@@ -56,7 +68,7 @@ export function createAppServer(options?: CreateServerOptions) {
     // WebSocket server - attach to HTTP server (Story 15.3)
     const wsHandle = setupWebSocket(httpServer, sessionMgr, options?.wsOptions);
 
-    return { app: appInstance, server: httpServer, sessionManager: sessionMgr, wsHandle };
+    return { app: appInstance, server: httpServer, sessionManager: sessionMgr, wsHandle, securityHandle };
 }
 
 // Default instance for production use and backward compatibility

@@ -52,6 +52,7 @@ async function startTestServer(): Promise<void> {
 
     const result = createAppServer({
         proxyOptions: { fetchFn: mockIrisFetch as typeof globalThis.fetch },
+        skipSecurity: true,
     });
 
     httpServer = result.server;

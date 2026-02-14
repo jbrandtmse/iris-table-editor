@@ -178,7 +178,7 @@ development_status:
   15-1-server-bootstrap: done
   15-2-atelier-api-proxy: done
   15-3-websocket-server: done
-  15-4-security-middleware: backlog
+  15-4-security-middleware: done
   15-5-session-management: backlog
   epic-15-retrospective: optional
 
