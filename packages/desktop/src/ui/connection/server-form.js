@@ -81,7 +81,8 @@
         isOpen: false,
         mode: 'add',
         originalName: null,
-        isSaving: false
+        isSaving: false,
+        isTesting: false
     };
 
     // ============================================
@@ -94,6 +95,8 @@
     const closeBtn = document.getElementById('formCloseBtn');
     const cancelBtn = document.getElementById('formCancelBtn');
     const saveBtn = document.getElementById('formSaveBtn');
+    const testBtn = document.getElementById('testConnectionBtn');
+    const testResult = document.getElementById('testResult');
 
     // Field references
     const fields = {
@@ -215,6 +218,147 @@
         return valid;
     }
 
+    /**
+     * Validate form for test connection - password is ALWAYS required
+     * @returns {boolean} true if form is valid for testing
+     */
+    function validateFormForTest() {
+        clearErrors();
+        var valid = true;
+
+        // Server Name - NOT required for test connection (not used for testing)
+        // Hostname - required
+        var hostnameVal = fields.hostname ? fields.hostname.value.trim() : '';
+        if (!hostnameVal) {
+            setFieldError('hostname', 'Host is required');
+            valid = false;
+        }
+
+        // Port - required, must be valid number
+        var portVal = fields.port ? fields.port.value.trim() : '';
+        if (!portVal) {
+            setFieldError('port', 'Port is required');
+            valid = false;
+        } else {
+            var portNum = parseInt(portVal, 10);
+            if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+                setFieldError('port', 'Port must be between 1 and 65535');
+                valid = false;
+            }
+        }
+
+        // Username - required
+        var usernameVal = fields.username ? fields.username.value.trim() : '';
+        if (!usernameVal) {
+            setFieldError('username', 'Username is required');
+            valid = false;
+        }
+
+        // Password - ALWAYS required for test connection (even in edit mode)
+        var passwordVal = fields.password ? fields.password.value : '';
+        if (!passwordVal) {
+            setFieldError('password', 'Password is required for test connection');
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    // ============================================
+    // Test Connection (Story 12.3)
+    // ============================================
+
+    /**
+     * Handle test connection button click (AC: 1, 2, 3, 4, 5)
+     */
+    function handleTestConnection() {
+        if (formState.isTesting || formState.isSaving) {
+            return;
+        }
+
+        // Validate form first - password is always required for test (AC: 5)
+        if (!validateFormForTest()) {
+            var firstError = form ? form.querySelector('.ite-form__input--error') : null;
+            if (firstError) {
+                firstError.focus();
+            }
+            announce('Please fix the validation errors before testing');
+            return;
+        }
+
+        // Set testing state (AC: 1)
+        formState.isTesting = true;
+        if (testBtn) {
+            testBtn.disabled = true;
+            testBtn.classList.add('ite-form__test-btn--testing');
+            var btnText = testBtn.querySelector('.ite-form__test-btn-text');
+            if (btnText) {
+                btnText.textContent = 'Testing...';
+            }
+        }
+
+        // Clear previous test result
+        clearTestResult();
+
+        // Collect connection data and send command (AC: 1)
+        var data = {
+            hostname: fields.hostname ? fields.hostname.value.trim() : '',
+            port: fields.port ? parseInt(fields.port.value, 10) : 52773,
+            pathPrefix: fields.pathPrefix ? fields.pathPrefix.value.trim() : '',
+            ssl: fields.ssl ? fields.ssl.checked : false,
+            username: fields.username ? fields.username.value.trim() : '',
+            password: fields.password ? fields.password.value : ''
+        };
+
+        sendCommand('testFormConnection', data);
+    }
+
+    /**
+     * Display test connection result (AC: 2, 3)
+     * @param {Object} payload - Result payload
+     * @param {boolean} payload.success - Whether test succeeded
+     * @param {string} payload.message - Result message
+     */
+    function showTestResult(payload) {
+        if (testResult) {
+            testResult.textContent = payload.message;
+            testResult.classList.remove('ite-form__test-result--success', 'ite-form__test-result--error');
+            if (payload.success) {
+                testResult.classList.add('ite-form__test-result--success');
+            } else {
+                testResult.classList.add('ite-form__test-result--error');
+            }
+        }
+
+        // Announce to screen readers (AC: 2, 3)
+        announce(payload.success ? 'Connection successful' : 'Connection failed: ' + payload.message);
+    }
+
+    /**
+     * Clear the test result display
+     */
+    function clearTestResult() {
+        if (testResult) {
+            testResult.textContent = '';
+            testResult.classList.remove('ite-form__test-result--success', 'ite-form__test-result--error');
+        }
+    }
+
+    /**
+     * Reset test button to normal state (AC: 2, 3)
+     */
+    function resetTestButton() {
+        formState.isTesting = false;
+        if (testBtn) {
+            testBtn.disabled = false;
+            testBtn.classList.remove('ite-form__test-btn--testing');
+            var btnText = testBtn.querySelector('.ite-form__test-btn-text');
+            if (btnText) {
+                btnText.textContent = 'Test Connection';
+            }
+        }
+    }
+
     // ============================================
     // Form Open / Close
     // ============================================
@@ -226,6 +370,7 @@
         formState.mode = 'add';
         formState.originalName = null;
         formState.isSaving = false;
+        formState.isTesting = false;
 
         if (formTitle) {
             formTitle.textContent = 'Add Server';
@@ -255,6 +400,8 @@
         }
 
         clearErrors();
+        clearTestResult();
+        resetTestButton();
         showOverlay();
         announce('Add server form opened');
 
@@ -279,6 +426,7 @@
         formState.mode = 'edit';
         formState.originalName = serverConfig.name;
         formState.isSaving = false;
+        formState.isTesting = false;
 
         if (formTitle) {
             formTitle.textContent = 'Edit Server';
@@ -321,6 +469,8 @@
         }
 
         clearErrors();
+        clearTestResult();
+        resetTestButton();
         showOverlay();
         announce('Edit server form opened for ' + (serverConfig.name || ''));
 
@@ -336,8 +486,11 @@
     function closeForm() {
         formState.isOpen = false;
         formState.isSaving = false;
+        formState.isTesting = false;
         hideOverlay();
         clearErrors();
+        clearTestResult();
+        resetTestButton();
         announce('Form closed');
     }
 
@@ -369,7 +522,7 @@
      * Collect form data and send save command via IMessageBridge (AC: 2)
      */
     function handleSave() {
-        if (formState.isSaving) {
+        if (formState.isSaving || formState.isTesting) {
             return;
         }
 
@@ -433,6 +586,7 @@
         if (!messageBridge) {
             console.error(LOG_PREFIX, 'Message bridge not initialized');
             resetSaveButton();
+            resetTestButton();
             return;
         }
         messageBridge.sendCommand(command, payload || {});
@@ -461,6 +615,13 @@
     if (closeBtn) {
         closeBtn.addEventListener('click', function () {
             closeForm();
+        });
+    }
+
+    // Test Connection button (Story 12.3)
+    if (testBtn) {
+        testBtn.addEventListener('click', function () {
+            handleTestConnection();
         });
     }
 
@@ -500,6 +661,7 @@
     });
 
     // Clear field error on input (inline validation feedback)
+    // Also clear test result when form fields change (Story 12.3, Task 3.6)
     if (form) {
         form.addEventListener('input', function (e) {
             var target = /** @type {HTMLElement} */ (e.target);
@@ -510,6 +672,8 @@
                     clearFieldError(fieldName);
                 }
             }
+            // Clear previous test result when any form field changes
+            clearTestResult();
         });
     }
 
@@ -525,6 +689,13 @@
             closeForm();
             announce('Server saved successfully');
             // Note: server-list.js handles the getServers refresh on serverSaved
+        });
+
+        // Test connection result (Story 12.3, AC: 2, 3)
+        messageBridge.onEvent('testConnectionResult', function (payload) {
+            console.debug(LOG_PREFIX, 'Received testConnectionResult:', payload);
+            resetTestButton();
+            showTestResult(payload);
         });
 
         // Server save error (AC: 4 - duplicate name)

@@ -57,6 +57,9 @@ export type {
     IDesktopServerSavedPayload,
     IDesktopServerSaveErrorPayload,
     IDesktopServerConfigPayload,
+    // Story 12.3: Test Connection message types
+    IDesktopTestConnectionPayload,
+    IDesktopTestConnectionResultPayload,
 } from './models/IMessages';
 
 // Services

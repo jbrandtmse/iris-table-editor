@@ -8,6 +8,8 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { AtelierApiService, ErrorCodes } from '@iris-te/core';
+import type { IServerSpec } from '@iris-te/core';
 
 /**
  * Server configuration stored in the JSON file
@@ -51,9 +53,43 @@ export interface ConnectionManagerOptions {
     configFileName?: string;
 }
 
+/**
+ * Configuration for testing a connection from the form (not yet saved)
+ * Story 12.3: Test Connection
+ */
+export interface TestConnectionConfig {
+    hostname: string;
+    port: number;
+    pathPrefix?: string;
+    ssl: boolean;
+    username: string;
+    password: string;
+}
+
+/**
+ * Result of a test connection attempt
+ * Story 12.3: Test Connection
+ */
+export interface TestConnectionResult {
+    success: boolean;
+    message: string;
+}
+
 const LOG_PREFIX = '[IRIS-TE]';
 const STORE_VERSION = 1;
 const DEFAULT_CONFIG_FILENAME = 'servers.json';
+
+/**
+ * Map of AtelierApiService error codes to user-friendly messages for test connection
+ * Story 12.3: Test Connection
+ */
+const TEST_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
+    [ErrorCodes.SERVER_UNREACHABLE]: 'Could not reach server. Check host and port.',
+    [ErrorCodes.AUTH_FAILED]: 'Authentication failed. Check username and password.',
+    [ErrorCodes.CONNECTION_TIMEOUT]: 'Connection timed out. Check host and port.',
+    [ErrorCodes.CONNECTION_FAILED]: 'Connection failed. Check your settings.',
+    [ErrorCodes.CONNECTION_CANCELLED]: 'Connection test was cancelled.',
+};
 
 /**
  * Required fields for server config validation
@@ -156,6 +192,44 @@ export class ConnectionManager {
         this.store.servers.splice(index, 1);
         this.saveToDisk();
         console.log(`${LOG_PREFIX} Server "${name}" deleted`);
+    }
+
+    /**
+     * Test a connection using form-provided configuration (not yet saved).
+     * Creates a temporary AtelierApiService, builds IServerSpec, sets 10s timeout,
+     * and delegates to AtelierApiService.testConnection().
+     * Maps error codes to user-friendly messages.
+     *
+     * @param config - Connection configuration from the form
+     * @returns Result with success flag and user-friendly message
+     */
+    async testConnection(config: TestConnectionConfig): Promise<TestConnectionResult> {
+        const spec: IServerSpec = {
+            name: 'test-connection',
+            scheme: config.ssl ? 'https' : 'http',
+            host: config.hostname,
+            port: config.port,
+            pathPrefix: config.pathPrefix || '',
+            username: config.username,
+        };
+
+        const api = new AtelierApiService();
+        api.setTimeout(10000); // 10 second timeout per AC: 4
+
+        console.log(`${LOG_PREFIX} Testing connection to ${spec.host}:${spec.port}`);
+
+        const result = await api.testConnection(spec, config.username, config.password);
+
+        if (result.success) {
+            console.log(`${LOG_PREFIX} Test connection successful`);
+            return { success: true, message: 'Connection successful!' };
+        }
+
+        const errorCode = result.error?.code || '';
+        const message = TEST_CONNECTION_ERROR_MESSAGES[errorCode] || 'Connection failed. Check your settings.';
+
+        console.log(`${LOG_PREFIX} Test connection failed: ${errorCode}`);
+        return { success: false, message };
     }
 
     /**

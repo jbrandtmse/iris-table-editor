@@ -433,6 +433,7 @@ export type DesktopConnectionCommand =
     | { command: 'editServer'; payload: IDesktopServerNamePayload }
     | { command: 'deleteServer'; payload: IDesktopServerNamePayload }
     | { command: 'testConnection'; payload: IDesktopServerNamePayload }
+    | { command: 'testFormConnection'; payload: IDesktopTestConnectionPayload }
     | { command: 'selectServer'; payload: IDesktopServerNamePayload }
     | { command: 'saveServer'; payload: IDesktopSaveServerPayload }
     | { command: 'updateServer'; payload: IDesktopUpdateServerPayload };
@@ -450,7 +451,34 @@ export type DesktopConnectionEvent =
     | { event: 'serverSaved'; payload: IDesktopServerSavedPayload }
     | { event: 'serverSaveError'; payload: IDesktopServerSaveErrorPayload }
     | { event: 'serverConfigLoaded'; payload: IDesktopServerConfigPayload }
+    | { event: 'testConnectionResult'; payload: IDesktopTestConnectionResultPayload }
     | { event: 'error'; payload: IErrorPayload };
+
+// ============================================
+// Story 12.3: Test Connection Messages
+// ============================================
+
+/**
+ * Payload for testFormConnection command (test connection from form with unsaved config)
+ * Story 12.3: Test Connection
+ */
+export interface IDesktopTestConnectionPayload {
+    hostname: string;
+    port: number;
+    pathPrefix?: string;
+    ssl: boolean;
+    username: string;
+    password: string;
+}
+
+/**
+ * Payload for testConnectionResult event
+ * Story 12.3: Test Connection
+ */
+export interface IDesktopTestConnectionResultPayload {
+    success: boolean;
+    message: string;
+}
 
 // ============================================
 // Story 12.2: Server Form Messages

@@ -212,6 +212,39 @@ Proceeding to Epic 12: Connection Manager...
 **User input required:** 0
 
 **Commits:**
+- Implementation: 6c38801
+
+---
+
+## Story 12.3: Test Connection
+
+**Status:** Complete
+**Files touched:**
+- MODIFIED: packages/desktop/src/main/ConnectionManager.ts (added testConnection(), TestConnectionConfig, TestConnectionResult types)
+- MODIFIED: packages/desktop/src/ui/connection/server-form.html (Test Connection button, result display area)
+- MODIFIED: packages/desktop/src/ui/connection/server-form.css (spinner animation, success/error result states)
+- MODIFIED: packages/desktop/src/ui/connection/server-form.js (handleTestConnection(), validateFormForTest(), showTestResult(), clearTestResult())
+- MODIFIED: packages/core/src/models/IMessages.ts (testFormConnection command, testConnectionResult event)
+- MODIFIED: packages/core/src/index.ts (exported new types)
+- NEW: packages/desktop/src/test/testConnection.test.ts (47 tests)
+
+**Key design decisions:**
+- testFormConnection command separate from testConnection (form data vs saved server name)
+- ConnectionManager.testConnection() creates temporary AtelierApiService with 10s timeout
+- Password always required for test (even in edit mode)
+- CSS-only spinner with border-top-color:transparent technique
+- Concurrent save/test operations guarded (MEDIUM review fix)
+
+**Issues auto-resolved:** 3
+- MEDIUM: Double-escaping in showTestResult (textContent already XSS-safe)
+- MEDIUM: Concurrent save and test operations possible (added cross-checks)
+- MEDIUM: Tests used subclass override instead of testing production code (switched to prototype patching)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
 - Implementation: (pending)
 
 ---

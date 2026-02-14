@@ -171,6 +171,66 @@
 }
 
 /* ============================================
+   Test Connection (Story 12.3)
+   ============================================ */
+
+.ite-form__test-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.ite-form__test-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ite-form__test-btn--testing {
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+.ite-form__test-btn--testing .ite-form__test-btn-text::before {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ite-spin 0.8s linear infinite;
+    vertical-align: middle;
+}
+
+@keyframes ite-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ite-form__test-result {
+    font-size: 0.85em;
+    line-height: 1.4;
+    min-height: 0;
+}
+
+.ite-form__test-result:empty {
+    display: none;
+}
+
+.ite-form__test-result--success {
+    color: var(--ite-success-fg, #4caf50);
+}
+
+.ite-form__test-result--error {
+    color: var(--ite-error-fg, #f44336);
+}
+
+/* ============================================
    Form Actions
    ============================================ */
 
