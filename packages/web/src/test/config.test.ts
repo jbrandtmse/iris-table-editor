@@ -16,7 +16,7 @@ import type { AppConfig } from '../server/config';
 const ENV_KEYS = [
     'PORT', 'NODE_ENV', 'ALLOWED_ORIGINS', 'SESSION_SECRET',
     'CSRF_SECRET', 'SESSION_TIMEOUT', 'RATE_LIMIT_MAX',
-    'TLS_CERT', 'TLS_KEY',
+    'TLS_CERT', 'TLS_KEY', 'TRUST_PROXY', 'FORCE_HTTPS',
 ];
 
 let savedEnv: Record<string, string | undefined>;

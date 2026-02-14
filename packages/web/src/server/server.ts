@@ -42,6 +42,11 @@ export function createAppServer(options?: CreateServerOptions) {
     const appInstance = express();
     const cfg = getConfig();
 
+    // Trust proxy headers (X-Forwarded-*) for reverse proxy deployments (Story 18.4)
+    if (cfg.trustProxy) {
+        appInstance.set('trust proxy', 1);
+    }
+
     // Create HTTPS server if TLS is configured, otherwise HTTP
     let httpServer: Server | HttpsServer;
     if (cfg.tlsCert && cfg.tlsKey) {

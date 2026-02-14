@@ -38,6 +38,10 @@ export interface AppConfig {
     rateLimitMax: number;
     tlsCert: string | undefined;
     tlsKey: string | undefined;
+    /** Whether to trust proxy headers (X-Forwarded-*) */
+    trustProxy: boolean;
+    /** Whether to redirect HTTP to HTTPS */
+    forceHttps: boolean;
 }
 
 /**
@@ -83,6 +87,8 @@ function loadConfig(): AppConfig {
         rateLimitMax: parseIntWithDefault(process.env.RATE_LIMIT_MAX, 100),
         tlsCert: process.env.TLS_CERT || undefined,
         tlsKey: process.env.TLS_KEY || undefined,
+        trustProxy: process.env.TRUST_PROXY === 'true' || (process.env.TRUST_PROXY === undefined && process.env.NODE_ENV === 'production'),
+        forceHttps: process.env.FORCE_HTTPS === 'true',
     };
 }
 
@@ -149,4 +155,6 @@ export function logStartupConfig(config: AppConfig): void {
     console.log(`${LOG_PREFIX}   SESSION_TIMEOUT=${config.sessionTimeout}s`);
     console.log(`${LOG_PREFIX}   RATE_LIMIT_MAX=${config.rateLimitMax} req/min`);
     console.log(`${LOG_PREFIX}   TLS=${config.tlsCert && config.tlsKey ? 'enabled' : 'disabled'}`);
+    console.log(`${LOG_PREFIX}   TRUST_PROXY=${config.trustProxy}`);
+    console.log(`${LOG_PREFIX}   FORCE_HTTPS=${config.forceHttps}`);
 }

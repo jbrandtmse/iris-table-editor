@@ -63,6 +63,18 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
     const cfg = getConfig();
     const allowedOrigins = cfg.allowedOrigins;
 
+    // --- HTTPS redirect (before other middleware) ---
+    if (cfg.forceHttps) {
+        app.use((req: Request, res: Response, next: NextFunction) => {
+            if (req.path === '/health') { next(); return; }
+            if (!req.secure) {
+                res.redirect(301, `https://${req.headers.host}${req.url}`);
+                return;
+            }
+            next();
+        });
+    }
+
     // --- Helmet: security headers ---
     // CSP connect-src needs ws:/wss: for WebSocket, but scheme-only wildcards
     // (ws:, wss:) allow connections to ANY host. Instead, dynamically derive
