@@ -303,7 +303,7 @@ export function setupApiProxy(app: Express, sessionManager: SessionManager, opti
     });
 
     // ============================================
-    // GET /api/session - Session status (Task 3.5)
+    // GET /api/session - Session status (Task 3.5, Story 15.5 Task 6)
     // ============================================
     app.get('/api/session', (req: Request, res: Response) => {
         const session = sessionManager.validate(req);
@@ -312,6 +312,11 @@ export function setupApiProxy(app: Express, sessionManager: SessionManager, opti
             return;
         }
 
+        // Calculate timeout remaining (Story 15.5, Task 6)
+        const timeoutMs = sessionManager.getSessionTimeoutMs();
+        const elapsed = Date.now() - session.lastActivity;
+        const timeoutRemaining = Math.max(0, timeoutMs - elapsed);
+
         // Return session info without password or internal server details (AC: security)
         res.json({
             status: 'connected',
@@ -319,6 +324,8 @@ export function setupApiProxy(app: Express, sessionManager: SessionManager, opti
                 namespace: session.namespace,
                 username: session.username,
             },
+            createdAt: session.createdAt,
+            timeoutRemaining,
         });
     });
 }

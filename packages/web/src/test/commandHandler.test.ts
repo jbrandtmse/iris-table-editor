@@ -32,6 +32,7 @@ const mockSession: SessionData = {
     pathPrefix: '',
     useHTTPS: false,
     createdAt: Date.now(),
+    lastActivity: Date.now(),
 };
 
 /** Default mock services */

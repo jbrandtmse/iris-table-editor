@@ -24,6 +24,10 @@ export interface CreateServerOptions {
     securityOptions?: SecurityOptions;
     /** Skip security middleware entirely (for legacy tests that don't need it) */
     skipSecurity?: boolean;
+    /** Session timeout in milliseconds (overrides SESSION_TIMEOUT env var) */
+    sessionTimeoutMs?: number;
+    /** Cleanup interval in milliseconds. Set to 0 to disable periodic cleanup. */
+    cleanupIntervalMs?: number;
 }
 
 /**
@@ -33,7 +37,10 @@ export interface CreateServerOptions {
 export function createAppServer(options?: CreateServerOptions) {
     const appInstance = express();
     const httpServer = createServer(appInstance);
-    const sessionMgr = new SessionManager();
+    const sessionMgr = new SessionManager({
+        sessionTimeoutMs: options?.sessionTimeoutMs,
+        cleanupIntervalMs: options?.cleanupIntervalMs,
+    });
 
     // Security middleware FIRST: helmet -> cors -> csrf -> rate-limit (Story 15.4)
     let securityHandle: SecurityHandle | undefined;
@@ -67,6 +74,11 @@ export function createAppServer(options?: CreateServerOptions) {
 
     // WebSocket server - attach to HTTP server (Story 15.3)
     const wsHandle = setupWebSocket(httpServer, sessionMgr, options?.wsOptions);
+
+    // Wire WebSocket session expiry notification into SessionManager (Story 15.5, Task 2)
+    sessionMgr.setOnSessionExpired((token: string) => {
+        wsHandle.notifySessionExpired(token);
+    });
 
     return { app: appInstance, server: httpServer, sessionManager: sessionMgr, wsHandle, securityHandle };
 }

@@ -181,6 +181,9 @@ export function setupWebSocket(
 
         // Handle incoming messages
         ws.on('message', async (data: Buffer | string) => {
+            // Update session activity on every WebSocket message (Story 15.5, Task 3.2)
+            sessionManager.touchSession(token);
+
             let command: string;
             let payload: unknown;
 
