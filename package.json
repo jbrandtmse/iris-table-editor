@@ -8,10 +8,11 @@
   "scripts": {
     "compile": "npm run compile --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspace=packages/vscode && npm run test --workspace=packages/desktop",
+    "test": "npm run test --workspace=packages/vscode && npm run test --workspace=packages/desktop && npm run test --workspace=packages/web",
     "watch": "npm run watch --workspace=packages/vscode",
     "package": "npm run package --workspace=packages/vscode",
     "start:desktop": "npm run start --workspace=packages/desktop",
+    "start:web": "npm run dev --workspace=@iris-te/web",
     "dist:desktop": "npm run compile && npm run dist --workspace=packages/desktop",
     "version:sync": "node scripts/sync-version.js"
   },

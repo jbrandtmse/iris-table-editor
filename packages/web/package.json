@@ -1,0 +1,28 @@
+{
+  "name": "@iris-te/web",
+  "version": "0.2.0",
+  "description": "Web-hosted application server for IRIS Table Editor",
+  "main": "dist/server/server.js",
+  "types": "dist/server/server.d.ts",
+  "scripts": {
+    "compile": "tsc",
+    "dev": "tsx watch src/server/server.ts",
+    "start": "node dist/server/server.js",
+    "lint": "eslint src",
+    "test": "node --test dist/test/**/*.test.js"
+  },
+  "files": [
+    "dist",
+    "public"
+  ],
+  "dependencies": {
+    "@iris-te/core": "*",
+    "@iris-te/webview": "*",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "tsx": "^4.19.0"
+  },
+  "license": "MIT"
+}
