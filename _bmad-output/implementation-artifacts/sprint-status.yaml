@@ -176,7 +176,7 @@ development_status:
   # Epic 15: Web Server Foundation & API Proxy
   epic-15: in-progress
   15-1-server-bootstrap: done
-  15-2-atelier-api-proxy: backlog
+  15-2-atelier-api-proxy: done
   15-3-websocket-server: backlog
   15-4-security-middleware: backlog
   15-5-session-management: backlog

@@ -1,36 +1,63 @@
 import express from 'express';
 import { createServer } from 'http';
+import type { Server } from 'http';
 import * as path from 'path';
+import { SessionManager } from './sessionManager';
+import { setupApiProxy } from './apiProxy';
+import type { ApiProxyOptions } from './apiProxy';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
-const app = express();
-const server = createServer(app);
+/**
+ * Options for creating a server instance
+ */
+export interface CreateServerOptions {
+    /** Options passed to setupApiProxy (e.g., custom fetchFn for testing) */
+    proxyOptions?: ApiProxyOptions;
+}
 
-// Body parser
-app.use(express.json({ limit: '10mb' }));
+/**
+ * Create an Express app + HTTP server with all routes configured.
+ * Used by tests to create isolated server instances with injected dependencies.
+ */
+export function createAppServer(options?: CreateServerOptions) {
+    const appInstance = express();
+    const httpServer = createServer(appInstance);
+    const sessionMgr = new SessionManager();
 
-// Serve static files from public directory
-const publicDir = path.join(__dirname, '..', '..', 'public');
-app.use(express.static(publicDir));
+    // Body parser
+    appInstance.use(express.json({ limit: '10mb' }));
 
-// Health check endpoint
-app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' });
-});
+    // Serve static files from public directory
+    const publicDir = path.join(__dirname, '..', '..', 'public');
+    appInstance.use(express.static(publicDir));
 
-// SPA fallback: serve index.html for non-API routes
-app.get('*', (_req, res) => {
-    res.sendFile('index.html', { root: publicDir }, (err) => {
-        if (err && !res.headersSent) {
-            res.status(500).json({ error: 'Internal server error' });
-        }
+    // Health check endpoint
+    appInstance.get('/health', (_req, res) => {
+        res.json({ status: 'ok' });
     });
-});
+
+    // API proxy routes - BEFORE SPA catch-all (Task 5.1, 5.2)
+    setupApiProxy(appInstance, sessionMgr, options?.proxyOptions);
+
+    // SPA fallback: serve index.html for non-API routes
+    appInstance.get('*', (_req, res) => {
+        res.sendFile('index.html', { root: publicDir }, (err) => {
+            if (err && !res.headersSent) {
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+    });
+
+    return { app: appInstance, server: httpServer, sessionManager: sessionMgr };
+}
+
+// Default instance for production use and backward compatibility
+const { app, server, sessionManager } = createAppServer();
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-function startServer(port: number = PORT): Promise<typeof server> {
+function startServer(port: number = PORT): Promise<Server> {
     return new Promise((resolve, reject) => {
         server.once('error', reject);
         server.listen(port, () => {
@@ -49,4 +76,4 @@ if (require.main === module) {
     });
 }
 
-export { app, server, startServer };
+export { app, server, startServer, sessionManager };
