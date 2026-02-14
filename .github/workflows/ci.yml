@@ -35,5 +35,8 @@ jobs:
       # Desktop tests use node:test — no display server needed
       - run: npm run test --workspace=packages/desktop
 
+      # Web server tests use node:test — no display server needed
+      - run: npm run test --workspace=packages/web
+
       # VS Code extension tests need a display server on Linux
       - run: xvfb-run -a npm run test --workspace=packages/vscode
