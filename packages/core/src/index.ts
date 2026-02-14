@@ -44,6 +44,13 @@ export type {
     GridCommand,
     ServerEvent,
     GridEvent,
+    // Story 12.1: Desktop Connection Manager message types
+    IDesktopServerInfo,
+    IDesktopServersLoadedPayload,
+    IDesktopServerDeletedPayload,
+    IDesktopServerNamePayload,
+    DesktopConnectionCommand,
+    DesktopConnectionEvent,
 } from './models/IMessages';
 
 // Services

@@ -380,3 +380,67 @@ export type GridEvent =
     | { event: 'insertRowResult'; payload: IInsertRowResultPayload }
     | { event: 'deleteRowResult'; payload: IDeleteRowResultPayload }
     | { event: 'error'; payload: IErrorPayload };
+
+// ============================================
+// Story 12.1: Desktop Connection Manager Messages
+// ============================================
+
+/**
+ * Server info with connection details for desktop server list UI
+ * Story 12.1: Server List UI
+ */
+export interface IDesktopServerInfo {
+    name: string;
+    hostname: string;
+    port: number;
+    description?: string;
+    ssl: boolean;
+    status?: 'connected' | 'disconnected';
+}
+
+/**
+ * Payload for desktop serversLoaded event
+ * Story 12.1: Server List UI
+ */
+export interface IDesktopServersLoadedPayload {
+    servers: IDesktopServerInfo[];
+}
+
+/**
+ * Payload for desktop serverDeleted event
+ * Story 12.1: Server List UI
+ */
+export interface IDesktopServerDeletedPayload {
+    serverName: string;
+}
+
+/**
+ * Payload for desktop server commands that reference a server by name
+ * Story 12.1: Server List UI
+ */
+export interface IDesktopServerNamePayload {
+    serverName: string | null;
+}
+
+/**
+ * Commands sent from desktop server list UI to host
+ * Story 12.1: Server List UI
+ */
+export type DesktopConnectionCommand =
+    | { command: 'getServers'; payload: IEmptyPayload }
+    | { command: 'connectServer'; payload: IDesktopServerNamePayload }
+    | { command: 'editServer'; payload: IDesktopServerNamePayload }
+    | { command: 'deleteServer'; payload: IDesktopServerNamePayload }
+    | { command: 'testConnection'; payload: IDesktopServerNamePayload }
+    | { command: 'selectServer'; payload: IDesktopServerNamePayload };
+
+/**
+ * Events sent from host to desktop server list UI
+ * Story 12.1: Server List UI
+ */
+export type DesktopConnectionEvent =
+    | { event: 'serversLoaded'; payload: IDesktopServersLoadedPayload }
+    | { event: 'serverSelected'; payload: ISelectServerPayload }
+    | { event: 'connectionStatus'; payload: IConnectionStatusPayload }
+    | { event: 'serverDeleted'; payload: IDesktopServerDeletedPayload }
+    | { event: 'error'; payload: IErrorPayload };

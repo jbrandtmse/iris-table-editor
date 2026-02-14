@@ -1,0 +1,22 @@
+{
+  "name": "@iris-te/desktop",
+  "version": "0.1.0",
+  "description": "Desktop application components for IRIS Table Editor (Electron shell, connection management, UI)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "compile": "tsc",
+    "watch": "tsc --watch",
+    "lint": "eslint src",
+    "check-types": "tsc --noEmit",
+    "test": "node --test dist/test/**/*.test.js"
+  },
+  "files": [
+    "dist",
+    "src/ui"
+  ],
+  "dependencies": {
+    "@iris-te/core": "*"
+  },
+  "license": "MIT"
+}
