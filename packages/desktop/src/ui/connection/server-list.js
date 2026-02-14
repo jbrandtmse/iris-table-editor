@@ -429,9 +429,11 @@
                 return;
             }
 
-            // Welcome "Add First Server" button
+            // Welcome "Add First Server" button (Story 12.2: open form directly)
             if (target.closest('#welcomeAddServerBtn')) {
-                sendCommand('editServer', { serverName: null });
+                if (window.iteServerForm) {
+                    window.iteServerForm.openAddForm();
+                }
                 return;
             }
 
@@ -507,11 +509,13 @@
         });
     }
 
-    // Header add button
+    // Header add button (Story 12.2: open form directly)
     const addServerBtn = document.getElementById('addServerBtn');
     if (addServerBtn) {
         addServerBtn.addEventListener('click', function () {
-            sendCommand('editServer', { serverName: null });
+            if (window.iteServerForm) {
+                window.iteServerForm.openAddForm();
+            }
         });
     }
 
@@ -625,6 +629,21 @@
             }
             updateState(changes);
             announce('Server ' + payload.serverName + ' deleted');
+        });
+
+        // serverSaved event - refresh list after form save (Story 12.2, Task 3.3)
+        messageBridge.onEvent('serverSaved', function (payload) {
+            console.debug(LOG_PREFIX, 'Received serverSaved:', payload);
+            // Refresh the server list
+            sendCommand('getServers', {});
+        });
+
+        // serverConfigLoaded event - open edit form with server data (Story 12.2, Task 3.2)
+        messageBridge.onEvent('serverConfigLoaded', function (payload) {
+            console.debug(LOG_PREFIX, 'Received serverConfigLoaded:', payload);
+            if (window.iteServerForm) {
+                window.iteServerForm.openEditForm(payload);
+            }
         });
 
         // error event

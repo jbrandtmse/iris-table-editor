@@ -148,3 +148,71 @@ Execution sequence: 10 → 12 → 11 → 13 → 14
 
 Proceeding to Epic 12: Connection Manager...
 
+## Story 12.1: Server List UI
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/package.json, tsconfig.json, src/index.ts
+- NEW: packages/desktop/src/main/ConnectionManager.ts
+- NEW: packages/desktop/src/ui/connection/server-list.html, server-list.css, server-list.js
+- NEW: packages/desktop/src/test/connectionManager.test.ts
+- MODIFIED: packages/core/src/models/IMessages.ts (desktop message types)
+- MODIFIED: packages/core/src/index.ts (desktop exports)
+- MODIFIED: package.json (root test script includes desktop)
+- MODIFIED: package-lock.json
+
+**Key design decisions:**
+- Root package.json already uses `packages/*` glob — no workspace change needed
+- Node.js built-in test runner (`node:test`) instead of mocha (no Electron dependency)
+- Double-click detection via timestamp comparison (400ms threshold)
+- ServerConfig includes optional fields: namespace, description, pathPrefix
+- Desktop message types in @iris-te/core IMessages.ts for shared use
+
+**Issues auto-resolved:** 3
+- MEDIUM: Missing null guard on handleServerClick calls → Added null checks
+- MEDIUM: Config file written with default permissions → Added mode: 0o600
+- MEDIUM: Root test script excludes desktop tests → Chained desktop test command
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: ddef614
+
+---
+
+## Story 12.2: Server Form
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/ui/connection/server-form.html, server-form.css, server-form.js
+- NEW: packages/desktop/src/test/serverForm.test.ts
+- MODIFIED: packages/desktop/src/ui/connection/server-list.html (inlined form overlay, stylesheet moved to head)
+- MODIFIED: packages/desktop/src/ui/connection/server-list.js (wired add/edit buttons to form, event listeners)
+- MODIFIED: packages/core/src/models/IMessages.ts (form command/event types)
+- MODIFIED: packages/core/src/index.ts (exported new types)
+
+**Key design decisions:**
+- Form overlay uses position:fixed with full viewport coverage
+- Password field shows bullet placeholder in edit mode (not real password)
+- Empty password on save in edit mode = keep existing password
+- serverConfigLoaded event added for edit flow (host sends back full config)
+- Focus trap for modal accessibility (WCAG compliance)
+- Client-side validation differentiates add mode (password required) vs edit mode (password optional)
+
+**Issues auto-resolved:** 4
+- MEDIUM: Duplicate getServers call on serverSaved (removed from server-form.js)
+- MEDIUM: Stylesheet link in body (moved to head)
+- MEDIUM: Missing focus trap for aria-modal dialog (added Tab/Shift+Tab cycling)
+- LOW: Double-encoded announce() (removed unnecessary escapeHtml on textContent)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: (pending)
+
+---
+

@@ -51,6 +51,12 @@ export type {
     IDesktopServerNamePayload,
     DesktopConnectionCommand,
     DesktopConnectionEvent,
+    // Story 12.2: Server Form message types
+    IDesktopSaveServerPayload,
+    IDesktopUpdateServerPayload,
+    IDesktopServerSavedPayload,
+    IDesktopServerSaveErrorPayload,
+    IDesktopServerConfigPayload,
 } from './models/IMessages';
 
 // Services

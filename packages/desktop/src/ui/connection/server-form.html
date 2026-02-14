@@ -4,35 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self';">
-    <title>IRIS Table Editor - Server List</title>
-    <link rel="stylesheet" href="server-list.css">
+    <title>IRIS Table Editor - Server Form</title>
     <link rel="stylesheet" href="server-form.css">
 </head>
 <body>
-    <div class="ite-sidebar" role="complementary" aria-label="Server connections sidebar">
-        <div class="ite-sidebar__header">
-            <h2 class="ite-sidebar__title">Servers</h2>
-            <button class="ite-button ite-button--icon" id="addServerBtn"
-                    title="Add Server" aria-label="Add a new server connection">
-                +
-            </button>
-        </div>
-        <div class="ite-sidebar__content" id="serverListContainer">
-            <!-- Server list or welcome screen rendered here by JS -->
-        </div>
-    </div>
-
-    <!-- Context menu (hidden by default) -->
-    <div class="ite-context-menu" id="contextMenu" role="menu" aria-label="Server actions" hidden>
-        <button class="ite-context-menu__item" data-action="connect" role="menuitem">Connect</button>
-        <button class="ite-context-menu__item" data-action="edit" role="menuitem">Edit</button>
-        <button class="ite-context-menu__item" data-action="delete" role="menuitem">Delete</button>
-        <div class="ite-context-menu__separator" role="separator"></div>
-        <button class="ite-context-menu__item" data-action="testConnection" role="menuitem">Test Connection</button>
-    </div>
-
-    <!-- Server Form (Story 12.2) -->
-    <!-- Form overlay and markup loaded from server-form.html inline -->
     <div class="ite-form-overlay" id="serverFormOverlay" hidden>
         <div class="ite-form" role="dialog" aria-labelledby="formTitle" aria-modal="true">
             <div class="ite-form__header">
@@ -131,10 +106,8 @@
     </div>
 
     <!-- ARIA live region for screen reader announcements -->
-    <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
     <div id="ite-form-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
     <script src="server-form.js"></script>
-    <script src="server-list.js"></script>
 </body>
 </html>

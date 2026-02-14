@@ -1,0 +1,200 @@
+/* IRIS Table Editor - Server Form Styles
+ * Story 12.2: Server Form
+ * BEM naming with ite- prefix, --ite-* CSS variables
+ */
+
+/* ============================================
+   Form Overlay
+   ============================================ */
+
+.ite-form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 500;
+    background-color: var(--ite-bg);
+    overflow-y: auto;
+}
+
+.ite-form-overlay[hidden] {
+    display: none;
+}
+
+/* ============================================
+   Form Container
+   ============================================ */
+
+.ite-form {
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 16px 16px;
+}
+
+.ite-form__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--ite-sidebar-section-header-border, var(--ite-border));
+    margin-bottom: 16px;
+}
+
+.ite-form__title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--ite-fg);
+}
+
+.ite-form__close {
+    flex-shrink: 0;
+}
+
+.ite-form__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ============================================
+   Form Fields
+   ============================================ */
+
+.ite-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ite-form__label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--ite-fg);
+}
+
+.ite-form__required {
+    color: var(--ite-error-fg, #f44336);
+}
+
+.ite-form__input {
+    padding: 6px 8px;
+    border: 1px solid var(--ite-input-border, var(--ite-border));
+    border-radius: 2px;
+    background-color: var(--ite-input-bg, var(--ite-bg));
+    color: var(--ite-input-fg, var(--ite-fg));
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.4;
+    outline: none;
+    transition: border-color 0.1s ease;
+}
+
+.ite-form__input::placeholder {
+    color: var(--ite-input-placeholder-fg, var(--ite-description-fg));
+    opacity: 0.7;
+}
+
+.ite-form__input:focus {
+    border-color: var(--ite-focus-ring, #007fd4);
+    outline: 1px solid var(--ite-focus-ring, #007fd4);
+    outline-offset: -1px;
+}
+
+.ite-form__input--error {
+    border-color: var(--ite-error-fg, #f44336);
+}
+
+.ite-form__input--error:focus {
+    border-color: var(--ite-error-fg, #f44336);
+    outline-color: var(--ite-error-fg, #f44336);
+}
+
+/* Remove number input spinners */
+.ite-form__input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.ite-form__input[type="number"]::-webkit-outer-spin-button,
+.ite-form__input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* ============================================
+   Checkbox Field
+   ============================================ */
+
+.ite-form__field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.ite-form__checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--ite-fg);
+}
+
+.ite-form__checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--ite-button-bg, #007fd4);
+}
+
+.ite-form__checkbox:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: 1px;
+}
+
+/* ============================================
+   Validation Errors
+   ============================================ */
+
+.ite-form__error {
+    font-size: 0.82em;
+    color: var(--ite-error-fg, #f44336);
+    min-height: 0;
+    line-height: 1.3;
+}
+
+.ite-form__error:empty {
+    display: none;
+}
+
+/* ============================================
+   Form Actions
+   ============================================ */
+
+.ite-form__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ite-sidebar-section-header-border, var(--ite-border));
+    margin-top: 4px;
+}
+
+/* ============================================
+   Visually Hidden (screen readers)
+   ============================================ */
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

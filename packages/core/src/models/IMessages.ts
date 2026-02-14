@@ -425,6 +425,7 @@ export interface IDesktopServerNamePayload {
 /**
  * Commands sent from desktop server list UI to host
  * Story 12.1: Server List UI
+ * Story 12.2: Added saveServer, updateServer commands
  */
 export type DesktopConnectionCommand =
     | { command: 'getServers'; payload: IEmptyPayload }
@@ -432,15 +433,90 @@ export type DesktopConnectionCommand =
     | { command: 'editServer'; payload: IDesktopServerNamePayload }
     | { command: 'deleteServer'; payload: IDesktopServerNamePayload }
     | { command: 'testConnection'; payload: IDesktopServerNamePayload }
-    | { command: 'selectServer'; payload: IDesktopServerNamePayload };
+    | { command: 'selectServer'; payload: IDesktopServerNamePayload }
+    | { command: 'saveServer'; payload: IDesktopSaveServerPayload }
+    | { command: 'updateServer'; payload: IDesktopUpdateServerPayload };
 
 /**
  * Events sent from host to desktop server list UI
  * Story 12.1: Server List UI
+ * Story 12.2: Added serverSaved, serverSaveError, serverConfigLoaded events
  */
 export type DesktopConnectionEvent =
     | { event: 'serversLoaded'; payload: IDesktopServersLoadedPayload }
     | { event: 'serverSelected'; payload: ISelectServerPayload }
     | { event: 'connectionStatus'; payload: IConnectionStatusPayload }
     | { event: 'serverDeleted'; payload: IDesktopServerDeletedPayload }
+    | { event: 'serverSaved'; payload: IDesktopServerSavedPayload }
+    | { event: 'serverSaveError'; payload: IDesktopServerSaveErrorPayload }
+    | { event: 'serverConfigLoaded'; payload: IDesktopServerConfigPayload }
     | { event: 'error'; payload: IErrorPayload };
+
+// ============================================
+// Story 12.2: Server Form Messages
+// ============================================
+
+/**
+ * Payload for saveServer command (new server)
+ * Story 12.2: Server Form
+ */
+export interface IDesktopSaveServerPayload {
+    name: string;
+    hostname: string;
+    port: number;
+    username: string;
+    password: string;
+    ssl: boolean;
+    description?: string;
+    pathPrefix?: string;
+}
+
+/**
+ * Payload for updateServer command (edit existing)
+ * Story 12.2: Server Form
+ */
+export interface IDesktopUpdateServerPayload {
+    /** Original server name (for lookup) */
+    originalName: string;
+    name: string;
+    hostname: string;
+    port: number;
+    username: string;
+    /** Empty string means keep existing password */
+    password: string;
+    ssl: boolean;
+    description?: string;
+    pathPrefix?: string;
+}
+
+/**
+ * Payload for serverSaved event (success response)
+ * Story 12.2: Server Form
+ */
+export interface IDesktopServerSavedPayload {
+    serverName: string;
+    mode: 'add' | 'edit';
+}
+
+/**
+ * Payload for serverSaveError event (error response)
+ * Story 12.2: Server Form
+ */
+export interface IDesktopServerSaveErrorPayload {
+    message: string;
+    field?: string;
+}
+
+/**
+ * Payload for serverConfigLoaded event (server config for edit form)
+ * Story 12.2: Server Form
+ */
+export interface IDesktopServerConfigPayload {
+    name: string;
+    hostname: string;
+    port: number;
+    username: string;
+    ssl: boolean;
+    description?: string;
+    pathPrefix?: string;
+}
