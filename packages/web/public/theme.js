@@ -55,12 +55,10 @@
      * @param {'light'|'dark'} theme
      */
     function applyTheme(theme) {
-        if (theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } else {
-            // Light is the CSS default; remove data-theme to let :root defaults apply
-            document.documentElement.removeAttribute('data-theme');
-        }
+        // Always set data-theme to prevent the @media (prefers-color-scheme: dark)
+        // fallback from activating when the user explicitly chose light mode.
+        // The media query only applies when data-theme is absent (first visit, no preference).
+        document.documentElement.setAttribute('data-theme', theme);
         updateToggleIcon(theme);
     }
 
