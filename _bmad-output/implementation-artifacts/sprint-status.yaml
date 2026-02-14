@@ -186,7 +186,7 @@ development_status:
   epic-16: in-progress
   16-1-web-connection-form-ui: done
   16-2-browser-credential-handling: done
-  16-3-connection-test: backlog
+  16-3-connection-test: done
   16-4-multi-connection-support: backlog
   16-5-session-persistence-auto-reconnect: backlog
   epic-16-retrospective: optional

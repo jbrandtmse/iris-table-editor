@@ -124,6 +124,107 @@ function classifyProxyError(error: unknown): { status: number; message: string; 
 }
 
 /**
+ * Validate and extract connection details from a request body.
+ * Returns the validated fields or sends a 400/403 response and returns null.
+ */
+function validateConnectionRequest(
+    req: Request,
+    res: Response,
+): ConnectionDetails | null {
+    // HTTPS enforcement in production
+    if (process.env.NODE_ENV === 'production') {
+        const isSecure = req.secure ||
+            req.headers['x-forwarded-proto'] === 'https';
+        if (!isSecure) {
+            res.status(403).json({
+                error: 'HTTPS is required for credential transmission.',
+                code: ErrorCodes.AUTH_FAILED,
+            });
+            return null;
+        }
+    }
+
+    const { host, port, namespace, username, password, pathPrefix, useHTTPS } = req.body as Partial<ConnectionDetails>;
+
+    if (!host || !port || !namespace || !username || !password) {
+        res.status(400).json({ error: 'Missing required connection fields: host, port, namespace, username, password' });
+        return null;
+    }
+
+    return { host, port, namespace, username, password, pathPrefix, useHTTPS };
+}
+
+/** Fetch API Response type (distinct from Express Response) */
+type FetchResponse = Awaited<ReturnType<typeof globalThis.fetch>>;
+
+/**
+ * Probe an IRIS server: build URL, auth, fetch with timeout, classify errors.
+ * Returns the IRIS fetch Response on success, or sends an error response and returns null.
+ */
+async function probeIrisServer(
+    details: ConnectionDetails,
+    timeout: number,
+    irisFetch: (...args: Parameters<typeof globalThis.fetch>) => Promise<FetchResponse>,
+    res: Response,
+    logLabel: string,
+): Promise<FetchResponse | null> {
+    const spec: IServerSpec = {
+        name: 'probe',
+        scheme: details.useHTTPS ? 'https' : 'http',
+        host: details.host,
+        port: details.port,
+        pathPrefix: details.pathPrefix || '',
+    };
+
+    const testUrl = UrlBuilder.buildBaseUrl(spec);
+    const authHeader = `Basic ${Buffer.from(`${details.username}:${details.password}`).toString('base64')}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const irisResponse = await irisFetch(testUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json',
+            },
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (irisResponse.status === 401 || irisResponse.status === 403) {
+            res.status(401).json({
+                error: 'IRIS authentication failed. Check username and password.',
+                code: ErrorCodes.AUTH_FAILED,
+            });
+            return null;
+        }
+
+        if (!irisResponse.ok) {
+            res.status(502).json({
+                error: 'Failed to connect to IRIS server.',
+                code: ErrorCodes.CONNECTION_FAILED,
+            });
+            return null;
+        }
+
+        return irisResponse;
+
+    } catch (error) {
+        clearTimeout(timeoutId);
+        const classified = classifyProxyError(error);
+        console.error(`${LOG_PREFIX} ${logLabel} error:`, error instanceof Error ? error.message : error);
+        res.status(classified.status).json({
+            error: classified.message,
+            code: classified.code,
+        });
+        return null;
+    }
+}
+
+/**
  * Options for configuring the API proxy
  */
 export interface ApiProxyOptions {
@@ -216,91 +317,46 @@ export function setupApiProxy(app: Express, sessionManager: SessionManager, opti
     // POST /api/connect - Establish session (Task 3)
     // ============================================
     app.post('/api/connect', async (req: Request, res: Response) => {
-        // HTTPS enforcement: reject non-HTTPS connect requests in production (Story 16.2, Task 1.5)
-        // Check req.secure (which respects Express 'trust proxy') and x-forwarded-proto header
-        // for deployments behind a reverse proxy (nginx, load balancer, etc.)
-        if (process.env.NODE_ENV === 'production') {
-            const isSecure = req.secure ||
-                req.headers['x-forwarded-proto'] === 'https';
-            if (!isSecure) {
-                res.status(403).json({
-                    error: 'HTTPS is required for credential transmission.',
-                    code: ErrorCodes.AUTH_FAILED,
-                });
-                return;
-            }
-        }
+        const details = validateConnectionRequest(req, res);
+        if (!details) { return; }
 
-        const { host, port, namespace, username, password, pathPrefix, useHTTPS } = req.body as Partial<ConnectionDetails>;
+        const irisResponse = await probeIrisServer(details, timeout, irisFetch, res, 'Connect');
+        if (!irisResponse) { return; }
 
-        // Validate required fields
-        if (!host || !port || !namespace || !username || !password) {
-            res.status(400).json({ error: 'Missing required connection fields: host, port, namespace, username, password' });
-            return;
-        }
+        // Connection successful - create session (Task 3.3)
+        const token = sessionManager.createSession(details);
+        setSessionCookie(res, token);
+        res.json({ status: 'connected' });
+    });
 
-        // Build spec for test connection (Task 3.2)
-        const spec: IServerSpec = {
-            name: 'test-connection',
-            scheme: useHTTPS ? 'https' : 'http',
-            host,
-            port,
-            pathPrefix: pathPrefix || '',
-        };
+    // ============================================
+    // POST /api/test-connection - Stateless connection probe (Story 16.3)
+    // ============================================
+    app.post('/api/test-connection', async (req: Request, res: Response) => {
+        const details = validateConnectionRequest(req, res);
+        if (!details) { return; }
 
-        // Test connection to IRIS before creating session
-        const testUrl = UrlBuilder.buildBaseUrl(spec);
-        const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+        const irisResp = await probeIrisServer(details, timeout, irisFetch, res, 'Test connection');
+        if (!irisResp) { return; }
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+        // Parse version info from IRIS Atelier API response
+        let version = 'unknown';
         try {
-            const testResponse = await irisFetch(testUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': authHeader,
-                    'Content-Type': 'application/json',
-                },
-                signal: controller.signal,
-            });
-
-            clearTimeout(timeoutId);
-
-            if (testResponse.status === 401 || testResponse.status === 403) {
-                res.status(401).json({
-                    error: 'IRIS authentication failed. Check username and password.',
-                    code: ErrorCodes.AUTH_FAILED,
-                });
-                return;
+            const data = await irisResp.json() as {
+                result?: { content?: { version?: string; api?: number } };
+            };
+            if (data?.result?.content?.version) {
+                // Limit version string length to prevent unexpected data exfiltration
+                version = String(data.result.content.version).slice(0, 64);
+            } else if (data?.result?.content?.api) {
+                version = `API v${data.result.content.api}`;
             }
-
-            if (!testResponse.ok) {
-                res.status(502).json({
-                    error: 'Failed to connect to IRIS server.',
-                    code: ErrorCodes.CONNECTION_FAILED,
-                });
-                return;
-            }
-
-            // Connection successful - create session (Task 3.3)
-            const token = sessionManager.createSession({
-                host, port, namespace, username, password,
-                pathPrefix, useHTTPS,
-            });
-
-            setSessionCookie(res, token);
-            res.json({ status: 'connected' });
-
-        } catch (error) {
-            clearTimeout(timeoutId);
-            const classified = classifyProxyError(error);
-            console.error(`${LOG_PREFIX} Connect error:`, error instanceof Error ? error.message : error);
-            res.status(classified.status).json({
-                error: classified.message,
-                code: classified.code,
-            });
+        } catch {
+            // Response wasn't JSON or couldn't parse — version stays 'unknown'
         }
+
+        // Stateless: do NOT create a session
+        res.json({ status: 'success', version });
     });
 
     // ============================================

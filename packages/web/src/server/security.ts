@@ -23,9 +23,10 @@ const LOG_PREFIX = '[IRIS-TE]';
 /**
  * Paths exempt from CSRF validation.
  * - /api/connect: first request before client has a CSRF cookie
+ * - /api/test-connection: stateless pre-auth probe (Story 16.3)
  * - /health: read-only health check
  */
-const CSRF_EXEMPT_PATHS = ['/api/connect', '/health'];
+const CSRF_EXEMPT_PATHS = ['/api/connect', '/api/test-connection', '/health'];
 
 /**
  * HTTP methods that are "safe" (read-only) and skip CSRF checks.

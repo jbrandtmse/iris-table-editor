@@ -20,7 +20,9 @@
 
     var state = {
         csrfToken: null,
-        isConnecting: false
+        isConnecting: false,
+        isTesting: false,
+        testAbortController: null
     };
 
     // ============================================
@@ -33,6 +35,11 @@
     var connectBtn = document.getElementById('connectBtn');
     var connectBtnText = document.getElementById('connectBtnText');
     var connectSpinner = document.getElementById('connectSpinner');
+    var testBtn = document.getElementById('testBtn');
+    var testBtnText = document.getElementById('testBtnText');
+    var testSpinner = document.getElementById('testSpinner');
+    var cancelTestBtn = document.getElementById('cancelTestBtn');
+    var testResult = document.getElementById('testResult');
     var formMessage = document.getElementById('formMessage');
     var recentSection = document.getElementById('recentConnections');
     var recentList = document.getElementById('recentList');
@@ -416,6 +423,165 @@
     }
 
     // ============================================
+    // Test Connection (Story 16.3)
+    // ============================================
+
+    /**
+     * Show the testing state: change button text, show spinner, disable buttons.
+     * @param {boolean} testing
+     */
+    function setTesting(testing) {
+        state.isTesting = testing;
+
+        if (testBtn) {
+            testBtn.disabled = testing;
+            testBtn.hidden = testing;
+        }
+        if (testBtnText) {
+            testBtnText.textContent = testing ? 'Testing...' : 'Test Connection';
+        }
+        if (testSpinner) {
+            testSpinner.classList.toggle('ite-connection-form__spinner--visible', testing);
+        }
+        if (cancelTestBtn) {
+            cancelTestBtn.hidden = !testing;
+        }
+        if (connectBtn) {
+            connectBtn.disabled = testing;
+        }
+
+        // Disable/enable form inputs during testing
+        var inputElements = form ? form.querySelectorAll('input') : [];
+        for (var i = 0; i < inputElements.length; i++) {
+            inputElements[i].disabled = testing;
+        }
+    }
+
+    /**
+     * Show test result message.
+     * @param {string} message
+     * @param {'success'|'error'} type
+     */
+    function showTestResult(message, type) {
+        if (testResult) {
+            testResult.textContent = message;
+            testResult.className = 'ite-connection-form__test-result ite-connection-form__test-result--' + type;
+        }
+    }
+
+    /**
+     * Clear the test result message.
+     */
+    function clearTestResult() {
+        if (testResult) {
+            testResult.textContent = '';
+            testResult.className = 'ite-connection-form__test-result';
+        }
+    }
+
+    /**
+     * Handle "Test Connection" button click.
+     * Validates form, POSTs to /api/test-connection, shows results.
+     */
+    function handleTestConnection() {
+        if (state.isTesting || state.isConnecting) {
+            return;
+        }
+
+        clearFormMessage();
+        clearTestResult();
+
+        if (!validateForm()) {
+            var firstError = form ? form.querySelector('.ite-connection-form__input--error') : null;
+            if (firstError) {
+                firstError.focus();
+            }
+            announce('Please fix the validation errors before testing');
+            return;
+        }
+
+        setTesting(true);
+        announce('Testing connection...');
+
+        var abortController = new AbortController();
+        state.testAbortController = abortController;
+
+        var data = {
+            host: fields.host ? fields.host.value.trim() : '',
+            port: fields.port ? parseInt(fields.port.value, 10) : 52773,
+            pathPrefix: fields.pathPrefix ? fields.pathPrefix.value.trim() : '',
+            namespace: fields.namespace ? fields.namespace.value.trim() : '',
+            useHTTPS: fields.useHTTPS ? fields.useHTTPS.checked : false,
+            username: fields.username ? fields.username.value.trim() : '',
+            password: fields.password ? fields.password.value : ''
+        };
+
+        var headers = {
+            'Content-Type': 'application/json'
+        };
+        if (state.csrfToken) {
+            headers['X-CSRF-Token'] = state.csrfToken;
+        }
+
+        fetch('/api/test-connection', {
+            method: 'POST',
+            headers: headers,
+            credentials: 'same-origin',
+            body: JSON.stringify(data),
+            signal: abortController.signal
+        })
+        .then(function (res) {
+            return res.json().then(function (body) {
+                return { status: res.status, ok: res.ok, body: body };
+            });
+        })
+        .then(function (result) {
+            state.testAbortController = null;
+            setTesting(false);
+
+            if (result.ok && result.body.status === 'success') {
+                var msg = 'Connection successful';
+                if (result.body.version && result.body.version !== 'unknown') {
+                    msg += ' — IRIS version: ' + result.body.version;
+                }
+                showTestResult(msg, 'success');
+                announce(msg);
+            } else {
+                var errorMsg = result.body.error || 'Connection test failed. Please check your settings.';
+                showTestResult('Could not connect: ' + errorMsg, 'error');
+                announce('Connection test failed: ' + errorMsg);
+            }
+        })
+        .catch(function (err) {
+            state.testAbortController = null;
+            setTesting(false);
+
+            if (err.name === 'AbortError') {
+                clearTestResult();
+                announce('Connection test cancelled');
+                return;
+            }
+
+            console.error(LOG_PREFIX, 'Test connection error:', err);
+            showTestResult('Could not connect: Network error. Please check your connection.', 'error');
+            announce('Connection test failed due to network error');
+        });
+    }
+
+    /**
+     * Handle "Cancel" button click during test connection.
+     */
+    function handleCancelTest() {
+        if (state.testAbortController) {
+            state.testAbortController.abort();
+            state.testAbortController = null;
+        }
+        setTesting(false);
+        clearTestResult();
+        announce('Connection test cancelled');
+    }
+
+    // ============================================
     // View Switching
     // ============================================
 
@@ -629,6 +795,20 @@
         });
     }
 
+    // Test Connection button
+    if (testBtn) {
+        testBtn.addEventListener('click', function () {
+            handleTestConnection();
+        });
+    }
+
+    // Cancel Test button
+    if (cancelTestBtn) {
+        cancelTestBtn.addEventListener('click', function () {
+            handleCancelTest();
+        });
+    }
+
     // Disconnect button
     if (disconnectBtn) {
         disconnectBtn.addEventListener('click', function () {
@@ -715,6 +895,9 @@
         removeRecentConnection: removeRecentConnection,
         prefillFromRecent: prefillFromRecent,
         setConnecting: setConnecting,
+        setTesting: setTesting,
+        handleTestConnection: handleTestConnection,
+        handleCancelTest: handleCancelTest,
         showConnectionForm: showConnectionForm,
         showConnectedView: showConnectedView,
         getState: function () { return state; },

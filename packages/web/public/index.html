@@ -106,7 +106,17 @@
                             <span class="ite-connection-form__spinner" id="connectSpinner"></span>
                             <span id="connectBtnText">Connect</span>
                         </button>
+                        <button class="ite-button ite-button--secondary ite-connection-form__test-btn" type="button" id="testBtn">
+                            <span class="ite-connection-form__spinner" id="testSpinner"></span>
+                            <span id="testBtnText">Test Connection</span>
+                        </button>
+                        <button class="ite-button ite-button--secondary ite-connection-form__cancel-test-btn" type="button" id="cancelTestBtn" hidden>
+                            Cancel
+                        </button>
                     </div>
+
+                    <!-- Test Connection Result -->
+                    <div class="ite-connection-form__test-result" id="testResult" role="status" aria-live="polite"></div>
                 </form>
 
                 <!-- Recent Connections -->

@@ -268,6 +268,34 @@ body {
     display: flex;
     gap: 8px;
     padding-top: 8px;
+    flex-wrap: wrap;
+}
+
+/* ============================================
+   Test Connection Result
+   ============================================ */
+
+.ite-connection-form__test-result {
+    padding: 8px 12px;
+    border-radius: 2px;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.ite-connection-form__test-result:empty {
+    display: none;
+}
+
+.ite-connection-form__test-result--success {
+    background-color: rgba(137, 209, 133, 0.15);
+    color: var(--ite-success-fg);
+    border: 1px solid rgba(137, 209, 133, 0.3);
+}
+
+.ite-connection-form__test-result--error {
+    background-color: rgba(244, 71, 71, 0.15);
+    color: var(--ite-error-fg);
+    border: 1px solid rgba(244, 71, 71, 0.3);
 }
 
 /* ============================================
