@@ -1,14 +1,14 @@
 # IRIS Table Editor
 
-A VS Code extension that provides Excel-like grid editing for InterSystems IRIS database tables directly within VS Code.
+Excel-like grid editing for InterSystems IRIS database tables. Available as a **VS Code extension** and a **standalone desktop application** (Electron).
 
 ## Features
 
 ### Connection & Browsing
-- Connect to InterSystems IRIS servers via Server Manager integration
+- Connect to InterSystems IRIS servers via the Atelier REST API (HTTP)
 - Browse namespaces and tables in a schema-organized tree view
 - Schema folders group related tables; standalone tables and folders are alphabetized together
-- Open multiple tables simultaneously in separate editor panels
+- Open multiple tables simultaneously (tabs in desktop, separate panels in VS Code)
 - Connection status indicator with disconnect support
 
 ### Grid Display
@@ -20,7 +20,7 @@ A VS Code extension that provides Excel-like grid editing for InterSystems IRIS 
   - **NULL values**: Gray italic placeholder
 - Adjustable column width via toolbar slider
 - Alternating row colors and hover highlighting
-- VS Code theme support (dark, light, and high contrast)
+- Theme support (dark, light, and high contrast)
 
 ### Inline Cell Editing
 - Double-click or press Enter/F2 to edit any cell
@@ -81,7 +81,7 @@ A VS Code extension that provides Excel-like grid editing for InterSystems IRIS 
 
 ### Keyboard Shortcuts
 
-Press **?** or **F1** to view the full shortcuts help dialog in the extension.
+Press **?** or **F1** to view the full shortcuts help dialog.
 
 > **Note:** On Mac, use **Cmd** instead of **Ctrl** for all shortcuts below.
 
@@ -119,79 +119,119 @@ Press **?** or **F1** to view the full shortcuts help dialog in the extension.
 - Focus trap in dialogs with focus restoration on close
 - High contrast theme support (Windows forced-colors mode)
 
-## Requirements
-
-- VS Code 1.85.0 or higher
-- [InterSystems Server Manager](https://marketplace.visualstudio.com/items?itemName=intersystems-community.servermanager) extension
-- Access to an InterSystems IRIS instance (2021.1+)
-
 ## Installation
 
-### From VSIX (recommended for now)
+### Desktop Application (Windows)
 
-1. Download `iris-table-editor-0.1.0.vsix` from the [latest release](https://github.com/jbrandtmse/iris-table-editor/releases/latest)
-2. In VS Code, open the Command Palette (Ctrl+Shift+P) and run **Extensions: Install from VSIX...**
+For users who don't use VS Code — a standalone application with the same feature set.
+
+1. Download **IRIS Table Editor Setup 0.2.0.exe** from the [latest release](https://github.com/jbrandtmse/iris-table-editor/releases/latest)
+2. Run the installer — no admin rights required (per-user install)
+3. Launch **IRIS Table Editor** from the Start Menu
+4. Click **+** or **File → New Connection** to add an IRIS server
+
+> **Note:** The installer is not code-signed. Windows SmartScreen may show a warning on first launch — click "More info" → "Run anyway" to proceed.
+
+**Requirements:** Windows 10 or later. Connects to InterSystems IRIS 2021.1+ via the Atelier REST API.
+
+### VS Code Extension
+
+1. Download **iris-table-editor-0.2.0.vsix** from the [latest release](https://github.com/jbrandtmse/iris-table-editor/releases/latest)
+2. In VS Code, open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **Extensions: Install from VSIX...**
 3. Select the downloaded `.vsix` file
 4. Reload VS Code when prompted
 
 Alternatively, install from the command line:
 
 ```bash
-code --install-extension iris-table-editor-0.1.0.vsix
+code --install-extension iris-table-editor-0.2.0.vsix
 ```
 
-### From Marketplace
-
-*Coming soon*
+**Requirements:**
+- VS Code 1.85.0 or higher
+- [InterSystems Server Manager](https://marketplace.visualstudio.com/items?itemName=intersystems-community.servermanager) extension
+- Access to an InterSystems IRIS instance (2021.1+)
 
 ## Development
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 20 or higher
-- [VS Code](https://code.visualstudio.com/) 1.85.0 or higher
+- [VS Code](https://code.visualstudio.com/) 1.85.0 or higher (for extension development)
 
 ### Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/jbrandtmse/iris-table-editor.git
 cd iris-table-editor
-
-# Install dependencies
 npm install
+```
+
+### Project Structure
+
+This is an npm workspaces monorepo:
+
+```
+packages/
+├── core/       # Shared services, models, and utilities (TypeScript)
+├── webview/    # Shared grid UI: HTML, CSS, and vanilla JS
+├── vscode/     # VS Code extension wrapper
+└── desktop/    # Electron desktop application
 ```
 
 ### Build Commands
 
 ```bash
-# Build the extension (type-check + esbuild)
+# Build all packages (type-check + esbuild)
 npm run compile
 
-# Watch mode for development (auto-rebuilds on file changes)
-npm run watch
-
-# Package as .vsix for distribution
-npx vsce package
-
-# Run linter
+# Run linter across all packages
 npm run lint
+
+# Run tests (VS Code extension + desktop)
+npm run test
+
+# Watch mode for VS Code extension development
+npm run watch
 ```
 
-### Running in Development
+### VS Code Extension Development
 
 1. Open this repository in VS Code
 2. Run `npm run watch` in a terminal
 3. Press **F5** to launch the Extension Development Host
-4. The IRIS Table Editor icon appears in the Activity Bar of the new VS Code window
+4. The IRIS Table Editor icon appears in the Activity Bar
+
+### Desktop App Development
+
+```bash
+# Run the desktop app in dev mode
+npm run start:desktop
+
+# Build the Windows installer (.exe)
+npm run dist:win --workspace=packages/desktop
+
+# Build a directory (unpacked, for testing)
+npm run pack --workspace=packages/desktop
+```
+
+### Packaging
+
+```bash
+# VS Code extension → .vsix
+cd packages/vscode && npx vsce package --no-dependencies
+
+# Desktop app → platform installer
+npm run dist:desktop
+```
 
 ## Technical Overview
 
-- Connects via Atelier REST API (HTTP-based, no superserver port required)
-- Integrates with InterSystems Server Manager for connection and credential management
-- Parameterized SQL queries for all database operations (no string interpolation)
-- VS Code Webview API with Content Security Policy enforcement
-- Built with TypeScript and esbuild
+- **API**: Atelier REST API over HTTP — no superserver port required
+- **Security**: Parameterized SQL queries for all database operations; Content Security Policy enforcement in webviews; channel validation allowlists for IPC
+- **VS Code**: Integrates with InterSystems Server Manager for connection and credential management
+- **Desktop**: Electron with context isolation and sandbox enabled; encrypted credential storage; auto-update via GitHub Releases
+- **Build**: TypeScript, esbuild bundling, npm workspaces monorepo
 
 ## License
 
