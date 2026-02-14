@@ -197,7 +197,7 @@ development_status:
   17-2-web-message-bridge: done
   17-3-web-theme-bridge: done
   17-4-responsive-layout: done
-  17-5-browser-navigation: backlog
+  17-5-browser-navigation: ready-for-dev
   epic-17-retrospective: optional
 
   # Epic 18: Web Build, Deploy & Distribution
