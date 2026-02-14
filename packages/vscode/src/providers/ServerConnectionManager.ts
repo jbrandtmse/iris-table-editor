@@ -10,12 +10,17 @@ interface ICredentials {
     username: string;
     password: string;
 }
-import { IServerSpec } from '../models/IServerSpec';
-import { IUserError, IFilterCriterion, SortDirection } from '../models/IMessages';
-import { ITableSchema } from '../models/ITableSchema';
-import { ITableRow } from '../models/ITableData';
-import { AtelierApiService } from '../services/AtelierApiService';
-import { ErrorHandler, ErrorCodes } from '../utils/ErrorHandler';
+import {
+    IServerSpec,
+    IUserError,
+    IFilterCriterion,
+    SortDirection,
+    ITableSchema,
+    ITableRow,
+    AtelierApiService,
+    ErrorHandler,
+    ErrorCodes
+} from '@iris-te/core';
 
 const LOG_PREFIX = '[IRIS-TE]';
 

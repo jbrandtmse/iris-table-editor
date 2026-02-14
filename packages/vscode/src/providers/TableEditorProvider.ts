@@ -19,7 +19,7 @@ import {
     ITableSelectedPayload,
     IErrorPayload,
     IOpenTablePayload
-} from '../models/IMessages';
+} from '@iris-te/core';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -54,7 +54,7 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'media'),
+                vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src'),
                 vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist')
             ]
         };
@@ -401,13 +401,13 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'styles.css')
+            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'styles.css')
         );
         const codiconUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')
         );
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'main.js')
+            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'main.js')
         );
 
         const nonce = this._getNonce();

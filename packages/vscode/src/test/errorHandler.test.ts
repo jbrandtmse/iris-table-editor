@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { ErrorHandler, ErrorCodes, IUserError, ErrorCode } from '../utils/ErrorHandler';
+import { ErrorHandler, ErrorCodes, IUserError, ErrorCode } from '@iris-te/core';
 
 suite('ErrorHandler Test Suite', () => {
 

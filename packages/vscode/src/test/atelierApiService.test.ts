@@ -1,8 +1,5 @@
 import * as assert from 'assert';
-import { AtelierApiService } from '../services/AtelierApiService';
-import { IServerSpec } from '../models/IServerSpec';
-import { ErrorCodes } from '../utils/ErrorHandler';
-import { IColumnInfo, ITableSchema } from '../models/ITableSchema';
+import { AtelierApiService, IServerSpec, ErrorCodes, IColumnInfo, ITableSchema } from '@iris-te/core';
 
 suite('AtelierApiService Test Suite', () => {
 
@@ -205,7 +202,8 @@ suite('AtelierApiService Test Suite', () => {
     // will be properly encoded when used in subsequent API calls
     test('System namespaces from getNamespaces can be properly encoded for API calls', () => {
         // Import UrlBuilder to verify encoding integration
-        const { UrlBuilder } = require('../utils/UrlBuilder');
+        // UrlBuilder is re-exported from @iris-te/core
+        const { UrlBuilder } = require('@iris-te/core');
 
         // Simulate namespaces that would be returned from getNamespaces
         const systemNamespaces = ['%SYS', '%APPTOOLS', 'USER', 'SAMPLES'];
@@ -291,7 +289,8 @@ suite('AtelierApiService Test Suite', () => {
 
     // Story 1.6 AC#2: Verify system namespace encoding for table queries
     test('System namespaces are properly encoded for getTables API calls', () => {
-        const { UrlBuilder } = require('../utils/UrlBuilder');
+        // UrlBuilder is re-exported from @iris-te/core
+        const { UrlBuilder } = require('@iris-te/core');
 
         // Test namespaces that might be used for table queries
         const testNamespaces = ['%SYS', 'USER', 'HSCUSTOM', '%CACHELIB'];

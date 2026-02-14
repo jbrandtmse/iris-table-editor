@@ -1,8 +1,10 @@
 .vscode/**
 .vscode-test/**
 src/**
+out/**
 node_modules/**
 !node_modules/@vscode/codicons/**
+!node_modules/@iris-te/**
 .gitignore
 eslint.config.mjs
 tsconfig.json

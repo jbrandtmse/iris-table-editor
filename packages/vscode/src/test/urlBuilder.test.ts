@@ -1,6 +1,5 @@
 import * as assert from 'assert';
-import { UrlBuilder } from '../utils/UrlBuilder';
-import { IServerSpec } from '../models/IServerSpec';
+import { UrlBuilder, IServerSpec } from '@iris-te/core';
 
 suite('UrlBuilder Test Suite', () => {
 

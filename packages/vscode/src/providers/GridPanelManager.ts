@@ -19,7 +19,7 @@ import {
     IInsertRowResultPayload,
     IDeleteRowPayload,
     IDeleteRowResultPayload
-} from '../models/IMessages';
+} from '@iris-te/core';
 
 const LOG_PREFIX = '[IRIS-TE]';
 const DEFAULT_PAGE_SIZE = 50;
@@ -82,7 +82,7 @@ export class GridPanelManager {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [
-                    vscode.Uri.joinPath(this._extensionUri, 'media'),
+                    vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src'),
                     vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist')
                 ]
             }
@@ -1807,13 +1807,13 @@ export class GridPanelManager {
      */
     private _getGridHtml(webview: vscode.Webview, serverName: string, namespace: string, tableName: string): string {
         const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'grid-styles.css')
+            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'grid-styles.css')
         );
         const codiconUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')
         );
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'grid.js')
+            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'grid.js')
         );
 
         const nonce = this._getNonce();
