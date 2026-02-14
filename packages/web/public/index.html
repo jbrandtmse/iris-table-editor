@@ -3,53 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self';">
     <title>IRIS Table Editor</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: #1e1e1e;
-            color: #cccccc;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .ite-container {
-            text-align: center;
-            padding: 2rem;
-        }
-        .ite-container h1 {
-            font-size: 1.8rem;
-            color: #ffffff;
-            margin-bottom: 0.5rem;
-        }
-        .ite-container p {
-            font-size: 1rem;
-            color: #999999;
-        }
-        .ite-status {
-            margin-top: 1.5rem;
-            padding: 0.75rem 1.5rem;
-            background-color: #2d2d2d;
-            border: 1px solid #3c3c3c;
-            border-radius: 4px;
-            display: inline-block;
-            color: #4ec9b0;
-            font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.9rem;
-        }
-    </style>
+    <link rel="stylesheet" href="connection-form.css">
 </head>
 <body>
-    <div class="ite-container">
-        <h1>IRIS Table Editor Web</h1>
-        <p>Server Running</p>
-        <div class="ite-status">Ready</div>
+    <div class="ite-page">
+        <div class="ite-page__header">
+            <h1 class="ite-page__title">IRIS Table Editor</h1>
+        </div>
+
+        <div class="ite-page__content">
+            <!-- Connection Form View -->
+            <div id="connectionView" class="ite-connection-form">
+                <h2 class="ite-connection-form__title">Connect to IRIS Server</h2>
+
+                <form class="ite-connection-form__body" id="connectionForm" novalidate autocomplete="off">
+                    <!-- Host -->
+                    <div class="ite-connection-form__field" data-field="host">
+                        <label class="ite-connection-form__label" for="fieldHost">
+                            Host <span class="ite-connection-form__required" aria-hidden="true">*</span>
+                        </label>
+                        <input class="ite-connection-form__input" type="text" id="fieldHost" name="host"
+                               required placeholder="e.g., localhost or 192.168.1.100"
+                               aria-required="true" aria-describedby="fieldHostError">
+                        <span class="ite-connection-form__error" id="fieldHostError" role="alert" aria-live="polite"></span>
+                    </div>
+
+                    <!-- Port -->
+                    <div class="ite-connection-form__field" data-field="port">
+                        <label class="ite-connection-form__label" for="fieldPort">
+                            Port <span class="ite-connection-form__required" aria-hidden="true">*</span>
+                        </label>
+                        <input class="ite-connection-form__input" type="number" id="fieldPort" name="port"
+                               required value="52773" min="1" max="65535"
+                               aria-required="true" aria-describedby="fieldPortError">
+                        <span class="ite-connection-form__error" id="fieldPortError" role="alert" aria-live="polite"></span>
+                    </div>
+
+                    <!-- Path Prefix -->
+                    <div class="ite-connection-form__field" data-field="pathPrefix">
+                        <label class="ite-connection-form__label" for="fieldPathPrefix">Path Prefix</label>
+                        <input class="ite-connection-form__input" type="text" id="fieldPathPrefix" name="pathPrefix"
+                               placeholder="e.g., /iris">
+                    </div>
+
+                    <!-- Namespace -->
+                    <div class="ite-connection-form__field" data-field="namespace">
+                        <label class="ite-connection-form__label" for="fieldNamespace">
+                            Namespace <span class="ite-connection-form__required" aria-hidden="true">*</span>
+                        </label>
+                        <input class="ite-connection-form__input" type="text" id="fieldNamespace" name="namespace"
+                               required placeholder="e.g., USER"
+                               aria-required="true" aria-describedby="fieldNamespaceError">
+                        <span class="ite-connection-form__error" id="fieldNamespaceError" role="alert" aria-live="polite"></span>
+                    </div>
+
+                    <!-- Use HTTPS -->
+                    <div class="ite-connection-form__field ite-connection-form__field--checkbox" data-field="useHTTPS">
+                        <label class="ite-connection-form__checkbox-label">
+                            <input class="ite-connection-form__checkbox" type="checkbox" id="fieldUseHTTPS" name="useHTTPS">
+                            <span class="ite-connection-form__checkbox-text">Use HTTPS</span>
+                        </label>
+                    </div>
+
+                    <!-- Username -->
+                    <div class="ite-connection-form__field" data-field="username">
+                        <label class="ite-connection-form__label" for="fieldUsername">
+                            Username <span class="ite-connection-form__required" aria-hidden="true">*</span>
+                        </label>
+                        <input class="ite-connection-form__input" type="text" id="fieldUsername" name="username"
+                               required placeholder="e.g., _SYSTEM"
+                               aria-required="true" aria-describedby="fieldUsernameError">
+                        <span class="ite-connection-form__error" id="fieldUsernameError" role="alert" aria-live="polite"></span>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="ite-connection-form__field" data-field="password">
+                        <label class="ite-connection-form__label" for="fieldPassword">
+                            Password <span class="ite-connection-form__required" aria-hidden="true">*</span>
+                        </label>
+                        <input class="ite-connection-form__input" type="password" id="fieldPassword" name="password"
+                               required placeholder="Enter password"
+                               aria-required="true" aria-describedby="fieldPasswordError">
+                        <span class="ite-connection-form__error" id="fieldPasswordError" role="alert" aria-live="polite"></span>
+                    </div>
+
+                    <!-- Remember Connection -->
+                    <div class="ite-connection-form__field ite-connection-form__field--checkbox" data-field="remember">
+                        <label class="ite-connection-form__checkbox-label">
+                            <input class="ite-connection-form__checkbox" type="checkbox" id="fieldRemember" name="remember">
+                            <span class="ite-connection-form__checkbox-text">Remember connection</span>
+                        </label>
+                    </div>
+
+                    <!-- Form Message -->
+                    <div class="ite-connection-form__message" id="formMessage" role="alert" aria-live="polite"></div>
+
+                    <!-- Form Actions -->
+                    <div class="ite-connection-form__actions">
+                        <button class="ite-button ite-button--primary" type="submit" id="connectBtn">
+                            <span class="ite-connection-form__spinner" id="connectSpinner"></span>
+                            <span id="connectBtnText">Connect</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Recent Connections -->
+                <div class="ite-recent-connections" id="recentConnections" hidden>
+                    <h3 class="ite-recent-connections__title">Recent Connections</h3>
+                    <ul class="ite-recent-connections__list" id="recentList" role="list"></ul>
+                </div>
+            </div>
+
+            <!-- Connected View (placeholder for grid) -->
+            <div id="connectedView" class="ite-connected-view" hidden>
+                <h2 class="ite-connected-view__title">Connected</h2>
+                <p class="ite-connected-view__description">Grid view coming soon</p>
+                <button class="ite-button ite-button--secondary" id="disconnectBtn">Disconnect</button>
+            </div>
+        </div>
     </div>
+
+    <!-- ARIA live region for screen reader announcements -->
+    <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="connection-form.js"></script>
 </body>
 </html>

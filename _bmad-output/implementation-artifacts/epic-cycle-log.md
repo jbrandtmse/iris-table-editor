@@ -775,3 +775,79 @@ Execution sequence: 15 → 16 → 17 → 18 → 19
 
 ---
 
+## Story 15.1: Server Bootstrap
+
+**Status:** Complete
+**Files touched:** packages/web/package.json, tsconfig.json, src/server/server.ts, public/index.html, src/test/server.test.ts, root package.json
+**Key design decisions:** http.createServer(app) for WebSocket compat, require.main guard, createAppServer() factory, port 0 in tests
+**Issues auto-resolved:** 3 (sendFile error handling, async startServer, workspace naming consistency)
+**Rework iterations:** 0
+**User input required:** 0
+**Commits:** 88117ad
+
+---
+
+## Story 15.2: Atelier API Proxy
+
+**Status:** Complete
+**Files touched:** apiProxy.ts, sessionManager.ts, server.ts, apiProxy.test.ts, sessionManager.test.ts
+**Key design decisions:** Dependency injection for fetch (ApiProxyOptions), HTTP-only cookie session tokens, error classification (502/504), 30s proxy timeout
+**Issues auto-resolved:** 5 (session token leaked in response body, IRIS host/port leaked in /api/session, duplicated token extraction, test security assertions)
+**Rework iterations:** 0
+**User input required:** 0
+**Commits:** 3f2504e
+
+---
+
+## Story 15.3: WebSocket Server
+
+**Status:** Complete
+**Files touched:** wsServer.ts, commandHandler.ts, server.ts, package.json, wsServer.test.ts, commandHandler.test.ts
+**Key design decisions:** noServer mode for pre-handshake auth, per-connection ConnectionContext, ServiceFactory DI, notifySessionExpired(token) via wsHandle
+**Issues auto-resolved:** 6 (readyState guard before ws.send, maxPayload 1MB limit, unused test vars/imports)
+**Rework iterations:** 0
+**User input required:** 0
+**Commits:** 3e5eaa2
+
+---
+
+## Story 15.4: Security Middleware
+
+**Status:** Complete
+**Files touched:** security.ts, server.ts, apiProxy.ts, package.json, security.test.ts, apiProxy.test.ts, wsServer.test.ts
+**Key design decisions:** csrf-csrf double-submit cookie, skipSecurity option for test isolation, CORS only when ALLOWED_ORIGINS set, CSRF exempt /api/connect + /health
+**Issues auto-resolved:** 5 (CSP blocked WebSocket connections, no JSON error handler for CSRF, anonymous session identifier sharing, missing CORS accept/reject tests)
+**Rework iterations:** 0
+**User input required:** 0
+**Commits:** 7572a96
+
+---
+
+## Story 15.5: Session Management
+
+**Status:** Complete
+**Files touched:** sessionManager.ts, server.ts, apiProxy.ts, wsServer.ts, commandHandler.test.ts, sessionTimeout.test.ts
+**Key design decisions:** Callback pattern for WS notification, sliding window expiry, touchSession() for WS activity, timer.unref(), separate unit/integration timeouts
+**Issues auto-resolved:** 2 (WebSocket messages not updating session activity, tautological test assertion)
+**Rework iterations:** 0
+**User input required:** 0
+**Commits:** f34c46a
+
+---
+
+# Epic 15 Summary: Web Server Foundation & API Proxy
+
+**Completed:** 2026-02-14
+**Stories processed:** 5 (15.1, 15.2, 15.3, 15.4, 15.5)
+**Total files touched:** ~30
+**Issues auto-resolved:** 21 (7 high, 11 medium, 3 low)
+**User inputs required:** 0
+**Rework iterations used:** 0
+**Commits created:** 5 (88117ad, 3f2504e, 3e5eaa2, 7572a96, f34c46a)
+
+**Epic Achievement:** Complete web server foundation with Express HTTP server, Atelier API proxy with session-based auth, WebSocket server for real-time IMessageBridge communication, OWASP-compliant security middleware (helmet, CORS, CSRF, rate limiting), and session management with sliding window timeout and periodic cleanup. 112 tests covering all server layers. Ready for Epic 16 (Web Authentication & Connection Management).
+
+---
+
+Proceeding to Epic 16: Web Authentication & Connection Management...
+

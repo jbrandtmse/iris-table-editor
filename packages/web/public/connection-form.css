@@ -1,0 +1,474 @@
+/* IRIS Table Editor - Web Connection Form Styles
+ * Story 16.1: Web Connection Form UI
+ * BEM naming with ite- prefix, --ite-* CSS variables
+ * Follows desktop server-form.css patterns
+ */
+
+/* ============================================
+   Theme Variables (standalone web — no VS Code host)
+   ============================================ */
+
+:root {
+    /* Dark theme defaults for standalone web */
+    --ite-theme-fg: #d4d4d4;
+    --ite-theme-bg: #1e1e1e;
+    --ite-theme-bg-secondary: #252526;
+    --ite-theme-description-fg: #9d9d9d;
+    --ite-theme-error-fg: #f44747;
+    --ite-theme-success-fg: #89d185;
+    --ite-theme-border: #3c3c3c;
+    --ite-theme-focus-ring: #0078d4;
+    --ite-theme-button-bg: #0078d4;
+    --ite-theme-button-fg: #ffffff;
+    --ite-theme-button-hover-bg: #026ec1;
+    --ite-theme-button-secondary-bg: #3a3d41;
+    --ite-theme-button-secondary-fg: #ffffff;
+    --ite-theme-button-secondary-hover-bg: #45494e;
+    --ite-theme-input-bg: #3c3c3c;
+    --ite-theme-input-fg: #d4d4d4;
+    --ite-theme-input-border: #5a5a5a;
+    --ite-theme-input-placeholder-fg: #a6a6a6;
+    --ite-theme-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --ite-theme-font-size: 13px;
+
+    /* Alias layer */
+    --ite-fg: var(--ite-theme-fg);
+    --ite-bg: var(--ite-theme-bg);
+    --ite-bg-secondary: var(--ite-theme-bg-secondary);
+    --ite-description-fg: var(--ite-theme-description-fg);
+    --ite-error-fg: var(--ite-theme-error-fg);
+    --ite-success-fg: var(--ite-theme-success-fg);
+    --ite-border: var(--ite-theme-border);
+    --ite-focus-ring: var(--ite-theme-focus-ring);
+    --ite-button-bg: var(--ite-theme-button-bg);
+    --ite-button-fg: var(--ite-theme-button-fg);
+    --ite-button-hover-bg: var(--ite-theme-button-hover-bg);
+    --ite-button-secondary-bg: var(--ite-theme-button-secondary-bg);
+    --ite-button-secondary-fg: var(--ite-theme-button-secondary-fg);
+    --ite-button-secondary-hover-bg: var(--ite-theme-button-secondary-hover-bg);
+    --ite-input-bg: var(--ite-theme-input-bg);
+    --ite-input-fg: var(--ite-theme-input-fg);
+    --ite-input-border: var(--ite-theme-input-border);
+    --ite-input-placeholder-fg: var(--ite-theme-input-placeholder-fg);
+    --ite-font-family: var(--ite-theme-font-family);
+    --ite-font-size: var(--ite-theme-font-size);
+}
+
+/* ============================================
+   Base Reset
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--ite-font-family);
+    font-size: var(--ite-font-size);
+    color: var(--ite-fg);
+    background-color: var(--ite-bg);
+    line-height: 1.4;
+}
+
+/* ============================================
+   Page Layout
+   ============================================ */
+
+.ite-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.ite-page__header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--ite-border);
+    background-color: var(--ite-bg-secondary);
+}
+
+.ite-page__title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--ite-fg);
+}
+
+.ite-page__content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+}
+
+/* ============================================
+   Connection Form Container
+   ============================================ */
+
+.ite-connection-form {
+    width: 100%;
+    max-width: 440px;
+}
+
+.ite-connection-form__title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--ite-fg);
+    margin-bottom: 20px;
+}
+
+.ite-connection-form__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ============================================
+   Form Fields
+   ============================================ */
+
+.ite-connection-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ite-connection-form__label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--ite-fg);
+}
+
+.ite-connection-form__required {
+    color: var(--ite-error-fg);
+}
+
+.ite-connection-form__input {
+    padding: 6px 8px;
+    border: 1px solid var(--ite-input-border);
+    border-radius: 2px;
+    background-color: var(--ite-input-bg);
+    color: var(--ite-input-fg);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.4;
+    outline: none;
+    transition: border-color 0.1s ease;
+}
+
+.ite-connection-form__input::placeholder {
+    color: var(--ite-input-placeholder-fg);
+    opacity: 0.7;
+}
+
+.ite-connection-form__input:focus {
+    border-color: var(--ite-focus-ring);
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+}
+
+.ite-connection-form__input--error {
+    border-color: var(--ite-error-fg);
+}
+
+.ite-connection-form__input--error:focus {
+    border-color: var(--ite-error-fg);
+    outline-color: var(--ite-error-fg);
+}
+
+/* Remove number input spinners */
+.ite-connection-form__input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.ite-connection-form__input[type="number"]::-webkit-outer-spin-button,
+.ite-connection-form__input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* ============================================
+   Checkbox Field
+   ============================================ */
+
+.ite-connection-form__field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.ite-connection-form__checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--ite-fg);
+}
+
+.ite-connection-form__checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--ite-button-bg);
+}
+
+.ite-connection-form__checkbox:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: 1px;
+}
+
+/* ============================================
+   Validation Errors
+   ============================================ */
+
+.ite-connection-form__error {
+    font-size: 0.82em;
+    color: var(--ite-error-fg);
+    min-height: 0;
+    line-height: 1.3;
+}
+
+.ite-connection-form__error:empty {
+    display: none;
+}
+
+/* ============================================
+   Form-Level Error Message
+   ============================================ */
+
+.ite-connection-form__message {
+    padding: 8px 12px;
+    border-radius: 2px;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.ite-connection-form__message:empty {
+    display: none;
+}
+
+.ite-connection-form__message--error {
+    background-color: rgba(244, 71, 71, 0.15);
+    color: var(--ite-error-fg);
+    border: 1px solid rgba(244, 71, 71, 0.3);
+}
+
+.ite-connection-form__message--success {
+    background-color: rgba(137, 209, 133, 0.15);
+    color: var(--ite-success-fg);
+    border: 1px solid rgba(137, 209, 133, 0.3);
+}
+
+/* ============================================
+   Form Actions
+   ============================================ */
+
+.ite-connection-form__actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 8px;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+
+.ite-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: background-color 0.1s ease;
+}
+
+.ite-button:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: 1px;
+}
+
+.ite-button--primary {
+    background-color: var(--ite-button-bg);
+    color: var(--ite-button-fg);
+}
+
+.ite-button--primary:hover:not(:disabled) {
+    background-color: var(--ite-button-hover-bg);
+}
+
+.ite-button--primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ite-button--secondary {
+    background-color: var(--ite-button-secondary-bg);
+    color: var(--ite-button-secondary-fg);
+}
+
+.ite-button--secondary:hover:not(:disabled) {
+    background-color: var(--ite-button-secondary-hover-bg);
+}
+
+/* ============================================
+   Spinner
+   ============================================ */
+
+.ite-connection-form__spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ite-spin 0.8s linear infinite;
+}
+
+.ite-connection-form__spinner--visible {
+    display: inline-block;
+}
+
+@keyframes ite-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================
+   Recent Connections
+   ============================================ */
+
+.ite-recent-connections {
+    margin-top: 24px;
+    border-top: 1px solid var(--ite-border);
+    padding-top: 16px;
+}
+
+.ite-recent-connections:empty {
+    display: none;
+}
+
+.ite-recent-connections__title {
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--ite-fg);
+    margin-bottom: 8px;
+}
+
+.ite-recent-connections__list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ite-recent-connections__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ite-recent-connections__item:hover {
+    background-color: var(--ite-bg-secondary);
+}
+
+.ite-recent-connections__item:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: -1px;
+}
+
+.ite-recent-connections__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ite-recent-connections__server {
+    font-size: 0.9em;
+    color: var(--ite-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ite-recent-connections__details {
+    font-size: 0.8em;
+    color: var(--ite-description-fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ite-recent-connections__remove {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--ite-description-fg);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 0.85em;
+    border-radius: 2px;
+    line-height: 1;
+}
+
+.ite-recent-connections__remove:hover {
+    color: var(--ite-error-fg);
+    background-color: rgba(244, 71, 71, 0.1);
+}
+
+.ite-recent-connections__remove:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: 1px;
+}
+
+/* ============================================
+   Connected View Placeholder
+   ============================================ */
+
+.ite-connected-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.ite-connected-view__title {
+    font-size: 1.3em;
+    font-weight: 500;
+    color: var(--ite-fg);
+    margin-bottom: 8px;
+}
+
+.ite-connected-view__description {
+    color: var(--ite-description-fg);
+    margin-bottom: 16px;
+}
+
+/* ============================================
+   Visually Hidden (screen readers)
+   ============================================ */
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
