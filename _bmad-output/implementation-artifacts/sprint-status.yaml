@@ -144,12 +144,12 @@ development_status:
   epic-11-retrospective: optional
 
   # Epic 12: Connection Manager
-  epic-12: in-progress
+  epic-12: done
   12-1-server-list-ui: done
   12-2-server-form: done
   12-3-test-connection: done
   12-4-credential-storage: done
-  12-5-connection-lifecycle: backlog
+  12-5-connection-lifecycle: done
   epic-12-retrospective: optional
 
   # Epic 13: Build, Package & Distribution

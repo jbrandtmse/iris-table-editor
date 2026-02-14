@@ -87,6 +87,12 @@
         selectedServer: null,
         /** @type {string|null} Currently connected server name */
         connectedServer: null,
+        /** @type {string|null} Server name currently being connected (Story 12.5) */
+        connectingServer: null,
+        /** @type {string|null} Inline error message for a server (Story 12.5) */
+        connectionError: null,
+        /** @type {string|null} Server name with the connection error (Story 12.5) */
+        connectionErrorServer: null,
         /** @type {boolean} Whether the server list is loading */
         isLoading: true,
         /** @type {Object|null} Current error */
@@ -177,25 +183,64 @@
 
     /**
      * Render the server list (AC: 2, 3)
+     * Story 12.5: Added connecting state, cancel button, inline errors
      * @param {ServerInfo[]} servers - List of servers
      * @param {string|null} selectedServer - Currently selected server name
      * @param {string|null} connectedServer - Currently connected server name
+     * @param {string|null} connectingServer - Server currently being connected
+     * @param {string|null} connectionError - Inline error message
+     * @param {string|null} connectionErrorServer - Server with the error
      * @returns {string} HTML string
      */
-    function renderServerList(servers, selectedServer, connectedServer) {
+    function renderServerList(servers, selectedServer, connectedServer, connectingServer, connectionError, connectionErrorServer) {
         const items = servers.map((server, index) => {
             const isSelected = server.name === selectedServer;
             const isConnected = server.name === connectedServer;
+            const isConnecting = server.name === connectingServer;
+            const hasError = server.name === connectionErrorServer && connectionError;
             const selectedClass = isSelected ? 'ite-server-list__item--selected' : '';
-            const statusClass = isConnected
-                ? 'ite-server-list__status--connected'
-                : 'ite-server-list__status--disconnected';
-            const statusLabel = isConnected ? 'Connected' : 'Disconnected';
+
+            let statusClass;
+            let statusLabel;
+            if (isConnecting) {
+                statusClass = 'ite-server-list__status--connecting';
+                statusLabel = 'Connecting';
+            } else if (isConnected) {
+                statusClass = 'ite-server-list__status--connected';
+                statusLabel = 'Connected';
+            } else {
+                statusClass = 'ite-server-list__status--disconnected';
+                statusLabel = 'Disconnected';
+            }
+
             const safeName = escapeHtml(server.name);
             const safeNameAttr = escapeAttr(server.name);
             const hostPort = escapeHtml(`${server.hostname}:${server.port}`);
             const descriptionHtml = server.description
                 ? `<span class="ite-server-list__description">${escapeHtml(server.description)}</span>`
+                : '';
+
+            // Connecting progress indicator (Story 12.5)
+            const progressHtml = isConnecting
+                ? `<div class="ite-server-list__progress">
+                       <span class="ite-server-list__progress-text">Connecting...</span>
+                       <button class="ite-button ite-server-list__cancel-btn"
+                               data-action="cancelConnection" data-server="${safeNameAttr}"
+                               title="Cancel connection" aria-label="Cancel connection to ${safeNameAttr}">Cancel</button>
+                   </div>`
+                : '';
+
+            // Inline error display (Story 12.5)
+            const errorHtml = hasError
+                ? `<div class="ite-server-list__inline-error" role="alert">
+                       <span class="ite-server-list__inline-error-text">${escapeHtml(connectionError)}</span>
+                       <div class="ite-server-list__inline-error-actions">
+                           <button class="ite-button ite-button--secondary ite-server-list__retry-btn"
+                                   data-action="retryConnection" data-server="${safeNameAttr}">Retry</button>
+                           <button class="ite-button ite-button--secondary ite-server-list__edit-btn"
+                                   data-action="edit" data-server="${safeNameAttr}">Edit</button>
+                       </div>
+                   </div>`
                 : '';
 
             return `
@@ -213,6 +258,8 @@
                         <span class="ite-server-list__name">${safeName}</span>
                         ${descriptionHtml}
                         <span class="ite-server-list__detail">${hostPort}</span>
+                        ${progressHtml}
+                        ${errorHtml}
                     </div>
                     <div class="ite-server-list__actions">
                         <button class="ite-button ite-button--icon"
@@ -277,7 +324,10 @@
         container.innerHTML = renderServerList(
             currentState.servers,
             currentState.selectedServer,
-            currentState.connectedServer
+            currentState.connectedServer,
+            currentState.connectingServer,
+            currentState.connectionError,
+            currentState.connectionErrorServer
         );
 
         // Focus management after render
@@ -297,6 +347,7 @@
 
     /**
      * Show the context menu at the specified position
+     * Story 12.5: Toggle connect/disconnect visibility based on state
      * @param {number} x - X coordinate
      * @param {number} y - Y coordinate
      * @param {string} serverName - Server name for actions
@@ -305,6 +356,14 @@
         if (!contextMenuEl) { return; }
 
         updateState({ contextMenuServer: serverName });
+
+        // Toggle connect/disconnect visibility (Story 12.5)
+        var isConnected = state.connectedServer === serverName;
+        var connectItem = contextMenuEl.querySelector('[data-action="connect"]');
+        var disconnectItem = contextMenuEl.querySelector('[data-action="disconnect"]');
+        if (connectItem) { connectItem.hidden = isConnected; }
+        if (disconnectItem) { disconnectItem.hidden = !isConnected; }
+
         contextMenuEl.hidden = false;
         contextMenuEl.style.left = x + 'px';
         contextMenuEl.style.top = y + 'px';
@@ -318,8 +377,8 @@
             contextMenuEl.style.top = (window.innerHeight - rect.height - 4) + 'px';
         }
 
-        // Focus first menu item
-        const firstItem = contextMenuEl.querySelector('.ite-context-menu__item');
+        // Focus first visible menu item
+        const firstItem = contextMenuEl.querySelector('.ite-context-menu__item:not([hidden])');
         firstItem?.focus();
     }
 
@@ -335,7 +394,8 @@
 
     /**
      * Handle context menu action
-     * @param {string} action - Action name (connect, edit, delete, testConnection)
+     * Story 12.5: Added disconnect action
+     * @param {string} action - Action name (connect, disconnect, edit, delete, testConnection)
      */
     function handleContextMenuAction(action) {
         const serverName = state.contextMenuServer;
@@ -346,6 +406,9 @@
         switch (action) {
             case 'connect':
                 sendCommand('connectServer', { serverName });
+                break;
+            case 'disconnect':
+                sendCommand('disconnectServer', {});
                 break;
             case 'edit':
                 sendCommand('editServer', { serverName });
@@ -373,6 +436,7 @@
     /**
      * Handle click on a server list item (AC: 3, 4)
      * Single click = select, double click = connect
+     * Story 12.5: Server switching - disconnect before connect
      * @param {string} serverName - Clicked server name
      */
     function handleServerClick(serverName) {
@@ -383,8 +447,11 @@
             // Double click - connect
             lastClickTime = 0;
             lastClickServer = null;
+            // Clear any previous connection error for this server
+            if (state.connectionErrorServer === serverName) {
+                updateState({ connectionError: null, connectionErrorServer: null });
+            }
             sendCommand('connectServer', { serverName });
-            announce('Connecting to ' + serverName);
             return;
         }
 
@@ -417,6 +484,11 @@
                             sendCommand('editServer', { serverName: server });
                         } else if (action === 'delete') {
                             sendCommand('deleteServer', { serverName: server });
+                        } else if (action === 'cancelConnection') {
+                            sendCommand('cancelConnection', {});
+                        } else if (action === 'retryConnection') {
+                            updateState({ connectionError: null, connectionErrorServer: null });
+                            sendCommand('connectServer', { serverName: server });
                         }
                     }
                     return;
@@ -534,7 +606,7 @@
 
         // Keyboard navigation in context menu
         contextMenuEl.addEventListener('keydown', function (e) {
-            const items = Array.from(contextMenuEl.querySelectorAll('.ite-context-menu__item'));
+            const items = Array.from(contextMenuEl.querySelectorAll('.ite-context-menu__item:not([hidden])'));
             const focusedIndex = items.indexOf(/** @type {HTMLElement} */ (document.activeElement));
 
             switch (e.key) {
@@ -612,6 +684,55 @@
             } else {
                 updateState({ connectedServer: null });
                 announce('Disconnected');
+            }
+        });
+
+        // connectionProgress event - connection lifecycle updates (Story 12.5)
+        messageBridge.onEvent('connectionProgress', function (payload) {
+            console.debug(LOG_PREFIX, 'Received connectionProgress:', payload);
+            switch (payload.status) {
+                case 'connecting':
+                    updateState({
+                        connectingServer: payload.serverName,
+                        connectionError: null,
+                        connectionErrorServer: null
+                    });
+                    announce('Connecting to ' + payload.serverName);
+                    break;
+                case 'connected':
+                    updateState({
+                        connectedServer: payload.serverName,
+                        connectingServer: null,
+                        connectionError: null,
+                        connectionErrorServer: null
+                    });
+                    announce('Connected to ' + payload.serverName);
+                    break;
+                case 'disconnected':
+                    updateState({
+                        connectedServer: null,
+                        connectingServer: null,
+                        connectionError: null,
+                        connectionErrorServer: null
+                    });
+                    announce('Disconnected');
+                    break;
+                case 'cancelled':
+                    updateState({
+                        connectingServer: null,
+                        connectionError: null,
+                        connectionErrorServer: null
+                    });
+                    announce('Connection cancelled');
+                    break;
+                case 'error':
+                    updateState({
+                        connectingServer: null,
+                        connectionError: payload.message || 'Connection failed.',
+                        connectionErrorServer: payload.serverName
+                    });
+                    announce('Connection error: ' + (payload.message || 'Connection failed.'));
+                    break;
             }
         });
 

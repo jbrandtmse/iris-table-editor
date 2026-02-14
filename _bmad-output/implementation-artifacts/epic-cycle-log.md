@@ -277,7 +277,59 @@ Proceeding to Epic 12: Connection Manager...
 **User input required:** 0
 
 **Commits:**
+- Implementation: e30bf57
+
+---
+
+## Story 12.5: Connection Lifecycle
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/ConnectionLifecycleManager.ts (connection lifecycle state machine service)
+- NEW: packages/desktop/src/test/connectionLifecycle.test.ts (57 tests)
+- MODIFIED: packages/core/src/models/IMessages.ts (IDesktopConnectionProgressPayload, disconnectServer/cancelConnection commands, connectionProgress event)
+- MODIFIED: packages/core/src/index.ts (IDesktopConnectionProgressPayload export)
+- MODIFIED: packages/desktop/src/index.ts (ConnectionLifecycleManager, ConnectionState, ConnectionLifecycleCallback exports)
+- MODIFIED: packages/desktop/src/ui/connection/server-list.js (connectionProgress handler, connecting state rendering, cancel/disconnect/retry actions)
+- MODIFIED: packages/desktop/src/ui/connection/server-list.css (connecting, progress, cancel, inline error styles)
+- MODIFIED: packages/desktop/src/ui/connection/server-list.html (Disconnect context menu item)
+
+**Key design decisions:**
+- ConnectionLifecycleManager as separate class (not mixed into CRUD-focused ConnectionManager)
+- Callback-based events for easy wiring to Electron IPC in Epic 11
+- AbortController for cancellation (reuses Story 1.7 pattern)
+- Server switching auto-disconnects before connecting to new server
+- testConnection() as the "connect" mechanism (validates credentials + reachability)
+
+**Issues auto-resolved:** 5
+- MEDIUM: Context menu keyboard navigation included hidden items (changed to :not([hidden]) selector)
+- MEDIUM: Context menu focused hidden item on open (changed to :not([hidden]) selector)
+- MEDIUM: Retry button didn't clear error state before reconnecting (added immediate state clear)
+- MEDIUM: disconnect() emitted events from invalid states (added state guard)
+- MEDIUM: disconnected handler didn't clear error state (added to state update)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
 - Implementation: (pending)
 
 ---
+
+# Epic 12 Summary: Connection Manager
+
+**Completed:** 2026-02-13
+**Stories processed:** 5 (12.1, 12.2, 12.3, 12.4, 12.5)
+**Total files touched:** ~25
+**Issues auto-resolved:** 16 (0 high, 13 medium, 3 low)
+**User inputs required:** 0
+**Rework iterations used:** 0
+**Commits created:** 5
+
+**Epic Achievement:** Full desktop connection management package built with server CRUD (ConnectionManager), form UI (server-form), test connection, AES-256-GCM credential storage (ICredentialStore + NodeCryptoCredentialStore), and connection lifecycle state machine (ConnectionLifecycleManager). All testable without Electron. 481 tests passing (241 vscode + 240 desktop). Ready for Electron IPC wiring in Epic 11.
+
+---
+
+Proceeding to Epic 11: Electron Shell & Window Management...
 

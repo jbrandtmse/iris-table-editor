@@ -23,8 +23,10 @@
     </div>
 
     <!-- Context menu (hidden by default) -->
+    <!-- Story 12.5: Added Disconnect option (hidden by default, shown when connected) -->
     <div class="ite-context-menu" id="contextMenu" role="menu" aria-label="Server actions" hidden>
         <button class="ite-context-menu__item" data-action="connect" role="menuitem">Connect</button>
+        <button class="ite-context-menu__item" data-action="disconnect" role="menuitem" hidden>Disconnect</button>
         <button class="ite-context-menu__item" data-action="edit" role="menuitem">Edit</button>
         <button class="ite-context-menu__item" data-action="delete" role="menuitem">Delete</button>
         <div class="ite-context-menu__separator" role="separator"></div>

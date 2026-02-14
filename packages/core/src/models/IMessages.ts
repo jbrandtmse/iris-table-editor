@@ -426,10 +426,13 @@ export interface IDesktopServerNamePayload {
  * Commands sent from desktop server list UI to host
  * Story 12.1: Server List UI
  * Story 12.2: Added saveServer, updateServer commands
+ * Story 12.5: Added disconnectServer, cancelConnection commands
  */
 export type DesktopConnectionCommand =
     | { command: 'getServers'; payload: IEmptyPayload }
     | { command: 'connectServer'; payload: IDesktopServerNamePayload }
+    | { command: 'disconnectServer'; payload: IEmptyPayload }
+    | { command: 'cancelConnection'; payload: IEmptyPayload }
     | { command: 'editServer'; payload: IDesktopServerNamePayload }
     | { command: 'deleteServer'; payload: IDesktopServerNamePayload }
     | { command: 'testConnection'; payload: IDesktopServerNamePayload }
@@ -442,11 +445,13 @@ export type DesktopConnectionCommand =
  * Events sent from host to desktop server list UI
  * Story 12.1: Server List UI
  * Story 12.2: Added serverSaved, serverSaveError, serverConfigLoaded events
+ * Story 12.5: Added connectionProgress event
  */
 export type DesktopConnectionEvent =
     | { event: 'serversLoaded'; payload: IDesktopServersLoadedPayload }
     | { event: 'serverSelected'; payload: ISelectServerPayload }
     | { event: 'connectionStatus'; payload: IConnectionStatusPayload }
+    | { event: 'connectionProgress'; payload: IDesktopConnectionProgressPayload }
     | { event: 'serverDeleted'; payload: IDesktopServerDeletedPayload }
     | { event: 'serverSaved'; payload: IDesktopServerSavedPayload }
     | { event: 'serverSaveError'; payload: IDesktopServerSaveErrorPayload }
@@ -454,6 +459,21 @@ export type DesktopConnectionEvent =
     | { event: 'testConnectionResult'; payload: IDesktopTestConnectionResultPayload }
     | { event: 'credentialWarning'; payload: IDesktopCredentialWarningPayload }
     | { event: 'error'; payload: IErrorPayload };
+
+// ============================================
+// Story 12.5: Connection Lifecycle Messages
+// ============================================
+
+/**
+ * Payload for desktop connectionProgress event
+ * Reports connection lifecycle updates to the desktop server list UI
+ * Story 12.5: Connection Lifecycle
+ */
+export interface IDesktopConnectionProgressPayload {
+    status: 'connecting' | 'connected' | 'disconnected' | 'cancelled' | 'error';
+    serverName: string;
+    message?: string;
+}
 
 // ============================================
 // Story 12.4: Credential Storage Messages

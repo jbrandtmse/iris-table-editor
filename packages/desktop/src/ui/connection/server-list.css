@@ -278,6 +278,82 @@ body {
 }
 
 /* ============================================
+   Connection Progress (Story 12.5)
+   ============================================ */
+
+.ite-server-list__status--connecting {
+    background-color: var(--ite-warning, #ff9800);
+    animation: ite-status-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ite-status-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+.ite-server-list__progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.ite-server-list__progress-text {
+    font-size: 0.82em;
+    color: var(--ite-description-fg);
+    font-style: italic;
+}
+
+.ite-server-list__cancel-btn {
+    padding: 1px 8px;
+    font-size: 0.78em;
+    background-color: var(--ite-button-secondary-bg);
+    color: var(--ite-button-secondary-fg);
+    border: 1px solid var(--ite-border);
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.ite-server-list__cancel-btn:hover {
+    background-color: var(--ite-button-secondary-hover-bg);
+}
+
+.ite-server-list__cancel-btn:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: 1px;
+}
+
+/* ============================================
+   Inline Connection Error (Story 12.5)
+   ============================================ */
+
+.ite-server-list__inline-error {
+    margin-top: 4px;
+    padding: 4px 0;
+}
+
+.ite-server-list__inline-error-text {
+    display: block;
+    font-size: 0.82em;
+    color: var(--ite-error-fg, #f44336);
+    margin-bottom: 4px;
+}
+
+.ite-server-list__inline-error-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.ite-server-list__inline-error-actions .ite-button {
+    padding: 1px 8px;
+    font-size: 0.78em;
+}
+
+/* ============================================
    Context Menu (AC: 5)
    ============================================ */
 
