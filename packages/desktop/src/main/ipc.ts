@@ -116,6 +116,14 @@ export function requireSession(
 }
 
 /**
+ * Optional callbacks for menu-related IPC commands.
+ * Story 11.4: Allows main.ts to react to tab state changes for menu updates.
+ */
+export interface IpcCallbacks {
+    onTabStateChanged?: (payload: { tabCount: number }) => void;
+}
+
+/**
  * Route a command to the appropriate service method.
  * Extracted as a standalone function for testability without Electron runtime.
  *
@@ -125,6 +133,7 @@ export function requireSession(
  * @param connectionManager - ConnectionManager instance
  * @param lifecycleManager - ConnectionLifecycleManager instance
  * @param sessionManager - SessionManager instance for data commands
+ * @param callbacks - Optional callbacks for menu-related commands (Story 11.4)
  */
 export async function routeCommand(
     command: string,
@@ -132,7 +141,8 @@ export async function routeCommand(
     win: BrowserWindow,
     connectionManager: ConnectionManager,
     lifecycleManager: ConnectionLifecycleManager,
-    sessionManager?: SessionManager
+    sessionManager?: SessionManager,
+    callbacks?: IpcCallbacks
 ): Promise<void> {
     switch (command) {
         case 'getServers': {
@@ -562,6 +572,17 @@ export async function routeCommand(
             break;
         }
 
+        case 'tabStateChanged': {
+            // Story 11.4: Renderer reports tab count changes for menu state updates
+            const tabPayload = payload as { tabCount: number };
+            const tabCount = typeof tabPayload?.tabCount === 'number' ? tabPayload.tabCount : 0;
+            console.log(`${LOG_PREFIX} Tab state changed: tabCount=${tabCount}`);
+            if (callbacks?.onTabStateChanged) {
+                callbacks.onTabStateChanged({ tabCount });
+            }
+            break;
+        }
+
         default: {
             console.warn(`${LOG_PREFIX} Unknown command: ${command}`);
             sendError(win, `Unknown command: ${command}`, 'routeCommand');
@@ -578,12 +599,14 @@ export async function routeCommand(
  * @param connectionManager - ConnectionManager instance for server CRUD
  * @param lifecycleManager - ConnectionLifecycleManager for connect/disconnect
  * @param sessionManager - SessionManager for data commands (Story 11.2)
+ * @param callbacks - Optional callbacks for menu-related commands (Story 11.4)
  */
 export function registerIpcHandlers(
     win: BrowserWindow,
     connectionManager: ConnectionManager,
     lifecycleManager: ConnectionLifecycleManager,
-    sessionManager?: SessionManager
+    sessionManager?: SessionManager,
+    callbacks?: IpcCallbacks
 ): void {
     // Remove any previously registered 'command' listeners to avoid duplicates
     // when window is recreated (e.g., macOS activate). ipcMain.on is global,
@@ -595,7 +618,7 @@ export function registerIpcHandlers(
         console.log(`${LOG_PREFIX} Received command: ${command}`);
 
         try {
-            await routeCommand(command, payload, win, connectionManager, lifecycleManager, sessionManager);
+            await routeCommand(command, payload, win, connectionManager, lifecycleManager, sessionManager, callbacks);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error(`${LOG_PREFIX} Error handling command "${command}": ${errorMessage}`);

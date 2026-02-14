@@ -71,8 +71,18 @@ describe('Channel Validation', () => {
             }
         });
 
-        it('should have exactly 21 commands', () => {
-            assert.strictEqual(ALLOWED_COMMANDS.size, 21);
+        it('should include all menu commands (Story 11.4)', () => {
+            const menuCommands = [
+                'tabStateChanged',
+            ];
+
+            for (const cmd of menuCommands) {
+                assert.ok(ALLOWED_COMMANDS.has(cmd), `Missing menu command: ${cmd}`);
+            }
+        });
+
+        it('should have exactly 22 commands', () => {
+            assert.strictEqual(ALLOWED_COMMANDS.size, 22);
         });
     });
 
@@ -124,8 +134,21 @@ describe('Channel Validation', () => {
             }
         });
 
-        it('should have exactly 20 events', () => {
-            assert.strictEqual(ALLOWED_EVENTS.size, 20);
+        it('should include all menu events (Story 11.4)', () => {
+            const menuEvents = [
+                'menuAction',
+                'menuSetNull',
+                'menuToggleFilterPanel',
+                'menuShowShortcuts',
+            ];
+
+            for (const evt of menuEvents) {
+                assert.ok(ALLOWED_EVENTS.has(evt), `Missing menu event: ${evt}`);
+            }
+        });
+
+        it('should have exactly 24 events', () => {
+            assert.strictEqual(ALLOWED_EVENTS.size, 24);
         });
     });
 
@@ -138,6 +161,7 @@ describe('Channel Validation', () => {
             assert.strictEqual(isValidCommand('saveCell'), true);
             assert.strictEqual(isValidCommand('deleteRow'), true);
             assert.strictEqual(isValidCommand('activateTab'), true);
+            assert.strictEqual(isValidCommand('tabStateChanged'), true);
         });
 
         it('should return false for invalid commands', () => {
@@ -165,6 +189,10 @@ describe('Channel Validation', () => {
             assert.strictEqual(isValidEvent('error'), true);
             assert.strictEqual(isValidEvent('saveCellResult'), true);
             assert.strictEqual(isValidEvent('restoreGridState'), true);
+            assert.strictEqual(isValidEvent('menuAction'), true);
+            assert.strictEqual(isValidEvent('menuSetNull'), true);
+            assert.strictEqual(isValidEvent('menuToggleFilterPanel'), true);
+            assert.strictEqual(isValidEvent('menuShowShortcuts'), true);
         });
 
         it('should return false for invalid events', () => {

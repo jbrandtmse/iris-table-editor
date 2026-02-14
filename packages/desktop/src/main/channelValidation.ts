@@ -40,6 +40,8 @@ export const ALLOWED_COMMANDS = new Set([
     'deleteRow',
     // Tab commands (Story 11.3)
     'activateTab',
+    // Menu commands (Story 11.4)
+    'tabStateChanged',
 ]);
 
 /**
@@ -70,6 +72,11 @@ export const ALLOWED_EVENTS = new Set([
     'deleteRowResult',
     // Tab events (Story 11.3)
     'restoreGridState',
+    // Menu events (Story 11.4)
+    'menuAction',
+    'menuSetNull',
+    'menuToggleFilterPanel',
+    'menuShowShortcuts',
 ]);
 
 /**

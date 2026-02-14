@@ -5553,6 +5553,24 @@
             case 'error':
                 handleError(message.payload);
                 break;
+            case 'menuSetNull': {
+                // Story 11.4: Set current cell to NULL from native menu
+                if (state.selectedCell.rowIndex !== null && state.selectedCell.colIndex !== null
+                    && state.columns && state.selectedCell.colIndex < state.columns.length) {
+                    setCellToNull(state.selectedCell.rowIndex, state.selectedCell.colIndex);
+                }
+                break;
+            }
+            case 'menuToggleFilterPanel': {
+                // Story 11.4: Toggle filter panel from native menu
+                toggleFilterPanel();
+                break;
+            }
+            case 'menuShowShortcuts': {
+                // Story 11.4: Show keyboard shortcuts from native menu
+                showKeyboardShortcutsHelp();
+                break;
+            }
             case 'restoreGridState': {
                 // Story 11.3: Restore grid state from messageBridge state (tab switching)
                 const savedState = messageBridge ? messageBridge.getState() : null;
@@ -5650,7 +5668,9 @@
             'saveCellResult', 'insertRowResult', 'deleteRowResult',
             'importPreview', 'importProgress', 'importResult', 'importValidationResult',
             'exportProgress', 'exportResult', 'error',
-            'restoreGridState'
+            'restoreGridState',
+            // Story 11.4: Menu action events (from native menu via menu-handler.js)
+            'menuSetNull', 'menuToggleFilterPanel', 'menuShowShortcuts'
         ];
         if (!messageBridge) {
             console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);

@@ -448,3 +448,41 @@ Proceeding to Epic 11: Electron Shell & Window Management...
 
 ---
 
+## Story 11.4: Native Menu
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/menuBuilder.ts (MenuBuilder module with buildApplicationMenu, updateMenuState, MenuCallbacks, MenuState)
+- NEW: packages/desktop/src/ui/menu-handler.js (renderer-side menu action handler)
+- NEW: packages/desktop/src/test/menuBuilder.test.ts (75 tests)
+- MODIFIED: packages/desktop/src/main/main.ts (menu wiring, callbacks, nativeTheme, dialog, menuState tracking)
+- MODIFIED: packages/desktop/src/main/ipc.ts (IpcCallbacks interface, tabStateChanged command)
+- MODIFIED: packages/desktop/src/main/channelValidation.ts (tabStateChanged command, menuAction/menuSetNull/menuToggleFilterPanel/menuShowShortcuts events)
+- MODIFIED: packages/desktop/src/ui/tabs/tab-bar.js (_notifyTabStateChanged on open/close/disconnect)
+- MODIFIED: packages/desktop/src/ui/app-shell.html (menu-handler.js script tag)
+- MODIFIED: packages/webview/src/grid.js (menuSetNull, menuToggleFilterPanel, menuShowShortcuts handlers)
+- MODIFIED: packages/desktop/src/test/channelValidation.test.ts (updated command/event counts)
+
+**Key design decisions:**
+- MenuBuilder as separate module with typed callbacks interface
+- Main process handles: disconnect, theme (nativeTheme.themeSource), about (dialog.showMessageBox), exit (role: quit)
+- Renderer handles via menuAction event: newConnection, closeTab, closeAllTabs, toggleSidebar, toggleFilterPanel, showShortcuts, setNull
+- tabStateChanged command from renderer to main for dynamic menu enable/disable
+- Theme uses nativeTheme.themeSource → desktopThemeBridge.css media queries
+
+**Issues auto-resolved:** 5
+- MEDIUM: tabStateChanged payload lacks type validation (added typeof check)
+- MEDIUM: menuSetNull doesn't bounds-check colIndex against columns (added guard)
+- MEDIUM: toggleSidebar uses fragile inline style check (switched to getComputedStyle)
+- MEDIUM: onShowAbout doesn't guard against destroyed window (added isDestroyed check)
+- LOW: Unused sentEvents variable in test (removed)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: fd27801
+
+---
+

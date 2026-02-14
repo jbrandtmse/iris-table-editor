@@ -186,6 +186,9 @@
                 messageBridge.sendCommand('selectTable', { namespace, tableName });
             }
 
+            // Story 11.4: Notify main process of tab count change for menu state
+            this._notifyTabStateChanged();
+
             announce('Opened table ' + tableName);
             console.log(LOG_PREFIX, 'Opened tab:', tab.id, namespace, tableName);
         }
@@ -258,6 +261,9 @@
             }
 
             this._render();
+
+            // Story 11.4: Notify main process of tab count change for menu state
+            this._notifyTabStateChanged();
 
             announce('Closed tab ' + tab.label);
             console.log(LOG_PREFIX, 'Closed tab:', tabId);
@@ -413,6 +419,19 @@
             this._render();
             if (messageBridge) {
                 messageBridge.setState({});
+            }
+            // Story 11.4: Notify main process of tab count change
+            this._notifyTabStateChanged();
+        }
+
+        /**
+         * Story 11.4: Notify main process of tab count change for menu state updates.
+         * Sends tabStateChanged command with the current tab count.
+         * @private
+         */
+        _notifyTabStateChanged() {
+            if (messageBridge) {
+                messageBridge.sendCommand('tabStateChanged', { tabCount: this.tabs.length });
             }
         }
 

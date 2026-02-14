@@ -139,7 +139,7 @@ development_status:
   11-1-electron-bootstrap: done
   11-2-ipc-bridge: done
   11-3-tab-bar: done
-  11-4-native-menu: backlog
+  11-4-native-menu: done
   11-5-window-state-persistence: backlog
   epic-11-retrospective: optional
 
