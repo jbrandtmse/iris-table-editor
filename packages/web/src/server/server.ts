@@ -104,12 +104,25 @@ function startServer(port: number = PORT): Promise<Server> {
     });
 }
 
+/**
+ * Log startup configuration (without secrets).
+ */
+function logStartupConfig(port: number): void {
+    console.log(`${LOG_PREFIX} Configuration:`);
+    console.log(`${LOG_PREFIX}   PORT=${port}`);
+    console.log(`${LOG_PREFIX}   SESSION_SECRET=${process.env.SESSION_SECRET ? '(set)' : '(not set, using random)'}`);
+    console.log(`${LOG_PREFIX}   ALLOWED_ORIGINS=${process.env.ALLOWED_ORIGINS || '(not set, same-origin only)'}`);
+    console.log(`${LOG_PREFIX}   SESSION_TIMEOUT=${process.env.SESSION_TIMEOUT || '1800'}s`);
+    console.log(`${LOG_PREFIX}   NODE_ENV=${process.env.NODE_ENV || 'development'}`);
+}
+
 // Start server when run directly (not imported as module)
 if (require.main === module) {
+    logStartupConfig(PORT);
     startServer().catch((err) => {
         console.error(`${LOG_PREFIX} Failed to start server:`, err);
         process.exit(1);
     });
 }
 
-export { app, server, startServer, sessionManager, wsHandle };
+export { app, server, startServer, sessionManager, wsHandle, logStartupConfig };

@@ -6,9 +6,10 @@
  * and rate limiting. Must be applied BEFORE route handlers.
  *
  * Environment variables:
+ * - SESSION_SECRET: secret for cookie signing and CSRF tokens (recommended for production)
  * - ALLOWED_ORIGINS: comma-separated list of allowed CORS origins
  * - RATE_LIMIT_MAX: max requests per minute window (default: 100)
- * - CSRF_SECRET: secret for CSRF token signing (auto-generated if missing)
+ * - CSRF_SECRET: secret for CSRF token signing (falls back to SESSION_SECRET, then auto-generated)
  */
 import * as crypto from 'crypto';
 import type { Express, Request, Response, NextFunction } from 'express';
@@ -48,9 +49,10 @@ function parseAllowedOrigins(): string[] | undefined {
 
 /**
  * Get or generate the CSRF signing secret.
+ * Falls back: CSRF_SECRET -> SESSION_SECRET -> random.
  */
 function getCsrfSecret(): string {
-    return process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
+    return process.env.CSRF_SECRET || process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 }
 
 /**
@@ -121,6 +123,9 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
     app.use(cookieParser());
 
     // --- CSRF (double-submit cookie via csrf-csrf) ---
+    if (!process.env.CSRF_SECRET && !process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+        console.warn(`${LOG_PREFIX} WARNING: SESSION_SECRET is not set. CSRF tokens will use a random secret that changes on restart, invalidating active sessions.`);
+    }
     const csrfSecret = options?.csrfSecret || getCsrfSecret();
 
     const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({

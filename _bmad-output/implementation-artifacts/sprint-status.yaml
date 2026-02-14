@@ -192,17 +192,17 @@ development_status:
   epic-16-retrospective: optional
 
   # Epic 17: Web Application Shell & Message Bridge
-  epic-17: in-progress
+  epic-17: done
   17-1-spa-shell: done
   17-2-web-message-bridge: done
   17-3-web-theme-bridge: done
   17-4-responsive-layout: done
-  17-5-browser-navigation: ready-for-dev
+  17-5-browser-navigation: done
   epic-17-retrospective: optional
 
   # Epic 18: Web Build, Deploy & Distribution
-  epic-18: backlog
-  18-1-docker-containerization: backlog
+  epic-18: in-progress
+  18-1-docker-containerization: ready-for-dev
   18-2-environment-configuration: backlog
   18-3-ci-cd-pipeline-web: backlog
   18-4-https-tls-configuration: backlog

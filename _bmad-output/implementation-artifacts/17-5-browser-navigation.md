@@ -1,6 +1,6 @@
 # Story 17.5: Browser Navigation
 
-Status: review
+Status: done
 
 ## Story
 

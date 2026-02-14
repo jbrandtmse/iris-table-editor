@@ -1,0 +1,45 @@
+# Dependencies (reinstalled during build)
+node_modules/
+
+# Build output (rebuilt during build)
+dist/
+out/
+
+# Version control
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+*.swp
+*.swo
+
+# Test files
+src/test/
+packages/*/src/test/
+
+# Documentation
+*.md
+LICENSE
+
+# VS Code extension artifacts
+*.vsix
+.vscode-test/
+packages/vscode/resources/
+
+# Desktop app artifacts
+packages/desktop/app-dist/
+packages/desktop/release/
+packages/desktop/src/ui/codicons/
+
+# Planning artifacts
+_bmad-output/
+_bmad-agent/
+
+# Environment files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
