@@ -82,8 +82,8 @@ export class GridPanelManager {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [
-                    vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src'),
-                    vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist'),
+                    vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview'),
+                    vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'codicons'),
                     vscode.Uri.joinPath(this._extensionUri, 'src')
                 ]
             }
@@ -1809,23 +1809,23 @@ export class GridPanelManager {
     private _getGridHtml(webview: vscode.Webview, serverName: string, namespace: string, tableName: string): string {
         // Theme CSS load order: theme.css -> vscodeThemeBridge.css -> grid-styles.css
         const themeUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'theme.css')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview', 'theme.css')
         );
         const themeBridgeUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'src', 'vscodeThemeBridge.css')
         );
         const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'grid-styles.css')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview', 'grid-styles.css')
         );
         const codiconUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'codicons', 'codicon.css')
         );
         // JS load order: VSCodeMessageBridge -> grid.js
         const bridgeScriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'src', 'VSCodeMessageBridge.js')
         );
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'grid.js')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview', 'grid.js')
         );
 
         const nonce = this._getNonce();

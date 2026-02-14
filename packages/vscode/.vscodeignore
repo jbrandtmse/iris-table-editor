@@ -1,13 +1,22 @@
 .vscode/**
 .vscode-test/**
+.vscode-test.mjs
 src/**
 out/**
 node_modules/**
-!node_modules/@vscode/codicons/**
-!node_modules/@iris-te/**
 .gitignore
 eslint.config.mjs
 tsconfig.json
 esbuild.js
+stage-webview.js
 **/*.ts
 **/*.map
+# Unnecessary webview/codicons files staged but not used at runtime
+webview-dist/webview/desktopThemeBridge.css
+webview-dist/webview/webview.html
+webview-dist/codicons/codicon.csv
+webview-dist/codicons/codicon.html
+webview-dist/codicons/codicon.svg
+# Keep bridge files from src/ needed at runtime
+!src/VSCodeMessageBridge.js
+!src/vscodeThemeBridge.css

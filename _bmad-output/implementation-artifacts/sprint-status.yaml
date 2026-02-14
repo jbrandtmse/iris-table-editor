@@ -127,11 +127,11 @@ development_status:
   # ============================================================
 
   # Epic 10: Monorepo Restructure & Shared Core Extraction (FOUNDATION)
-  epic-10: in-progress
+  epic-10: done
   10-1-monorepo-initialization: done
   10-2-shared-core-extraction: done
   10-3-webview-extraction-theme-abstraction: done
-  10-4-vscode-regression-verification: backlog
+  10-4-vscode-regression-verification: done
   epic-10-retrospective: optional
 
   # Epic 11: Electron Shell & Window Management

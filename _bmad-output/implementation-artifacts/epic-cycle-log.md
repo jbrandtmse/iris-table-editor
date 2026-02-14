@@ -69,3 +69,36 @@ Execution sequence: 10 → 12 → 11 → 13 → 14
 
 ---
 
+## Story 10.3: Webview Extraction & Theme Abstraction
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/core/src/models/IMessageBridge.ts
+- NEW: packages/vscode/src/VSCodeMessageBridge.js, vscodeThemeBridge.css
+- NEW: packages/webview/src/theme.css, desktopThemeBridge.css
+- MODIFIED: packages/webview/src/styles.css (89 CSS var migrations)
+- MODIFIED: packages/webview/src/grid-styles.css (259 CSS var migrations)
+- MODIFIED: packages/webview/src/main.js (IMessageBridge refactor)
+- MODIFIED: packages/webview/src/grid.js (IMessageBridge refactor + 2 inline CSS vars)
+- MODIFIED: packages/vscode/src/providers/TableEditorProvider.ts, GridPanelManager.ts (bridge injection)
+- MODIFIED: packages/core/src/index.ts (IMessageBridge export)
+
+**Key design decisions:**
+- IMessageBridge extended with getState()/setState() beyond architecture spec (needed for state persistence)
+- VSCodeMessageBridge as plain .js (runs in webview renderer, not TypeScript-compiled)
+- Backward-compatible event wrapping preserves existing handleMessage() structure
+- Three-layer CSS variable architecture: --ite-* → --ite-theme-* → target bridge
+
+**Issues auto-resolved:** 2
+- HIGH: XSS via JSON.stringify in inline script → Unicode-escape all < characters
+- MEDIUM: Missing null guard on messageBridge → Added null checks with console.error logging
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: c5c1479
+
+---
+

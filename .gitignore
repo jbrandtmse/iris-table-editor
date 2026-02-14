@@ -3,3 +3,6 @@ dist/
 out/
 *.vsix
 .vscode-test/
+webview-dist/
+packages/vscode/resources/
+packages/vscode/LICENSE

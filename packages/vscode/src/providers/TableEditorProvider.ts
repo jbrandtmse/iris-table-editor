@@ -54,8 +54,8 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src'),
-                vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist'),
+                vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview'),
+                vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'codicons'),
                 vscode.Uri.joinPath(this._extensionUri, 'src')
             ]
         };
@@ -406,23 +406,23 @@ export class TableEditorProvider implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview): string {
         // Theme CSS load order: theme.css -> vscodeThemeBridge.css -> styles.css
         const themeUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'theme.css')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview', 'theme.css')
         );
         const themeBridgeUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'src', 'vscodeThemeBridge.css')
         );
         const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'styles.css')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview', 'styles.css')
         );
         const codiconUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'codicons', 'codicon.css')
         );
         // JS load order: VSCodeMessageBridge -> main.js
         const bridgeScriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'src', 'VSCodeMessageBridge.js')
         );
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@iris-te', 'webview', 'src', 'main.js')
+            vscode.Uri.joinPath(this._extensionUri, 'webview-dist', 'webview', 'main.js')
         );
 
         const nonce = this._getNonce();
