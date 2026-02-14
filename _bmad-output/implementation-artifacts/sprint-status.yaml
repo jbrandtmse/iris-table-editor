@@ -213,7 +213,7 @@ development_status:
   epic-19: in-progress
   19-1-feature-parity-verification-web: done
   19-2-browser-compatibility-testing: done
-  19-3-performance-testing-concurrent-load: backlog
+  19-3-performance-testing-concurrent-load: done
   19-4-security-audit: backlog
   19-5-web-specific-polish: backlog
   epic-19-retrospective: optional
