@@ -161,7 +161,7 @@ development_status:
   epic-13-retrospective: optional
 
   # Epic 14: Integration Testing & Feature Parity
-  epic-14: in-progress
+  epic-14: done
   14-1-feature-parity-verification: done
   14-2-cross-platform-testing: done
   14-3-desktop-polish: done

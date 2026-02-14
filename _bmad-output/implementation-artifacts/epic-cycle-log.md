@@ -674,9 +674,94 @@ Per the epic file: "This story is optional for initial release. The app can ship
 
 ---
 
-Proceeding to Epic 14: Integration Testing & Feature Parity...
+## Story 14.1: Feature Parity Verification
+
+**Phase:** create-story → dev → review → commit
+**Status:** DONE
+
+**Dev phase:**
+- Audited IPC command coverage: 23 ALLOWED_COMMANDS, 25 ALLOWED_EVENTS
+- Mapped all features to IPC routes, identified 7 VS Code-only commands (export/import)
+- Created `packages/desktop/src/test/featureParity.test.ts` (48 tests)
+- Created `packages/desktop/TESTING.md` with 24-point manual verification checklist
+- Documented known limitations (export/import, Server Manager, auth, theme, sidebar)
+
+**Review phase (7 issues: 2 HIGH, 3 MEDIUM, 2 LOW):**
+- HIGH: Added DESKTOP_UI_HANDLED_EVENTS for events handled by menu-handler.js
+- HIGH: Added drift-detection count tests for hardcoded constants
+- MEDIUM: Added MAIN_JS_HANDLED_EVENTS/SENT_COMMANDS comprehensive parity tests
+- MEDIUM: Added VSCODE_SIDEBAR_ONLY_EVENTS/COMMANDS with documented equivalences
+- +6 tests from review fixes
+
+**Tests:** 843 → 891 (+48)
+**Commit:** 36a8a8e
 
 ---
 
+## Story 14.2: Cross-Platform Testing
+
+**Phase:** create-story → dev → review → commit
+**Status:** DONE
+
+**Dev phase:**
+- Audited electron-builder.yml win/mac/nsis/dmg sections
+- Verified all 5 menu accelerators use `CommandOrControl` prefix
+- Verified grid.js keyboard handlers check both `ctrlKey` and `metaKey`
+- Verified platform-agnostic credential storage (Node.js crypto AES-256-GCM)
+- Verified auto-update has no process.platform checks
+- Created `packages/desktop/src/test/crossPlatform.test.ts` (88 tests)
+- Updated TESTING.md with Windows (W1-W7), macOS (M1-M7), keyboard table, auto-update (AU1-AU4)
+
+**Review phase (8 issues: 2 HIGH, 4 MEDIUM, 2 LOW):**
+- HIGH: Removed 5 tautological "should read source" tests, moved reads to module level
+- HIGH: Fixed Home/End and Ctrl+Enter assertions with proximity-checking regex
+- MEDIUM: Fixed pagination shortcut assertions, YAML parser scoping, weak assertions
+- -5 tautological tests removed
+
+**Tests:** 891 → 974 (+83)
+**Commit:** ae8a26b
+
 ---
+
+## Story 14.3: Desktop Polish
+
+**Phase:** create-story → dev → review → commit
+**Status:** DONE
+
+**Dev phase:**
+- Verified app icon configuration (electron-builder.yml + build-resources/)
+- Verified About dialog shows app name, version, description via `app.getVersion()`
+- Verified first-run welcome screen with "Add First Server" button
+- Audited memory leak prevention: dispose(), removeListener, clearTimeout, isDragging guard
+- Verified theme toggle: nativeTheme.themeSource + desktopThemeBridge.css + var(--vscode-*) + var(--ite-*)
+- Verified error handling: ErrorCodes, sendError helper, try/catch in IPC, handleError/showError in grid.js
+- Created `packages/desktop/src/test/desktopPolish.test.ts` (138 tests)
+
+**Review phase (7 issues: 4 MEDIUM, 3 LOW):**
+- MEDIUM: Removed 3 duplicate tests (overlap with crossPlatform.test.ts)
+- MEDIUM: Strengthened handleError/formatErrorMessage assertions to match function definitions
+- MEDIUM: Added missing deleteRowResult error display test
+- -3 duplicates removed, +1 new test
+
+**Tests:** 974 → 1110 (+136)
+**Commit:** 60ce2f2
+
+---
+
+## Epic 14 Summary: Integration Testing & Feature Parity
+
+**Stories completed:** 3/3 (14.1, 14.2, 14.3)
+**Rework iterations used:** 0
+**Commits created:** 3 (36a8a8e, ae8a26b, 60ce2f2)
+
+**Epic Achievement:** Comprehensive verification of desktop app quality and feature parity. 267 new automated tests verify IPC command coverage (23 commands, 25 events), cross-platform compatibility (Windows + macOS), keyboard shortcuts, memory leak prevention, theme infrastructure, error handling, and desktop polish. TESTING.md provides 24-point feature checklist plus platform-specific manual test procedures. Known limitations documented: 7 VS Code-only export/import commands require future desktop implementation. 1110 tests passing (241 vscode + 869 desktop).
+
+---
+
+## ALL EPICS COMPLETE
+
+**Total epics processed:** 5 (Epic 10, 12, 11, 13, 14)
+**Total stories completed:** 21
+**Final test count:** 1110 (241 vscode + 869 desktop)
+**Test growth:** 241 → 1110 (+869 tests across 5 epics)
 
