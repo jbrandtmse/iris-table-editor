@@ -12,6 +12,7 @@
  */
 import * as crypto from 'crypto';
 import type { Express, Request, Response, NextFunction } from 'express';
+import type { ServerResponse } from 'http';
 import helmet from 'helmet';
 import cors from 'cors';
 import { doubleCsrf } from 'csrf-csrf';
@@ -80,6 +81,17 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
     const allowedOrigins = parseAllowedOrigins();
 
     // --- Helmet: security headers ---
+    // CSP connect-src needs ws:/wss: for WebSocket, but scheme-only wildcards
+    // (ws:, wss:) allow connections to ANY host. Instead, dynamically derive
+    // the WebSocket origin from the request Host header so connections are
+    // restricted to same-origin only.
+    app.use((_req: Request, res: Response, next: NextFunction) => {
+        const host = _req.headers.host || 'localhost';
+        const isSecure = _req.secure || _req.headers['x-forwarded-proto'] === 'https';
+        res.locals.wsOrigin = `${isSecure ? 'wss' : 'ws'}://${host}`;
+        next();
+    });
+
     app.use(helmet({
         contentSecurityPolicy: {
             directives: {
@@ -87,7 +99,7 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
                 scriptSrc: ["'self'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
                 imgSrc: ["'self'", 'data:'],
-                connectSrc: ["'self'", 'ws:', 'wss:'],
+                connectSrc: ["'self'", (_req, res: ServerResponse) => (res as unknown as Response).locals.wsOrigin as string],
                 fontSrc: ["'self'"],
                 objectSrc: ["'none'"],
                 frameAncestors: ["'none'"],

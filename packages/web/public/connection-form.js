@@ -13,6 +13,8 @@
     var LOG_PREFIX = '[IRIS-TE WebForm]';
     var MAX_RECENT_CONNECTIONS = 5;
     var STORAGE_KEY = 'ite-recent-connections';
+    var WAS_CONNECTED_KEY = 'ite-was-connected';
+    var OPEN_TABS_KEY = 'ite-open-tabs';
 
     // ============================================
     // State
@@ -484,6 +486,15 @@
                 announce('Connected to server');
                 showConnectedView();
 
+                // Track that we were connected (Story 16.5, Task 2.2)
+                try { sessionStorage.setItem(WAS_CONNECTED_KEY, 'true'); } catch (e) { /* ignore */ }
+                // Store placeholder open tabs (Story 16.5, Task 1.4)
+                try {
+                    if (!sessionStorage.getItem(OPEN_TABS_KEY)) {
+                        sessionStorage.setItem(OPEN_TABS_KEY, '[]');
+                    }
+                } catch (e) { /* ignore */ }
+
                 // Fetch session info to populate the connection header (Task 3.5)
                 fetchSessionInfo();
             } else {
@@ -536,6 +547,8 @@
         .then(function () {
             state.isConnected = false;
             clearConnectionHeader();
+            // Clear was-connected flag on explicit disconnect (Story 16.5, Task 2.2)
+            try { sessionStorage.removeItem(WAS_CONNECTED_KEY); } catch (e) { /* ignore */ }
             showConnectionForm();
             announce('Disconnected from server');
         })
@@ -544,6 +557,7 @@
             // Show the connection form anyway
             state.isConnected = false;
             clearConnectionHeader();
+            try { sessionStorage.removeItem(WAS_CONNECTED_KEY); } catch (e) { /* ignore */ }
             showConnectionForm();
         });
     }
@@ -900,12 +914,22 @@
             .then(function (data) {
                 if (data && data.status === 'connected') {
                     state.isConnected = true;
+                    // Set was-connected flag (Story 16.5, Task 2.2)
+                    try { sessionStorage.setItem(WAS_CONNECTED_KEY, 'true'); } catch (e) { /* ignore */ }
                     if (data.server) {
                         updateConnectionHeader(data.server.namespace || '', data.server.username || '');
                     }
                     showConnectedView();
                 } else {
                     state.isConnected = false;
+                    // Check if session expired (was connected before reload but session gone)
+                    var wasConnected = false;
+                    try { wasConnected = sessionStorage.getItem(WAS_CONNECTED_KEY) === 'true'; } catch (e) { /* ignore */ }
+                    if (wasConnected) {
+                        try { sessionStorage.removeItem(WAS_CONNECTED_KEY); } catch (e) { /* ignore */ }
+                        showFormMessage('Session expired. Please reconnect.', 'error');
+                        announce('Session expired. Please reconnect.');
+                    }
                     showConnectionForm();
                 }
             })
@@ -1019,6 +1043,20 @@
 
     console.debug(LOG_PREFIX, 'Connection form initialized');
 
+    /**
+     * Handle session expiry notification from WebSocket client.
+     * Shows connection form with expired session message.
+     * Called by ws-reconnect.js when close code 4002 is received.
+     */
+    function handleSessionExpired() {
+        state.isConnected = false;
+        clearConnectionHeader();
+        try { sessionStorage.removeItem(WAS_CONNECTED_KEY); } catch (e) { /* ignore */ }
+        showFormMessage('Session expired. Please reconnect.', 'error');
+        announce('Session expired. Please reconnect.');
+        showConnectionForm();
+    }
+
     // Expose for testing
     window.iteConnectionForm = {
         validateForm: validateForm,
@@ -1038,6 +1076,9 @@
         escapeAttr: escapeAttr,
         updateConnectionHeader: updateConnectionHeader,
         clearConnectionHeader: clearConnectionHeader,
-        fetchSessionInfo: fetchSessionInfo
+        fetchSessionInfo: fetchSessionInfo,
+        handleSessionExpired: handleSessionExpired,
+        checkSession: checkSession,
+        showFormMessage: showFormMessage
     };
 })();

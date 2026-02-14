@@ -183,12 +183,12 @@ development_status:
   epic-15-retrospective: optional
 
   # Epic 16: Web Authentication & Connection Management
-  epic-16: in-progress
+  epic-16: done
   16-1-web-connection-form-ui: done
   16-2-browser-credential-handling: done
   16-3-connection-test: done
   16-4-multi-connection-support: done
-  16-5-session-persistence-auto-reconnect: backlog
+  16-5-session-persistence-auto-reconnect: done
   epic-16-retrospective: optional
 
   # Epic 17: Web Application Shell & Message Bridge

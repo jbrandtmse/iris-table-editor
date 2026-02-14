@@ -140,11 +140,13 @@ describe('Security Middleware', () => {
             assert.ok(csp!.includes("default-src 'self'"), 'CSP should restrict default-src');
         });
 
-        it('should allow WebSocket connections in CSP connect-src', async () => {
+        it('should allow same-origin WebSocket connections in CSP connect-src', async () => {
             const response = await fetch(`${baseUrl}/health`);
             const csp = response.headers.get('content-security-policy') || '';
-            assert.ok(csp.includes('ws:'), 'CSP connect-src should allow ws: for WebSocket');
-            assert.ok(csp.includes('wss:'), 'CSP connect-src should allow wss: for secure WebSocket');
+            // Dynamic CSP derives ws://host from request Host header
+            const url = new URL(baseUrl);
+            const expectedWs = `ws://${url.host}`;
+            assert.ok(csp.includes(expectedWs), `CSP connect-src should include ${expectedWs}, got: ${csp}`);
         });
 
         it('should include Strict-Transport-Security header', async () => {

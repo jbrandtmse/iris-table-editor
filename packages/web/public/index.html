@@ -3,12 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Server-side helmet CSP header takes precedence and includes dynamic ws:/wss: origin -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self';">
     <title>IRIS Table Editor</title>
     <link rel="stylesheet" href="connection-form.css">
 </head>
 <body>
     <div class="ite-page">
+        <!-- Reconnection Banner (Story 16.5, Task 3.6) -->
+        <div class="ite-reconnect-banner" id="reconnectBanner" role="alert" aria-live="assertive" hidden>
+            <span class="ite-reconnect-banner__message" id="reconnectMessage">Connection lost. Reconnecting...</span>
+            <button class="ite-button ite-button--secondary ite-reconnect-banner__refresh" id="reconnectRefreshBtn" hidden>
+                Refresh
+            </button>
+        </div>
+
         <div class="ite-page__header">
             <h1 class="ite-page__title">IRIS Table Editor</h1>
         </div>
@@ -148,5 +157,6 @@
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
     <script src="connection-form.js"></script>
+    <script src="ws-reconnect.js"></script>
 </body>
 </html>

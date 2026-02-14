@@ -517,6 +517,36 @@ body {
 }
 
 /* ============================================
+   Reconnection Banner (Story 16.5)
+   ============================================ */
+
+.ite-reconnect-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background-color: rgba(244, 171, 71, 0.15);
+    border-bottom: 1px solid rgba(244, 171, 71, 0.4);
+    color: #f4ab47;
+    font-size: 0.9em;
+    width: 100%;
+}
+
+.ite-reconnect-banner[hidden] {
+    display: none;
+}
+
+.ite-reconnect-banner__message {
+    flex: 1;
+    text-align: center;
+}
+
+.ite-reconnect-banner__refresh {
+    flex-shrink: 0;
+}
+
+/* ============================================
    Visually Hidden (screen readers)
    ============================================ */
 
