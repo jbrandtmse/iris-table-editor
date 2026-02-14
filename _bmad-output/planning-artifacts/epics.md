@@ -94,6 +94,20 @@ This document provides the complete epic and story breakdown for iris-table-edit
 - FR49: Application checks for and installs updates automatically
 - FR50: Application shows a first-run welcome screen when no servers are configured
 
+**Web Connection Management (FR51-FR55) — Web Target**
+- FR51: User can enter IRIS server connection details in a browser form
+- FR52: User can test a server connection via the web proxy
+- FR53: User can save connection details to browser session
+- FR54: User can switch between multiple configured IRIS connections
+- FR55: User can reconnect automatically when reloading the page
+
+**Web Application Shell (FR56-FR60) — Web Target**
+- FR56: User can access the table editor by navigating to a URL
+- FR57: User can open multiple tables in browser tabs
+- FR58: User can bookmark specific table views via URL state
+- FR59: User can use browser back/forward navigation
+- FR60: User can toggle between light and dark themes
+
 ### NonFunctional Requirements
 
 **Performance (NFR1-NFR5)**
@@ -133,6 +147,28 @@ This document provides the complete epic and story breakdown for iris-table-edit
 
 **Desktop Reliability (NFR24) — Desktop Target**
 - NFR24: Window state (position, size, sidebar width) persists across sessions via electron-store
+
+**Web Performance (NFR25-NFR27) — Web Target**
+- NFR25: Web app loads and is interactive within 3 seconds
+- NFR26: API proxy adds no more than 100ms latency
+- NFR27: WebSocket connection establishes within 1 second
+
+**Web Security (NFR28-NFR33) — Web Target**
+- NFR28: CORS policy restricting origins
+- NFR29: CSRF protection on all API proxy requests
+- NFR30: Rate limiting (configurable requests per minute)
+- NFR31: Security headers (helmet) on all responses
+- NFR32: Credentials never stored server-side
+- NFR33: HTTPS required for production
+
+**Web Reliability (NFR34-NFR36) — Web Target**
+- NFR34: WebSocket disconnection detection with reconnection UI
+- NFR35: Session persists connection state across page reloads
+- NFR36: Concurrent users (10+) without interference
+
+**Web Compatibility (NFR37-NFR38) — Web Target**
+- NFR37: Works in Chrome, Firefox, Safari, Edge (latest 2 versions)
+- NFR38: Responsive across viewport sizes (minimum 1024px)
 
 ### Additional Requirements
 
@@ -195,6 +231,22 @@ This document provides the complete epic and story breakdown for iris-table-edit
 - UX23: Light/dark theme toggle (desktop target)
 - UX24: Window state persistence (position, size, sidebar width)
 
+**From Architecture - Web Target Requirements**
+- AR22: packages/web in monorepo with Express/Fastify server, API proxy, WebSocket
+- AR23: WebMessageBridge (WebSocket-based IMessageBridge implementation)
+- AR24: Web theme bridge with `prefers-color-scheme` auto-detection
+- AR25: Docker containerization with multi-stage build
+- AR26: Session-based authentication (JWT/cookie) with server-side credential proxying
+- AR27: Security middleware: CORS, CSRF, rate limiting, helmet headers
+
+**From UX - Web Target Requirements**
+- UX25: Web connection form (hostname, port, namespace, credentials) with test connection
+- UX26: Full-window responsive grid layout (no sidebar constraint)
+- UX27: Browser tab management with "Open Table" dialog
+- UX28: Header bar with connection context, disconnect, and theme toggle
+- UX29: WebSocket disconnect/reconnect banner UI
+- UX30: Recent connections list from localStorage
+
 ### FR Coverage Map
 
 | FR | Epic | Description |
@@ -249,6 +301,16 @@ This document provides the complete epic and story breakdown for iris-table-edit
 | FR48 | Epic 11 | Window state persistence across sessions (Desktop) |
 | FR49 | Epic 13 | Auto-update from GitHub Releases (Desktop) |
 | FR50 | Epic 12 | First-run welcome screen (Desktop) |
+| FR51 | Epic 16 | Enter IRIS server connection in browser form (Web) |
+| FR52 | Epic 16 | Test server connection via web proxy (Web) |
+| FR53 | Epic 16 | Save connection details to browser session (Web) |
+| FR54 | Epic 16 | Switch between multiple IRIS connections (Web) |
+| FR55 | Epic 16 | Auto-reconnect on page reload (Web) |
+| FR56 | Epic 17 | Access table editor via URL (Web) |
+| FR57 | Epic 17 | Open multiple tables in browser tabs (Web) |
+| FR58 | Epic 17 | Bookmark table views via URL state (Web) |
+| FR59 | Epic 17 | Browser back/forward navigation (Web) |
+| FR60 | Epic 17 | Toggle light/dark themes (Web) |
 
 ## Epic List
 
@@ -336,6 +398,44 @@ Verify feature parity between VS Code and desktop targets, cross-platform testin
 
 **NFRs addressed:** NFR19-NFR24 (verification)
 **Dependencies:** Requires Epics 10, 11, 12, 13
+
+### Epic 15: Web Server Foundation & API Proxy (Web Target)
+Create the Node.js server that proxies Atelier API requests, serves the web application, and provides WebSocket communication for the message bridge.
+
+**ARs covered:** AR22, AR23, AR26, AR27
+**NFRs addressed:** NFR25, NFR26, NFR27, NFR28, NFR29, NFR30, NFR31, NFR33
+**Dependencies:** None — foundation epic for web target
+
+### Epic 16: Web Authentication & Connection Management (Web Target)
+Browser-based connection management allowing users to connect to IRIS servers, authenticate, and manage sessions.
+
+**FRs covered:** FR51, FR52, FR53, FR54, FR55
+**ARs covered:** AR26
+**NFRs addressed:** NFR32, NFR35
+**UX covered:** UX25, UX30
+**Dependencies:** Requires Epic 15 (server must exist)
+
+### Epic 17: Web Application Shell & Message Bridge (Web Target)
+Serve the shared webview as a single-page application with WebSocket-based message bridge, web-specific theme bridge, and responsive browser layout.
+
+**FRs covered:** FR56, FR57, FR58, FR59, FR60
+**ARs covered:** AR23, AR24
+**NFRs addressed:** NFR25, NFR34
+**UX covered:** UX26, UX27, UX28, UX29
+**Dependencies:** Requires Epics 15 and 16
+
+### Epic 18: Web Build, Deploy & Distribution (Web Target)
+Containerize the web application, configure CI/CD, and establish hosting infrastructure.
+
+**ARs covered:** AR25
+**NFRs addressed:** NFR33
+**Dependencies:** Requires Epic 17
+
+### Epic 19: Web Integration Testing & Feature Parity (Web Target)
+Verify feature parity across all three targets with browser compatibility testing and security audit.
+
+**NFRs addressed:** NFR25-NFR38 (verification)
+**Dependencies:** Requires Epics 15-18
 
 ---
 
@@ -2966,3 +3066,812 @@ So that **it meets the same quality bar as the VS Code extension**.
 **When** connection fails, saves fail, or imports fail
 **Then** error messages are clear and actionable
 **And** the app recovers gracefully (no stuck states)
+
+---
+
+## Epic 15: Web Server Foundation & API Proxy
+
+**Goal:** Create the Node.js server that proxies Atelier API requests, serves the web application, and provides WebSocket communication for the message bridge.
+
+**Phase:** Web Application
+**Dependencies:** None — foundation epic for web target.
+
+**ARs covered:** AR22, AR23, AR26, AR27
+**NFRs addressed:** NFR25, NFR26, NFR27, NFR28, NFR29, NFR30, NFR31, NFR33
+
+---
+
+### Story 15.1: Server Bootstrap
+
+As a **developer**,
+I want **a Node.js server project set up within the monorepo**,
+So that **I have a working foundation for the web application target**.
+
+**Acceptance Criteria:**
+
+**Given** the existing monorepo structure
+**When** I set up the web server package
+**Then** `packages/web` is created with package.json, tsconfig.json
+**And** the package is registered in the root workspace
+**And** Express/Fastify is installed and configured
+**And** a health endpoint (`GET /health`) returns `{ status: "ok" }`
+**And** a dev server with hot reload (nodemon) is configured
+**And** `npm run dev --workspace=@iris-te/web` starts the server
+
+**Given** the server is running
+**When** I access the root URL
+**Then** I see a placeholder page confirming the server is operational
+
+---
+
+### Story 15.2: Atelier API Proxy
+
+As a **user**,
+I want **the web server to proxy my requests to IRIS servers**,
+So that **I can interact with IRIS from the browser without direct server access**.
+
+**Acceptance Criteria:**
+
+**Given** the web server is running
+**And** I have an active session with IRIS connection details
+**When** I send a POST to `/api/iris/query` with query and parameters
+**Then** the server forwards the request to the IRIS Atelier API endpoint
+**And** authentication headers (Basic Auth) are injected from session credentials
+**And** the IRIS response is returned to the browser
+
+**Given** the proxy receives a request
+**When** the session is invalid or expired
+**Then** the server returns 401 Unauthorized
+
+**Given** the proxy forwards a request to IRIS
+**When** the IRIS server is unreachable or times out
+**Then** the server returns an appropriate error with a user-friendly message
+**And** the response includes the error code from ErrorHandler
+
+**Given** the proxy is handling requests
+**When** I measure response times
+**Then** the proxy adds no more than 100ms latency to IRIS responses
+
+---
+
+### Story 15.3: WebSocket Server
+
+As a **developer**,
+I want **a WebSocket server for IMessageBridge communication**,
+So that **the browser can send commands and receive events in real-time**.
+
+**Acceptance Criteria:**
+
+**Given** the web server is running
+**When** a browser client connects via WebSocket
+**Then** the connection is established within 1 second
+**And** the connection is authenticated against the user's session
+
+**Given** an authenticated WebSocket connection
+**When** the browser sends a command (JSON: `{ command, payload }`)
+**Then** the server processes the command using @iris-te/core services
+**And** sends an event response back (JSON: `{ event, payload }`)
+
+**Given** an unauthenticated WebSocket attempt
+**When** the connection is attempted without valid session
+**Then** the server closes the connection with code 4001 (Unauthorized)
+
+**Given** the WebSocket is connected
+**When** the session expires
+**Then** the server sends a session-expired event and closes the connection
+
+**Given** the WebSocket connection drops
+**When** the browser detects disconnection
+**Then** it automatically attempts to reconnect (with exponential backoff)
+
+---
+
+### Story 15.4: Security Middleware
+
+As a **developer**,
+I want **comprehensive security middleware protecting the web application**,
+So that **the application follows OWASP best practices and is safe to deploy**.
+
+**Acceptance Criteria:**
+
+**Given** the web server is running
+**When** I inspect the HTTP response headers
+**Then** helmet security headers are present (X-Content-Type-Options, X-Frame-Options, CSP, etc.)
+
+**Given** the CORS configuration
+**When** a request comes from an allowed origin
+**Then** it is accepted
+**When** a request comes from a disallowed origin
+**Then** it is rejected with 403
+
+**Given** CSRF protection is active
+**When** state-changing requests (POST, PUT, DELETE) are sent
+**Then** they require a valid CSRF token
+**And** requests without a valid token are rejected with 403
+
+**Given** rate limiting is configured
+**When** a client exceeds the request limit (default: 100 requests/minute)
+**Then** subsequent requests receive 429 Too Many Requests
+**And** the limit is configurable via environment variables
+
+**Given** the server receives request bodies
+**When** the body exceeds the size limit (10MB)
+**Then** the request is rejected with 413
+
+---
+
+### Story 15.5: Session Management
+
+As a **user**,
+I want **my connection session to persist while I'm using the web app**,
+So that **I don't need to re-enter credentials for every action**.
+
+**Acceptance Criteria:**
+
+**Given** I submit valid IRIS connection credentials
+**When** the server validates them (test connection to IRIS)
+**Then** a session is created (JWT token or signed cookie)
+**And** the session stores connection details in server memory
+**And** the token/cookie is returned to the browser
+
+**Given** I have an active session
+**When** I make API requests
+**Then** my session token authenticates me automatically
+**And** the server uses my stored credentials to proxy to IRIS
+
+**Given** my session is active
+**When** I am idle for longer than the session timeout (default: 30 minutes)
+**Then** the session expires
+**And** the browser is notified to redirect to the connection form
+
+**Given** multiple users are connected
+**When** they each have their own sessions
+**Then** sessions are isolated (no credential leakage between users)
+**And** each user connects to their own specified IRIS server
+
+**Given** I click "Disconnect"
+**When** the disconnection executes
+**Then** my session is destroyed on the server
+**And** credentials are cleared from server memory
+**And** the browser redirects to the connection form
+
+---
+
+## Epic 16: Web Authentication & Connection Management
+
+**Goal:** Browser-based connection management allowing users to connect to IRIS servers, authenticate, and manage sessions.
+
+**Phase:** Web Application
+**Dependencies:** Requires Epic 15 (server must exist).
+
+**FRs covered:** FR51, FR52, FR53, FR54, FR55
+**NFRs addressed:** NFR32, NFR35
+**UX covered:** UX25, UX30
+
+---
+
+### Story 16.1: Web Connection Form UI
+
+As a **user**,
+I want **a browser-based form to enter IRIS server connection details**,
+So that **I can connect to any reachable IRIS server from my browser**.
+
+**Acceptance Criteria:**
+
+**Given** I navigate to the web application URL
+**When** the page loads and I have no active session
+**Then** I see a connection form with fields: Host, Port, Path Prefix, Namespace, Use HTTPS checkbox, Username, Password
+**And** required fields are marked with asterisks
+**And** Port defaults to 52773
+
+**Given** the connection form is displayed
+**When** I fill in all required fields and click "Connect"
+**Then** the credentials are sent to the server via HTTPS
+**And** the server tests the connection to IRIS
+**And** on success, I am redirected to the main grid view
+
+**Given** validation fails
+**When** I submit with missing required fields
+**Then** I see inline validation errors for each missing field
+**And** the form is NOT submitted
+
+**Given** a "Remember connection" checkbox
+**When** I check it and successfully connect
+**Then** connection details (host, port, namespace, username — NOT password) are saved to localStorage
+**And** these appear in a "Recent Connections" list on next visit
+
+---
+
+### Story 16.2: Browser Credential Handling
+
+As a **user**,
+I want **my credentials handled securely in the browser**,
+So that **I can trust the web application with my IRIS server access**.
+
+**Acceptance Criteria:**
+
+**Given** I enter credentials in the connection form
+**When** I click "Connect"
+**Then** credentials are sent to the server over HTTPS only
+**And** the server validates them against IRIS
+**And** credentials are stored in the server-side session (memory only)
+**And** a session token (JWT/cookie) is returned to the browser
+
+**Given** I have an active session
+**When** I check browser storage
+**Then** my password is NOT stored in localStorage, sessionStorage, or cookies
+**And** only the session token is stored
+
+**Given** I close the browser tab
+**When** sessionStorage is cleared
+**Then** my session token is no longer available
+**And** I must re-enter credentials on next visit (unless session cookie persists)
+
+---
+
+### Story 16.3: Test Connection
+
+As a **user**,
+I want **to test my connection before committing to it**,
+So that **I can verify the server is reachable and credentials are correct**.
+
+**Acceptance Criteria:**
+
+**Given** I have filled in connection details
+**When** I click "Test Connection"
+**Then** the button changes to "Testing..." with a spinner
+**And** the server proxies a test request to the IRIS server
+**And** the test includes timeout (30 seconds) and is cancellable
+
+**Given** the test succeeds
+**When** the response returns
+**Then** I see a success indicator with "Connection successful" in green text
+**And** the IRIS server version is displayed
+
+**Given** the test fails
+**When** the response returns
+**Then** I see a failure indicator with "Could not connect: [reason]" in red text
+**And** the error message is actionable (e.g., "Connection refused — check hostname and port")
+
+**Given** the test is taking too long
+**When** I click "Cancel"
+**Then** the test request is aborted
+**And** the button returns to "Test Connection"
+
+---
+
+### Story 16.4: Multi-Connection Support
+
+As a **user**,
+I want **to switch between different IRIS server connections**,
+So that **I can work with multiple environments in the same browser session**.
+
+**Acceptance Criteria:**
+
+**Given** I am connected to an IRIS server
+**When** I click the disconnect button in the header
+**Then** I return to the connection form
+**And** my current session is destroyed
+
+**Given** I am on the connection form
+**When** I see "Recent Connections"
+**Then** I can click any recent connection to pre-fill the form
+**And** I only need to enter my password before connecting
+
+**Given** I connect to a different server
+**When** the connection succeeds
+**Then** my previous session is replaced with the new one
+**And** all open table tabs are closed
+**And** the header updates to show the new server context
+
+---
+
+### Story 16.5: Session Persistence & Auto-Reconnect
+
+As a **user**,
+I want **my session to survive page reloads**,
+So that **I don't lose my work when I accidentally refresh the browser**.
+
+**Acceptance Criteria:**
+
+**Given** I have an active session with open tables
+**When** I reload the browser page (F5 or Ctrl+R)
+**Then** my session is still valid (session cookie persists)
+**And** I return to the connected state
+**And** my previously open table tabs are restored
+
+**Given** my session has expired during a page reload
+**When** the page loads
+**Then** I see the connection form with a message: "Session expired. Please reconnect."
+**And** my recent connections are still available for quick reconnect
+
+**Given** the WebSocket connection drops during use
+**When** the browser detects disconnection
+**Then** I see a reconnection banner: "Connection lost. Reconnecting..."
+**And** the browser attempts automatic reconnection with exponential backoff
+**And** after successful reconnection, the banner disappears and data refreshes
+
+**Given** reconnection fails after 30 seconds
+**When** the timeout is reached
+**Then** the banner updates: "Unable to reconnect. [Retry] [New Connection]"
+
+---
+
+## Epic 17: Web Application Shell & Message Bridge
+
+**Goal:** Serve the shared webview as a single-page application with WebSocket-based message bridge, web-specific theme bridge, and responsive browser layout.
+
+**Phase:** Web Application
+**Dependencies:** Requires Epic 15 (server) and Epic 16 (auth/connection).
+
+**FRs covered:** FR56, FR57, FR58, FR59, FR60
+**ARs covered:** AR23, AR24
+**NFRs addressed:** NFR25, NFR34
+**UX covered:** UX26, UX27, UX28, UX29
+
+---
+
+### Story 17.1: SPA Shell
+
+As a **user**,
+I want **to access the IRIS Table Editor grid from my browser**,
+So that **I can edit table data without installing any software**.
+
+**Acceptance Criteria:**
+
+**Given** I have an active session
+**When** the main view loads
+**Then** I see the shared webview UI (same HTML/CSS/JS as VS Code and desktop)
+**And** the grid, toolbar, and pagination all render correctly
+**And** the page loads and is interactive within 3 seconds
+
+**Given** the SPA is served
+**When** I inspect the page
+**Then** the shared webview assets are loaded from @iris-te/webview
+**And** the web theme bridge CSS is applied
+**And** the WebMessageBridge is initialized
+
+**Given** I navigate to any URL path (e.g., `/table/SAMPLES/Customer`)
+**When** the page loads
+**Then** the SPA handles the route client-side (HTML5 history API)
+**And** the server returns the SPA shell for all non-API routes
+
+---
+
+### Story 17.2: WebMessageBridge
+
+As a **developer**,
+I want **a WebSocket-based implementation of IMessageBridge**,
+So that **the shared webview communicates with the server using the same interface as VS Code and desktop**.
+
+**Acceptance Criteria:**
+
+**Given** the SPA loads
+**When** the WebMessageBridge initializes
+**Then** it establishes a WebSocket connection to the server
+**And** the connection authenticates using the session token
+
+**Given** the webview sends a command (e.g., `loadTables`)
+**When** the command is sent via `bridge.sendCommand()`
+**Then** it is serialized as JSON and sent over WebSocket
+**And** the server receives, processes, and sends back an event
+
+**Given** the server sends an event (e.g., `tableData`)
+**When** the event arrives over WebSocket
+**Then** the registered event handlers are called with the payload
+**And** the webview AppState updates and the UI re-renders
+
+**Given** the webview uses `bridge.offEvent()`
+**When** an event handler is removed
+**Then** it no longer receives events of that type
+
+**Given** all existing commands and events
+**When** used through WebMessageBridge
+**Then** they work identically to VSCodeMessageBridge and ElectronMessageBridge
+**And** no webview code changes are needed (bridge abstraction works)
+
+---
+
+### Story 17.3: Web Theme Bridge
+
+As a **user**,
+I want **the web app to support light and dark themes**,
+So that **I can choose my preferred visual mode**.
+
+**Acceptance Criteria:**
+
+**Given** I open the web app for the first time
+**When** the page loads
+**Then** the theme matches my OS preference (via `prefers-color-scheme` media query)
+
+**Given** the header shows a theme toggle icon
+**When** I click it
+**Then** the theme switches between light and dark
+**And** all `--ite-*` CSS variables update immediately
+**And** the preference is saved to `localStorage`
+
+**Given** I have previously set a theme preference
+**When** I return to the web app
+**Then** my chosen theme is applied (overrides OS preference)
+
+**Given** the web theme bridge CSS
+**When** applied to the shared webview
+**Then** all colors use `--ite-*` variables correctly
+**And** the visual appearance matches the desktop app's light/dark themes
+
+---
+
+### Story 17.4: Responsive Layout
+
+As a **user**,
+I want **the web app to use the full browser window for maximum data visibility**,
+So that **I can see more data than the sidebar-constrained VS Code panel**.
+
+**Acceptance Criteria:**
+
+**Given** the web app is open in a browser
+**When** I look at the layout
+**Then** the grid takes the full width of the viewport (no sidebar)
+**And** the header bar shows connection context
+**And** the tab bar shows open tables
+
+**Given** my browser window is 1920px wide
+**When** the grid displays
+**Then** columns spread to fill available space
+**And** more columns are visible than in VS Code's sidebar panel
+
+**Given** my browser window is at minimum width (1024px)
+**When** the grid displays
+**Then** the toolbar adapts (icons collapse if needed)
+**And** the grid scrolls horizontally for wide tables
+**And** all functionality remains accessible
+
+**Given** the browser is resized
+**When** the window size changes
+**Then** the layout adapts smoothly without layout breaks
+
+---
+
+### Story 17.5: Browser Navigation
+
+As a **user**,
+I want **to manage multiple open tables and use URL-based navigation**,
+So that **I can bookmark tables and use browser back/forward navigation**.
+
+**Acceptance Criteria:**
+
+**Given** the main view is loaded
+**When** I click "Open Table" in the tab bar
+**Then** a dialog opens showing namespaces and tables (schema tree view)
+**And** I can select a namespace and double-click a table to open it
+
+**Given** I open a table
+**When** the table tab appears
+**Then** the browser URL updates to include the table context (e.g., `/table/SAMPLES/Customer.Person`)
+**And** the URL is bookmarkable
+
+**Given** I have multiple table tabs open
+**When** I click a tab
+**Then** the corresponding table grid is displayed
+**And** the URL updates to reflect the active table
+
+**Given** I navigate between tables
+**When** I click browser Back/Forward buttons
+**Then** the previous/next table view is restored
+**And** the correct tab becomes active
+
+**Given** I bookmark a table URL
+**When** I navigate to that URL later (with active session)
+**Then** the table opens directly
+
+**Given** I navigate to a bookmarked URL without a session
+**When** the page loads
+**Then** I see the connection form
+**And** after connecting, I am redirected to the bookmarked table
+
+---
+
+## Epic 18: Web Build, Deploy & Distribution
+
+**Goal:** Containerize the web application, configure CI/CD for automated deployment, and establish hosting infrastructure.
+
+**Phase:** Web Application
+**Dependencies:** Requires Epic 17 (working web app).
+
+**ARs covered:** AR25
+**NFRs addressed:** NFR33
+
+---
+
+### Story 18.1: Docker Containerization
+
+As a **developer**,
+I want **the web app containerized with Docker**,
+So that **it can be deployed consistently across environments**.
+
+**Acceptance Criteria:**
+
+**Given** the web application source code
+**When** I run `docker build`
+**Then** a Docker image is produced with a multi-stage build
+**And** the final image contains only production dependencies
+**And** the image size is under 200MB
+
+**Given** a docker-compose.yml configuration
+**When** I run `docker-compose up`
+**Then** the web application starts and is accessible on the configured port
+**And** environment variables configure the application (port, session secret, allowed origins, session timeout)
+
+**Given** the container is running
+**When** I access the health endpoint
+**Then** it returns `{ status: "ok" }`
+
+**Given** the container crashes
+**When** docker-compose is configured with `restart: unless-stopped`
+**Then** the container restarts automatically
+
+---
+
+### Story 18.2: Environment Configuration
+
+As a **deployer**,
+I want **configurable environment variables for all deployment settings**,
+So that **I can customize the deployment without rebuilding the image**.
+
+**Acceptance Criteria:**
+
+**Given** the Docker container
+**When** I set environment variables
+**Then** the following settings are configurable:
+- `PORT` — Server port (default: 3000)
+- `NODE_ENV` — Environment (production/development)
+- `ALLOWED_ORIGINS` — CORS allowed origins (comma-separated)
+- `SESSION_SECRET` — Secret for signing JWT/cookies
+- `SESSION_TIMEOUT` — Session timeout in seconds (default: 1800)
+- `RATE_LIMIT_MAX` — Max requests per minute (default: 100)
+- `TLS_CERT` — Path to TLS certificate (optional)
+- `TLS_KEY` — Path to TLS private key (optional)
+
+**Given** required environment variables are missing
+**When** the server starts
+**Then** it logs a clear error message and exits with a non-zero code
+
+---
+
+### Story 18.3: CI/CD Pipeline (Web)
+
+As a **developer**,
+I want **a CI/CD pipeline that builds, tests, and deploys the web target**,
+So that **releases are automated and reliable**.
+
+**Acceptance Criteria:**
+
+**Given** a push to the main branch
+**When** the CI pipeline triggers
+**Then** it runs lint, compile, and test for all packages including @iris-te/web
+**And** it builds the Docker image
+**And** it runs integration tests against the containerized app
+
+**Given** a release tag is created
+**When** the release pipeline triggers
+**Then** the Docker image is built and tagged with the version
+**And** the image is pushed to a container registry (GitHub Container Registry)
+
+---
+
+### Story 18.4: HTTPS/TLS Configuration
+
+As a **deployer**,
+I want **HTTPS/TLS support for production deployments**,
+So that **all data in transit is encrypted**.
+
+**Acceptance Criteria:**
+
+**Given** TLS certificates are provided via environment variables
+**When** the server starts
+**Then** it serves over HTTPS directly
+
+**Given** a reverse proxy (nginx/caddy) is used for TLS termination
+**When** the proxy forwards requests to the app
+**Then** the app accepts proxied connections correctly
+**And** the `X-Forwarded-Proto` header is respected
+
+**Given** the deployment documentation
+**When** a deployer reads it
+**Then** they find instructions for both direct TLS and reverse proxy configurations
+
+---
+
+### Story 18.5: Monitoring & Logging
+
+As a **deployer**,
+I want **health checks, structured logging, and error tracking**,
+So that **I can monitor the web application in production**.
+
+**Acceptance Criteria:**
+
+**Given** the server is running
+**When** I access `GET /health`
+**Then** I receive `{ status: "ok", uptime: <seconds>, connections: <count> }`
+
+**Given** the server is handling requests
+**When** I check the logs
+**Then** I see structured JSON log entries with timestamp, level, message, and request metadata
+**And** no sensitive data (credentials, tokens) appears in logs
+
+**Given** an error occurs
+**When** the error is logged
+**Then** the log entry includes the error code, stack trace (in development), and request context
+**And** the error is categorized (connection, authentication, proxy, internal)
+
+---
+
+## Epic 19: Web Integration Testing & Feature Parity
+
+**Goal:** Verify feature parity across all three targets. Browser compatibility testing and security audit.
+
+**Phase:** Web Application
+**Dependencies:** Requires Epics 15-18.
+
+**NFRs addressed:** NFR25-NFR38 (verification)
+
+---
+
+### Story 19.1: Feature Parity Verification (Web)
+
+As a **developer**,
+I want **to verify all feature parity checkpoints work in the browser**,
+So that **web users get the same experience as VS Code and desktop users**.
+
+**Acceptance Criteria:**
+
+**Given** the 24 feature parity checkpoints from Epic 14
+**When** tested in a browser environment
+**Then** all checkpoints pass:
+1. Grid displays table data correctly
+2. Column headers show with correct names
+3. Pagination works (prev/next/first/last/goto)
+4. Cell selection with keyboard navigation
+5. Inline cell editing (double-click, F2, type)
+6. Save via Tab/Enter
+7. Cancel via Escape
+8. Visual feedback (modified, saving, saved, error states)
+9. Row creation (Add Row button + new row)
+10. Row deletion with confirmation
+11. Schema-based table tree view
+12. Inline column filtering
+13. Filter panel with operators
+14. Column sorting (click headers)
+15. Boolean checkbox control
+16. Date picker control
+17. Time field parsing
+18. Numeric field formatting
+19. NULL value display and entry
+20. Keyboard shortcuts (all categories)
+21. CSV export (page/all/filtered)
+22. Excel export (page/all/filtered)
+23. CSV import with mapping
+24. Excel import with sheet selection
+
+---
+
+### Story 19.2: Browser Compatibility Testing
+
+As a **developer**,
+I want **to verify the web app works across major browsers**,
+So that **all users can access the application regardless of browser choice**.
+
+**Acceptance Criteria:**
+
+**Given** the web application
+**When** tested in Chrome (latest 2 versions)
+**Then** all features work correctly including WebSocket communication
+
+**Given** the web application
+**When** tested in Firefox (latest 2 versions)
+**Then** all features work correctly
+
+**Given** the web application
+**When** tested in Safari (latest 2 versions)
+**Then** all features work correctly
+**And** WebSocket behavior is verified (Safari sometimes handles WS differently)
+
+**Given** the web application
+**When** tested in Edge (latest 2 versions)
+**Then** all features work correctly
+
+**Given** any browser
+**When** JavaScript is disabled
+**Then** a friendly message is shown: "JavaScript is required to use IRIS Table Editor"
+
+---
+
+### Story 19.3: Performance Testing & Concurrent Load
+
+As a **developer**,
+I want **to verify the web app handles concurrent users and maintains performance**,
+So that **the application is reliable under real-world usage**.
+
+**Acceptance Criteria:**
+
+**Given** the web application is deployed
+**When** 10 concurrent users are connected
+**Then** all users can independently browse tables and edit data
+**And** sessions are isolated (no data leakage)
+**And** API proxy response times remain under 500ms
+
+**Given** the web application
+**When** I measure initial load time
+**Then** the app is interactive within 3 seconds on standard broadband
+
+**Given** the WebSocket server
+**When** 10 concurrent WebSocket connections are active
+**Then** message latency remains under 200ms
+**And** no messages are lost or duplicated
+
+---
+
+### Story 19.4: Security Audit
+
+As a **developer**,
+I want **a security review of the web application**,
+So that **the application is safe to deploy on a network**.
+
+**Acceptance Criteria:**
+
+**Given** the OWASP Top 10 checklist
+**When** reviewed against the web application
+**Then** all items are addressed:
+- Injection: Parameterized queries (inherited from @iris-te/core)
+- Broken Authentication: Session management with timeout and secure tokens
+- Sensitive Data Exposure: HTTPS required, credentials never in logs or client storage
+- XML External Entities: Not applicable (JSON-only API)
+- Broken Access Control: Session validation on every request
+- Security Misconfiguration: Helmet headers, CORS policy
+- XSS: Content Security Policy, input sanitization (inherited from webview)
+- Insecure Deserialization: JSON.parse with error handling
+- Using Components with Known Vulnerabilities: npm audit clean
+- Insufficient Logging: Structured logging with security events
+
+**Given** the credential handling flow
+**When** audited
+**Then** credentials are encrypted in transit (HTTPS)
+**And** credentials are stored only in server memory (session store)
+**And** credentials are never persisted to disk or database
+**And** session tokens cannot be used to extract credentials
+
+---
+
+### Story 19.5: Web-Specific Polish
+
+As a **user**,
+I want **the web app to feel polished and handle edge cases gracefully**,
+So that **it meets the same quality bar as the other targets**.
+
+**Acceptance Criteria:**
+
+**Given** the web app is loading
+**When** I navigate to the URL
+**Then** I see a loading spinner before the app is interactive
+**And** the loading state is smooth and professional
+
+**Given** the WebSocket connection drops
+**When** I am in the middle of editing
+**Then** my unsaved changes are preserved locally
+**And** I see a reconnection banner
+**And** after reconnection, I can continue where I left off
+
+**Given** the web app is open
+**When** I resize my browser window
+**Then** the layout adapts smoothly at all breakpoints
+**And** no elements overlap or become inaccessible
+
+**Given** a first-time visitor
+**When** they navigate to the web app
+**Then** the connection form is clear and self-explanatory
+**And** the "Test Connection" flow provides confidence before connecting
+
+**Given** the web app is connected
+**When** I use all features
+**Then** error messages are clear and actionable
+**And** the app recovers gracefully from all error states (no stuck UI)

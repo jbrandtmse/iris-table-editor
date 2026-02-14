@@ -21,8 +21,8 @@ inputDocuments:
   - _bmad-output/planning-artifacts/architecture.md
   - _bmad-output/planning-artifacts/sprint-change-proposal-2026-02-13.md
   - docs/initial-prompt.md
-lastUpdated: '2026-02-13'
-updateReason: 'Sprint Change Proposal - Desktop target UX (Connection Manager, navigation, theme)'
+lastUpdated: '2026-02-14'
+updateReason: 'Sprint Change Proposal - Web-Hosted Application (Epics 15-19)'
 documentCounts:
   prd: 1
   architecture: 1
@@ -46,13 +46,14 @@ date: '2026-01-27'
 
 ### Project Vision
 
-IRIS Table Editor delivers an **Excel-like grid editing experience** for InterSystems IRIS database tables. Available as both a **VS Code extension** and a **standalone desktop application (Electron)**, the core UX promise is enabling users to **edit table data in 30 seconds** instead of minutes spent writing SQL queries.
+IRIS Table Editor delivers an **Excel-like grid editing experience** for InterSystems IRIS database tables. Available as a **VS Code extension**, a **standalone desktop application (Electron)**, and a **web-hosted application** accessible from any browser, the core UX promise is enabling users to **edit table data in 30 seconds** instead of minutes spent writing SQL queries.
 
-Both targets follow a **navigation + editor pattern**:
+All three targets follow a **navigation + editor pattern**:
 - **VS Code target:** Sidebar panel for server/namespace/table navigation, editor tabs for grid editing — mirrors VS Code's native file explorer → editor paradigm
 - **Desktop target:** Built-in connection manager sidebar, tab bar for multiple open tables — standalone window with native menus and familiar desktop application feel
+- **Web target:** Browser-based connection form, full-window grid layout — zero-install access from any computer with a browser
 
-The interaction model is **identical across both targets** — the grid editing experience, keyboard shortcuts, filtering, sorting, and export/import all work the same way regardless of target.
+The interaction model is **identical across all targets** — the grid editing experience, keyboard shortcuts, filtering, sorting, and export/import all work the same way regardless of target.
 
 ### Target Users
 
@@ -60,6 +61,7 @@ The interaction model is **identical across both targets** — the grid editing 
 |---------|------|--------|------------------|-------------|
 | **Marcus** | Backend Developer | VS Code Extension | Quick data inspection during development; spot and fix data issues without context-switching | Speed, keyboard navigation, minimal friction |
 | **Sarah** | Operations/Support | Desktop Application | Production data fixes for support tickets; needs confidence she's editing the right data | Clarity, confirmation, server/namespace visibility |
+| **Alex** | DBA/Any Staff | Web Browser | Ad-hoc data fixes from any computer; no installation needed | Zero friction, browser familiar, immediate access |
 
 **Shared Characteristics:**
 - Familiar with database concepts (tables, rows, columns, primary keys)
@@ -69,6 +71,7 @@ The interaction model is **identical across both targets** — the grid editing 
 **Target-Specific Characteristics:**
 - **Marcus (VS Code):** Comfortable with VS Code; wants extension to feel native to the editor
 - **Sarah (Desktop):** May not have VS Code installed; needs standalone app with simple install and connection setup
+- **Alex (Web):** May be on any computer; needs zero-install browser access with familiar form-based connection setup
 
 ### Key Design Challenges
 
@@ -118,19 +121,19 @@ The experience must feel like editing a local spreadsheet, with the added confid
 
 ### Platform Strategy
 
-| Aspect | VS Code Extension | Desktop Application |
-|--------|-------------------|---------------------|
-| **Platform** | VS Code Extension (WebviewView) | Standalone Electron 28+ app |
-| **Target User** | Developers (Marcus) | Ops/Support (Sarah) |
-| **Input Model** | Mouse + Keyboard | Mouse + Keyboard |
-| **Offline Support** | None — live IRIS connection required | None — live IRIS connection required |
-| **Navigation** | VS Code sidebar + editor tabs | Built-in connection manager + tab bar |
-| **Theming** | VS Code CSS variables (`--vscode-*`) | Built-in light/dark toggle (`--ite-*` bridge) |
-| **Connection Management** | InterSystems Server Manager extension | Built-in connection manager with safeStorage |
-| **Installation** | VS Code Marketplace | Windows .exe / macOS .dmg installer |
-| **Distribution** | VSIX package | electron-builder + GitHub Releases |
+| Aspect | VS Code Extension | Desktop Application | Web Application |
+|--------|-------------------|---------------------|-----------------|
+| **Platform** | VS Code Extension (WebviewView) | Standalone Electron 28+ app | Web Application (SPA served by Node.js) |
+| **Target User** | Developers (Marcus) | Ops/Support (Sarah) | Any staff (Alex, Sarah, Marcus) |
+| **Input Model** | Mouse + Keyboard | Mouse + Keyboard | Mouse + Keyboard |
+| **Offline Support** | None — live IRIS connection required | None — live IRIS connection required | None — live IRIS connection required |
+| **Navigation** | VS Code sidebar + editor tabs | Built-in connection manager + tab bar | Browser connection form + full-window tabs |
+| **Theming** | VS Code CSS variables (`--vscode-*`) | Built-in light/dark toggle (`--ite-*` bridge) | Built-in light/dark toggle + `prefers-color-scheme` auto-detection |
+| **Connection Management** | InterSystems Server Manager extension | Built-in connection manager with safeStorage | Browser-based connection form, session-scoped credentials |
+| **Installation** | VS Code Marketplace | Windows .exe / macOS .dmg installer | None — navigate to URL |
+| **Distribution** | VSIX package | electron-builder + GitHub Releases | Hosted URL (Docker container) |
 
-**Shared across both targets:**
+**Shared across all targets:**
 - Grid editing UI (webview HTML/CSS/JS)
 - Keyboard shortcuts, filtering, sorting
 - Export/Import functionality
@@ -2687,5 +2690,303 @@ The desktop application runs in a resizable native window. Unlike VS Code panels
 
 ---
 
-*Updated: 2026-02-13*
-*Added desktop application UX specifications (Connection Manager, navigation, theme, Journey 6) for Epics 10-14*
+## Web Application UX (Epics 15-19)
+
+This section defines UX components specific to the web-hosted browser application.
+
+### Web Connection Form
+
+**Purpose:** Browser-based alternative to VS Code Server Manager and desktop Connection Manager for connecting to IRIS servers.
+
+#### Connection Screen
+
+**Purpose:** Initial screen when user navigates to the web app URL
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ IRIS Table Editor                                    [☀/🌙]       │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│                                                                   │
+│              Connect to IRIS Server                                │
+│                                                                   │
+│  Host *                            Port *                         │
+│  ┌──────────────────────────────┐  ┌──────────────────────────┐  │
+│  │ iris-server.example.com      │  │ 52773                    │  │
+│  └──────────────────────────────┘  └──────────────────────────┘  │
+│                                                                   │
+│  Path Prefix                                                      │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ /iris                                                      │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  Namespace *                                                      │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ SAMPLES                                                    │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ☐ Use HTTPS                                                      │
+│                                                                   │
+│  Username *                                                       │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ _SYSTEM                                                    │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  Password *                                                       │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ ••••••••                                                   │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ☐ Remember connection (browser storage)                          │
+│                                                                   │
+│  [Test Connection]                              [Connect]         │
+│                                                                   │
+│  ─────────────────────────────────────────────────                │
+│  Recent Connections:                                              │
+│  • prod-iris (192.168.1.10:52773/SAMPLES)          [Connect]     │
+│  • dev-iris (localhost:52773/USER)                  [Connect]     │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Key Differences from Desktop Connection Manager:**
+
+| Aspect | Desktop | Web |
+|--------|---------|-----|
+| Credential Storage | OS keychain (safeStorage) | Browser SessionStorage (current session only) |
+| "Remember" option | Always saved to encrypted store | Optional, uses localStorage (hostname/port/namespace only, NOT password) |
+| Server list | Persistent, editable, deletable | Recent connections list (convenience only) |
+| First-run | Welcome screen + guided setup | Connection form is the first screen |
+
+**Field Validation:**
+
+| Field | Validation | Error Message |
+|-------|------------|---------------|
+| Host | Required, valid hostname/IP | "Host is required" / "Invalid hostname" |
+| Port | Required, 1-65535 | "Port must be between 1 and 65535" |
+| Namespace | Required | "Namespace is required" |
+| Username | Required | "Username is required" |
+| Password | Required | "Password is required" |
+
+**Test Connection Flow:**
+Same visual flow as desktop (Testing... → ✓ Success / ✕ Failure) but proxied through the web server.
+
+**Security:**
+- Password field always masked (type="password")
+- Credentials sent over HTTPS to web server only
+- Server proxies to IRIS — credentials never stored server-side permanently
+- Browser SessionStorage cleared on tab close
+- "Remember" option stores connection details (NOT password) in localStorage
+
+**CSS Classes:**
+
+```css
+.ite-web-connect { max-width: 600px; margin: 0 auto; padding: var(--ite-space-lg); }
+.ite-web-connect__title { font-size: 1.5em; font-weight: bold; text-align: center; margin-bottom: var(--ite-space-lg); }
+.ite-web-connect__field { margin-bottom: var(--ite-space-md); }
+.ite-web-connect__label { font-weight: bold; }
+.ite-web-connect__label--required::after { content: ' *'; color: var(--ite-error-fg); }
+.ite-web-connect__input { width: 100%; }
+.ite-web-connect__row { display: flex; gap: var(--ite-space-md); }
+.ite-web-connect__actions { display: flex; justify-content: flex-end; gap: var(--ite-space-sm); margin-top: var(--ite-space-lg); }
+.ite-web-connect__recent { margin-top: var(--ite-space-lg); }
+.ite-web-connect__recent-title { font-weight: bold; margin-bottom: var(--ite-space-sm); }
+.ite-web-connect__recent-item { display: flex; justify-content: space-between; align-items: center; padding: var(--ite-space-sm); }
+```
+
+**Accessibility:**
+- All fields have associated `<label>` elements
+- Required fields marked with `aria-required="true"`
+- Validation errors linked via `aria-describedby`
+- Tab order follows visual layout
+- Test Connection result announced via live region
+
+---
+
+### Web Navigation Layout
+
+**Purpose:** Define the web application's navigation structure (full browser window, no sidebar constraint)
+
+**Layout — Connected State:**
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ IRIS Table Editor        prod-iris > SAMPLES          [🔌] [☀/🌙]    │
+├──────────────────────────────────────────────────────────────────────┤
+│ [Customer ✕] [Orders ✕] [Products ✕]                [+ Open Table]  │
+├──────────────────────────────────────────────────────────────────────┤
+│ [🔄] [➕] [🗑️]  [🔽] [🧹]  [📥▼] [📤]  [⌨️]    Customer (SAMPLES)    │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│                     [ Full-Width Grid Content ]                       │
+│                                                                       │
+├──────────────────────────────────────────────────────────────────────┤
+│ Rows 1-50 of 1,234                      [⏮][◀] 1 of 25 [▶][⏭]       │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Differences from Desktop Layout:**
+
+| Aspect | Desktop | Web |
+|--------|---------|-----|
+| Sidebar | Persistent sidebar with namespace/table tree | No sidebar — table selection via "Open Table" dialog |
+| Layout | Sidebar + main area | Full-window grid (maximizes data visibility) |
+| Tab bar | Below menu bar | Top of content area |
+| Connection info | Sidebar header | Header bar (always visible) |
+| Disconnect | Sidebar bottom button | Header disconnect icon [🔌] |
+| Theme toggle | View menu | Header icon [☀/🌙] |
+
+**"Open Table" Dialog:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Open Table                                               [✕]      │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Namespace: [SAMPLES ▼]                                           │
+│                                                                   │
+│  Search: [              🔍]                                        │
+│                                                                   │
+│  📂 Customer                                                      │
+│     ├─ Address                                                    │
+│     ├─ Contact                                                    │
+│     └─ Person                                                     │
+│  📁 Order                                                         │
+│  📁 Product                                                       │
+│                                                                   │
+│  Double-click a table to open it                                  │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**CSS Classes:**
+
+```css
+.ite-web-layout { display: flex; flex-direction: column; height: 100vh; }
+.ite-web-header { display: flex; align-items: center; padding: var(--ite-space-sm) var(--ite-space-md); border-bottom: 1px solid var(--ite-border); }
+.ite-web-header__title { font-weight: bold; margin-right: var(--ite-space-lg); }
+.ite-web-header__context { flex: 1; }
+.ite-web-header__actions { display: flex; gap: var(--ite-space-sm); }
+.ite-web-tabbar { display: flex; overflow-x: auto; border-bottom: 1px solid var(--ite-border); }
+.ite-web-tabbar__tab { padding: var(--ite-space-sm) var(--ite-space-md); cursor: pointer; white-space: nowrap; }
+.ite-web-tabbar__tab--active { border-bottom: 2px solid var(--ite-accent); }
+.ite-web-tabbar__open { margin-left: auto; }
+.ite-web-content { flex: 1; overflow: auto; }
+```
+
+**Accessibility:**
+- Tab bar uses `role="tablist"` with `role="tab"` for each tab
+- Header elements are keyboard navigable
+- "Open Table" dialog uses `role="dialog"` with focus trap
+- Disconnect and theme toggle have `aria-label` attributes
+
+---
+
+### Web Theme Toggle
+
+**Purpose:** Light/dark mode switch for the web application
+
+**Location:** Header bar icon (☀/🌙)
+
+**Behavior:**
+- Click toggles between light and dark themes
+- Default: follows OS preference via `prefers-color-scheme` media query
+- User preference saved to `localStorage` (persists across visits)
+- Toggle switches `data-theme` attribute on `<html>` element
+- Transition: instant (same as desktop)
+
+**Implementation:**
+- Web theme bridge CSS provides three modes: light, dark, and auto (system preference)
+- `data-theme="light"`, `data-theme="dark"`, or no attribute (auto) on `<html>` element
+
+---
+
+### Web Responsive Strategy
+
+**Platform: Standard Browser Window**
+
+The web application runs in a browser tab with full viewport control.
+
+**Viewport Scenarios:**
+
+| Scenario | Width Range | Adaptation |
+|----------|-------------|------------|
+| **Minimum** | 1024px | Grid with horizontal scroll, compact toolbar |
+| **Standard** | 1280-1440px | Comfortable grid layout |
+| **Wide** | 1920px+ | Maximum data visibility, spread columns |
+
+**Responsive Behaviors:**
+
+| Element | Behavior |
+|---------|----------|
+| **Header** | Always full width, connection context truncates with ellipsis |
+| **Tab bar** | Scrolls horizontally when many tabs open |
+| **Grid** | Same responsive behavior as other targets |
+| **Toolbar** | Same responsive behavior as other targets |
+| **Connection form** | Centered, max-width: 600px |
+
+---
+
+### User Journey 7: Web Zero-Install Access
+
+**Persona:** Alex (DBA / Any Staff)
+**Goal:** Fix data from any computer without installing software
+**Success:** From URL to first edit in < 60 seconds
+
+```mermaid
+flowchart TD
+    A[Need to fix data, no software installed] --> B[Open browser]
+    B --> C[Navigate to IRIS Table Editor URL]
+    C --> D{Previously connected?}
+    D -->|Yes| E[See recent connections]
+    D -->|No| F[See connection form]
+    E --> G[Click recent connection]
+    F --> H[Enter server details + credentials]
+    H --> I[Click Test Connection]
+    I --> J{Test result?}
+    J -->|Success| K[Click Connect]
+    J -->|Failure| L[See error, fix details]
+    L --> I
+    G --> K
+    K --> M[See connected header + Open Table button]
+    M --> N[Click Open Table]
+    N --> O[Select namespace and table]
+    O --> P[Grid opens in tab]
+    P --> Q[Double-click cell to edit]
+    Q --> R[Type new value, press Tab]
+    R --> S{Save successful?}
+    S -->|Yes| T[See green confirmation flash]
+    T --> U[Done - from any computer!]
+    S -->|No| V[See error, fix and retry]
+    V --> Q
+```
+
+---
+
+### Web Disconnect & Session States
+
+**Disconnection Handling:**
+
+| Event | User Experience |
+|-------|----------------|
+| WebSocket disconnect | Banner: "Connection lost. Reconnecting..." with spinner |
+| Reconnect success | Banner disappears, grid refreshes |
+| Reconnect failure (30s) | Banner: "Unable to reconnect. [Retry] [New Connection]" |
+| Session expired | Redirect to connection form with message: "Session expired. Please reconnect." |
+| Browser tab close | Session cleared (SessionStorage) |
+
+**CSS Classes:**
+
+```css
+.ite-web-banner { padding: var(--ite-space-sm) var(--ite-space-md); text-align: center; }
+.ite-web-banner--warning { background: var(--ite-warning-bg); color: var(--ite-warning-fg); }
+.ite-web-banner--error { background: var(--ite-error-bg); color: var(--ite-error-fg); }
+.ite-web-banner__actions { display: inline-flex; gap: var(--ite-space-sm); margin-left: var(--ite-space-md); }
+```
+
+---
+
+*Updated: 2026-02-14*
+*Added web application UX specifications (Connection Form, navigation, theme, Journey 7) for Epics 15-19*

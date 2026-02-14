@@ -166,3 +166,54 @@ development_status:
   14-2-cross-platform-testing: done
   14-3-desktop-polish: done
   epic-14-retrospective: optional
+
+  # ============================================================
+  # WEB APPLICATION - Sprint Change Proposal 2026-02-14
+  # Centralized web-hosted version for zero-install browser access
+  # Sequence: 15 → 16 → 17 → 18 → 19
+  # ============================================================
+
+  # Epic 15: Web Server Foundation & API Proxy
+  epic-15: backlog
+  15-1-server-bootstrap: backlog
+  15-2-atelier-api-proxy: backlog
+  15-3-websocket-server: backlog
+  15-4-security-middleware: backlog
+  15-5-session-management: backlog
+  epic-15-retrospective: optional
+
+  # Epic 16: Web Authentication & Connection Management
+  epic-16: backlog
+  16-1-web-connection-form-ui: backlog
+  16-2-browser-credential-handling: backlog
+  16-3-connection-test: backlog
+  16-4-multi-connection-support: backlog
+  16-5-session-persistence-auto-reconnect: backlog
+  epic-16-retrospective: optional
+
+  # Epic 17: Web Application Shell & Message Bridge
+  epic-17: backlog
+  17-1-spa-shell: backlog
+  17-2-web-message-bridge: backlog
+  17-3-web-theme-bridge: backlog
+  17-4-responsive-layout: backlog
+  17-5-browser-navigation: backlog
+  epic-17-retrospective: optional
+
+  # Epic 18: Web Build, Deploy & Distribution
+  epic-18: backlog
+  18-1-docker-containerization: backlog
+  18-2-environment-configuration: backlog
+  18-3-ci-cd-pipeline-web: backlog
+  18-4-https-tls-configuration: backlog
+  18-5-monitoring-logging: backlog
+  epic-18-retrospective: optional
+
+  # Epic 19: Web Integration Testing & Feature Parity
+  epic-19: backlog
+  19-1-feature-parity-verification-web: backlog
+  19-2-browser-compatibility-testing: backlog
+  19-3-performance-testing-concurrent-load: backlog
+  19-4-security-audit: backlog
+  19-5-web-specific-polish: backlog
+  epic-19-retrospective: optional

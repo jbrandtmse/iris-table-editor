@@ -20,8 +20,8 @@ date: '2026-01-26'
 lastStep: 8
 status: 'complete'
 completedAt: '2026-01-26'
-lastUpdated: '2026-02-13'
-updateReason: 'Sprint Change Proposal - Standalone Desktop Application (Epics 10-14)'
+lastUpdated: '2026-02-14'
+updateReason: 'Sprint Change Proposal - Web-Hosted Application (Epics 15-19)'
 ---
 
 # Architecture Decision Document
@@ -33,7 +33,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 ### Requirements Overview
 
 **Functional Requirements:**
-38 requirements organized into 8 categories covering the complete CRUD lifecycle for IRIS table data:
+60 requirements organized into 11 categories covering the complete CRUD lifecycle for IRIS table data:
 - Server Connection (5 FRs): Server discovery, selection, authentication via Server Manager, connection status, disconnect
 - Table Navigation (5 FRs): Namespace listing, table browsing, selection, refresh
 - Data Display (5 FRs): Excel-like grid, column headers, scrolling, type-aware formatting, refresh
@@ -42,18 +42,24 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Data Deletion (5 FRs): Row selection, confirmation dialog, DELETE operations
 - Error Handling (4 FRs): User-friendly messages, context, dismissible notifications, constraint violation messaging
 - User Interface (4 FRs): Light/dark theme support, sidebar access, command palette access
+- Desktop Connection Management (6 FRs): Server list, server form, credentials, test connection
+- Desktop Window Management (3 FRs): Tab management, window state persistence
+- Desktop Application Lifecycle (3 FRs): State persistence, auto-update, welcome screen
+- Web Connection Management (5 FRs): Web connection form, test connection via proxy, session storage, multi-connection, auto-reconnect
+- Web Application Shell (5 FRs): URL-based access, browser tabs, bookmarkable URLs, browser navigation, theme toggle
 
 **Non-Functional Requirements:**
-24 requirements defining quality attributes:
-- Performance: 2s table load (<500 rows), 1s save, 1s list operations, non-blocking UI, no startup delay, desktop launch <3s
-- Security: No credential storage in extension state, Server Manager auth (VS Code), safeStorage OS keychain (desktop), parameterized queries, no sensitive logging, HTTPS when available, context isolation (desktop)
+38 requirements defining quality attributes:
+- Performance: 2s table load (<500 rows), 1s save, 1s list operations, non-blocking UI, no startup delay, desktop launch <3s, web load time <3s, proxy latency <100ms, WebSocket <1s
+- Security: No credential storage in extension state, Server Manager auth (VS Code), safeStorage OS keychain (desktop), parameterized queries, no sensitive logging, HTTPS when available, context isolation (desktop), CORS/CSRF/rate-limiting/helmet (web), credentials never server-side (web), HTTPS required (web)
 - Integration: Graceful Server Manager detection, version compatibility, namespace encoding (%→%25), API version handling
-- Reliability: Clear error messages, no data corruption on partial failure, network disconnect detection, connection recovery, window state persistence (desktop)
+- Reliability: Clear error messages, no data corruption on partial failure, network disconnect detection, connection recovery, window state persistence (desktop), WebSocket disconnect detection (web), session persistence (web)
+- Scalability: Concurrent users (web), browser compatibility (web)
 
 **Scale & Complexity:**
-- Primary domain: Multi-target tool (VS Code Extension + Electron Desktop App) with REST API Integration
+- Primary domain: Multi-target tool (VS Code Extension + Electron Desktop App + Web-Hosted Application) with REST API Integration
 - Complexity level: Medium
-- Estimated architectural components: ~15 major components (shared core + per-target shells)
+- Estimated architectural components: ~20 major components (shared core + per-target shells)
 
 ### Technical Constraints & Dependencies
 
@@ -67,12 +73,12 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Cross-Cutting Concerns Identified
 
-1. **Authentication Flow**: Target-dependent — VS Code uses `vscode.authentication.getSession()` with Server Manager provider; desktop uses built-in connection manager with safeStorage credentials
+1. **Authentication Flow**: Target-dependent — VS Code uses `vscode.authentication.getSession()` with Server Manager provider; desktop uses built-in connection manager with safeStorage credentials; web uses browser SessionStorage credentials passed per-request through API proxy
 2. **Error Handling**: Unified error parsing from Atelier API `status.errors` array; user-friendly message transformation (shared core)
-3. **Theme Compatibility**: Abstracted `--ite-*` CSS variables with per-target bridge files (VS Code maps from `--vscode-*`; desktop provides hardcoded light/dark tokens)
+3. **Theme Compatibility**: Abstracted `--ite-*` CSS variables with per-target bridge files (VS Code maps from `--vscode-*`; desktop provides hardcoded light/dark tokens); web provides hardcoded light/dark tokens with `prefers-color-scheme` media query detection
 4. **Parameterized Queries**: All SQL operations must use `?` placeholders — enforced in SqlBuilder utility (shared core)
 5. **Connection State**: Server selection state affects table list, data display, and all CRUD operations (shared core)
-6. **Message Bridge**: IMessageBridge abstraction — webview code never knows which target it's running in; VS Code uses postMessage, Electron uses contextBridge IPC
+6. **Message Bridge**: IMessageBridge abstraction — webview code never knows which target it's running in; VS Code uses postMessage, Electron uses contextBridge IPC. Web uses WebSocket-based WebMessageBridge
 
 ## Starter Template Evaluation
 
@@ -179,22 +185,40 @@ iris-table-editor/
 │   │       │   ├── TableEditorProvider.ts
 │   │       │   └── ServerConnectionManager.ts
 │   │       └── vscodeThemeBridge.css  # Maps --vscode-* → --ite-theme-*
-│   └── desktop/                    # Electron desktop target
+│   ├── desktop/                    # Electron desktop target
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   ├── electron-builder.yml
+│   │   └── src/
+│   │       ├── main/
+│   │       │   ├── main.ts         # Electron main process entry
+│   │       │   ├── ipc.ts          # IPC handler registration
+│   │       │   ├── ConnectionManager.ts  # Server CRUD + safeStorage
+│   │       │   └── WindowManager.ts      # BrowserWindow + state
+│   │       ├── renderer/
+│   │       │   ├── preload.ts      # contextBridge exposure
+│   │       │   └── desktopThemeBridge.css  # Hardcoded light/dark tokens
+│   │       └── ui/
+│   │           ├── connection/     # Server list, server form
+│   │           └── settings/       # App preferences
+│   └── web/                       # Web-hosted application target
 │       ├── package.json
 │       ├── tsconfig.json
-│       ├── electron-builder.yml
+│       ├── Dockerfile
+│       ├── docker-compose.yml
 │       └── src/
-│           ├── main/
-│           │   ├── main.ts         # Electron main process entry
-│           │   ├── ipc.ts          # IPC handler registration
-│           │   ├── ConnectionManager.ts  # Server CRUD + safeStorage
-│           │   └── WindowManager.ts      # BrowserWindow + state
-│           ├── renderer/
-│           │   ├── preload.ts      # contextBridge exposure
-│           │   └── desktopThemeBridge.css  # Hardcoded light/dark tokens
+│           ├── server/
+│           │   ├── server.ts          # Express/Fastify entry point
+│           │   ├── apiProxy.ts        # Atelier API proxy middleware
+│           │   ├── wsServer.ts        # WebSocket server for IMessageBridge
+│           │   ├── sessionManager.ts  # JWT/cookie session management
+│           │   └── security.ts        # CORS, CSRF, rate limiting, helmet
+│           ├── client/
+│           │   ├── WebMessageBridge.ts  # WebSocket-based IMessageBridge
+│           │   ├── webThemeBridge.css   # Light/dark tokens + prefers-color-scheme
+│           │   └── index.html           # SPA shell loading shared webview
 │           └── ui/
-│               ├── connection/     # Server list, server form
-│               └── settings/       # App preferences
+│               └── connection/          # Web connection form
 ```
 
 ### Package Dependency Rules
@@ -205,6 +229,7 @@ iris-table-editor/
 | `@iris-te/webview` | `@iris-te/core` (types only) | `vscode`, `electron` |
 | `@iris-te/vscode` | `@iris-te/core`, `@iris-te/webview`, `vscode` | `electron` |
 | `@iris-te/desktop` | `@iris-te/core`, `@iris-te/webview`, `electron` | `vscode` |
+| `@iris-te/web` | `@iris-te/core`, `@iris-te/webview`, `express`/`fastify`, `ws` | `vscode`, `electron` |
 
 ### Root package.json Workspace Config
 
@@ -216,7 +241,8 @@ iris-table-editor/
     "packages/core",
     "packages/webview",
     "packages/vscode",
-    "packages/desktop"
+    "packages/desktop",
+    "packages/web"
   ]
 }
 ```
@@ -297,6 +323,41 @@ let bridge; // IMessageBridge instance
 function initializeApp(messageBridge) {
   bridge = messageBridge;
   // All subsequent communication uses bridge.sendCommand() / bridge.onEvent()
+}
+```
+
+### Web Implementation (WebSocket)
+
+```typescript
+// packages/web/src/client/WebMessageBridge.ts
+
+class WebMessageBridge implements IMessageBridge {
+  private ws: WebSocket;
+  private eventHandlers: Map<string, Set<(payload: unknown) => void>> = new Map();
+
+  constructor(wsUrl: string) {
+    this.ws = new WebSocket(wsUrl);
+    this.ws.addEventListener('message', (event) => {
+      const { event: eventName, payload } = JSON.parse(event.data);
+      const handlers = this.eventHandlers.get(eventName);
+      handlers?.forEach(handler => handler(payload));
+    });
+  }
+
+  sendCommand(command: string, payload: unknown): void {
+    this.ws.send(JSON.stringify({ command, payload }));
+  }
+
+  onEvent(event: string, handler: (payload: unknown) => void): void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, new Set());
+    }
+    this.eventHandlers.get(event)!.add(handler);
+  }
+
+  offEvent(event: string, handler: (payload: unknown) => void): void {
+    this.eventHandlers.get(event)?.delete(handler);
+  }
 }
 ```
 
@@ -397,6 +458,64 @@ All shared styles use `--ite-*` variables. Each target provides values via a bri
   --ite-theme-scrollbar-thumb: #424242;
 }
 ```
+
+### Web Theme Bridge
+
+```css
+/* packages/web/src/client/webThemeBridge.css */
+
+/* Light theme (default) */
+:root {
+  --ite-theme-bg: #ffffff;
+  --ite-theme-fg: #1e1e1e;
+  --ite-theme-bg-secondary: #f3f3f3;
+  --ite-theme-border: #e0e0e0;
+  --ite-theme-accent: #0078d4;
+  --ite-theme-error: #d32f2f;
+  --ite-theme-success: #388e3c;
+  --ite-theme-input-bg: #ffffff;
+  --ite-theme-input-fg: #1e1e1e;
+  --ite-theme-input-border: #cccccc;
+  --ite-theme-focus-ring: #0078d4;
+  --ite-theme-grid-header-bg: #f5f5f5;
+  --ite-theme-grid-row-hover: #e8e8e8;
+  --ite-theme-grid-row-selected: #cce5ff;
+  --ite-theme-scrollbar-bg: #f0f0f0;
+  --ite-theme-scrollbar-thumb: #c1c1c1;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --ite-theme-bg: #1e1e1e;
+  --ite-theme-fg: #d4d4d4;
+  --ite-theme-bg-secondary: #252526;
+  --ite-theme-border: #3c3c3c;
+  --ite-theme-accent: #0078d4;
+  --ite-theme-error: #f44747;
+  --ite-theme-success: #89d185;
+  --ite-theme-input-bg: #3c3c3c;
+  --ite-theme-input-fg: #d4d4d4;
+  --ite-theme-input-border: #5a5a5a;
+  --ite-theme-focus-ring: #0078d4;
+  --ite-theme-grid-header-bg: #2d2d2d;
+  --ite-theme-grid-row-hover: #2a2d2e;
+  --ite-theme-grid-row-selected: #094771;
+  --ite-theme-scrollbar-bg: #1e1e1e;
+  --ite-theme-scrollbar-thumb: #424242;
+}
+
+/* System preference detection */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    /* Same as dark theme values above */
+    --ite-theme-bg: #1e1e1e;
+    --ite-theme-fg: #d4d4d4;
+    /* ... (all dark values) */
+  }
+}
+```
+
+The web theme bridge is identical to the desktop theme bridge but adds a `prefers-color-scheme` media query for automatic system preference detection when no explicit theme is selected.
 
 ### Migration Pattern
 
@@ -552,6 +671,190 @@ class ConnectionManager {
 - Config file (`electron-store`) stores only encrypted blobs
 - Passwords are decrypted only in memory, only when needed for authentication
 - Desktop app follows same "never log credentials" rule as VS Code extension (NFR9)
+
+## Web Server Architecture
+
+### Server Design
+
+```typescript
+// packages/web/src/server/server.ts
+
+import express from 'express';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
+import { setupApiProxy } from './apiProxy';
+import { setupWebSocket } from './wsServer';
+import { setupSecurity } from './security';
+import { SessionManager } from './sessionManager';
+
+const app = express();
+const server = createServer(app);
+const wss = new WebSocketServer({ server });
+
+const sessionManager = new SessionManager();
+
+// Security middleware
+setupSecurity(app);
+
+// Serve SPA
+app.use(express.static('public'));
+
+// API proxy: /api/iris/* → user-specified IRIS server
+setupApiProxy(app, sessionManager);
+
+// WebSocket for IMessageBridge
+setupWebSocket(wss, sessionManager);
+
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// SPA fallback
+app.get('*', (req, res) => res.sendFile('index.html', { root: 'public' }));
+
+server.listen(process.env.PORT || 3000);
+```
+
+### API Proxy
+
+The server acts as a proxy between the browser and IRIS servers. The browser never communicates directly with IRIS — all requests go through the proxy which:
+
+1. Validates the user session
+2. Extracts IRIS connection details from the session
+3. Forwards the Atelier API request to the target IRIS server
+4. Injects authentication headers (Basic Auth from session credentials)
+5. Returns the response to the browser
+
+```typescript
+// packages/web/src/server/apiProxy.ts
+
+function setupApiProxy(app: Express, sessionManager: SessionManager) {
+  app.post('/api/iris/query', async (req, res) => {
+    const session = sessionManager.validate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { query, parameters } = req.body;
+    const irisUrl = buildAtelierUrl(session.server, session.namespace);
+
+    const response = await fetch(irisUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(`${session.username}:${session.password}`).toString('base64')}`
+      },
+      body: JSON.stringify({ query, parameters })
+    });
+
+    const data = await response.json();
+    res.json(data);
+  });
+}
+```
+
+### WebSocket Server
+
+The WebSocket server implements the server side of the IMessageBridge pattern. Each connected browser client gets a dedicated WebSocket connection.
+
+```typescript
+// packages/web/src/server/wsServer.ts
+
+function setupWebSocket(wss: WebSocketServer, sessionManager: SessionManager) {
+  wss.on('connection', (ws, req) => {
+    const session = sessionManager.validateFromUpgrade(req);
+    if (!session) { ws.close(4001, 'Unauthorized'); return; }
+
+    ws.on('message', async (data) => {
+      const { command, payload } = JSON.parse(data.toString());
+
+      // Process command using @iris-te/core services
+      const result = await handleCommand(command, payload, session);
+
+      // Send event back to browser
+      ws.send(JSON.stringify({ event: result.event, payload: result.payload }));
+    });
+  });
+}
+```
+
+### Session & Credential Management (Web)
+
+```
+Browser enters credentials
+    → POST /api/connect with { host, port, namespace, username, password }
+    → Server validates credentials against IRIS (test connection)
+    → Server creates session (JWT token or signed cookie)
+    → Credentials stored in server memory (session store) for proxying
+    → Session expires after configurable timeout (default: 30 minutes)
+    → On each API request: session token → look up credentials → proxy to IRIS
+    → On disconnect: session destroyed, credentials cleared from memory
+```
+
+### Security Middleware
+
+```typescript
+// packages/web/src/server/security.ts
+
+function setupSecurity(app: Express) {
+  // Helmet security headers
+  app.use(helmet());
+
+  // CORS - restrict to known origins
+  app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    credentials: true
+  }));
+
+  // CSRF protection
+  app.use(csrf({ cookie: true }));
+
+  // Rate limiting
+  app.use(rateLimit({
+    windowMs: 60 * 1000,  // 1 minute
+    max: 100              // requests per window
+  }));
+
+  // Input validation
+  app.use(express.json({ limit: '10mb' }));
+}
+```
+
+### Docker Deployment
+
+```dockerfile
+# packages/web/Dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+COPY packages/core ./packages/core
+COPY packages/webview ./packages/webview
+COPY packages/web ./packages/web
+RUN npm ci --workspace=@iris-te/web
+RUN npm run build --workspace=@iris-te/web
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/packages/web/dist ./dist
+COPY --from=builder /app/packages/web/public ./public
+COPY --from=builder /app/packages/web/node_modules ./node_modules
+EXPOSE 3000
+CMD ["node", "dist/server.js"]
+```
+
+```yaml
+# packages/web/docker-compose.yml
+version: '3.8'
+services:
+  iris-table-editor:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ALLOWED_ORIGINS=https://iris-editor.example.com
+      - SESSION_SECRET=${SESSION_SECRET}
+      - SESSION_TIMEOUT=1800
+    restart: unless-stopped
+```
 
 ## Core Architectural Decisions
 
@@ -1553,8 +1856,8 @@ iris-table-editor/
 │   └── settings.json               # Workspace settings
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                  # CI pipeline: lint, test, build (both targets)
-│       └── release.yml             # Release pipeline: desktop installers + VS Code .vsix
+│       ├── ci.yml                  # CI pipeline: lint, test, build (all targets)
+│       └── release.yml             # Release pipeline: VS Code .vsix + desktop installers + web Docker
 ├── packages/
 │   ├── core/                       # Shared: services, models, utils
 │   │   ├── package.json
@@ -1614,23 +1917,41 @@ iris-table-editor/
 │   │       │   └── ServerConnectionManager.ts
 │   │       ├── VSCodeMessageBridge.ts
 │   │       └── vscodeThemeBridge.css
-│   └── desktop/                    # Electron desktop target
+│   ├── desktop/                    # Electron desktop target
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   ├── electron-builder.yml
+│   │   └── src/
+│   │       ├── main/
+│   │       │   ├── main.ts
+│   │       │   ├── ipc.ts
+│   │       │   ├── ConnectionManager.ts
+│   │       │   └── WindowManager.ts
+│   │       ├── renderer/
+│   │       │   ├── preload.ts
+│   │       │   ├── ElectronMessageBridge.ts
+│   │       │   └── desktopThemeBridge.css
+│   │       └── ui/
+│   │           ├── connection/     # Server list, server form
+│   │           └── settings/       # App preferences
+│   └── web/                       # Web-hosted application target
 │       ├── package.json
 │       ├── tsconfig.json
-│       ├── electron-builder.yml
+│       ├── Dockerfile
+│       ├── docker-compose.yml
 │       └── src/
-│           ├── main/
-│           │   ├── main.ts
-│           │   ├── ipc.ts
-│           │   ├── ConnectionManager.ts
-│           │   └── WindowManager.ts
-│           ├── renderer/
-│           │   ├── preload.ts
-│           │   ├── ElectronMessageBridge.ts
-│           │   └── desktopThemeBridge.css
+│           ├── server/
+│           │   ├── server.ts
+│           │   ├── apiProxy.ts
+│           │   ├── wsServer.ts
+│           │   ├── sessionManager.ts
+│           │   └── security.ts
+│           ├── client/
+│           │   ├── WebMessageBridge.ts
+│           │   ├── webThemeBridge.css
+│           │   └── index.html
 │           └── ui/
-│               ├── connection/     # Server list, server form
-│               └── settings/       # App preferences
+│               └── connection/
 ├── resources/
 │   └── icon.png                    # Shared icon
 ├── package.json                    # Root workspace config
@@ -1646,7 +1967,7 @@ iris-table-editor/
 
 ### Architectural Boundaries
 
-**Host ↔ Webview Boundary (Both Targets):**
+**Host ↔ Webview Boundary (All Targets):**
 
 | Boundary | Protocol | Direction |
 |----------|----------|-----------|
@@ -1674,7 +1995,16 @@ The webview never calls `vscode.postMessage()` or `ipcRenderer.send()` directly 
 | Server CRUD | `ConnectionManager.saveServer()` / `.getServers()` / `.deleteServer()` |
 | Test connection | `ConnectionManager.testConnection()` → `AtelierApiService` |
 
-**Both Targets ↔ IRIS Boundary:**
+**Web App ↔ Session Store Boundary:**
+
+| Integration Point | Method |
+|-------------------|--------|
+| Create session | `POST /api/connect` → `SessionManager.create()` |
+| Validate session | JWT/cookie → `SessionManager.validate()` |
+| Proxy to IRIS | Session credentials → `fetch()` to IRIS Atelier API |
+| Destroy session | `POST /api/disconnect` → `SessionManager.destroy()` |
+
+**All Targets ↔ IRIS Boundary:**
 
 | Operation | Endpoint | Method |
 |-----------|----------|--------|
@@ -1757,6 +2087,21 @@ packages/desktop/src/main/main.ts               # FR49: Auto-update check on sta
 packages/desktop/src/ui/connection/              # FR50: First-run welcome screen
 ```
 
+**Web Connection Management (FR51-FR55):**
+```
+packages/web/src/ui/connection/          # FR51-FR54: Web connection form
+packages/web/src/server/sessionManager.ts # FR53-FR55: Session management
+packages/web/src/server/apiProxy.ts       # FR52: Test connection via proxy
+```
+
+**Web Application Shell (FR56-FR60):**
+```
+packages/web/src/client/index.html        # FR56: SPA shell
+packages/web/src/client/WebMessageBridge.ts # FR57: Browser tab management
+packages/web/src/server/server.ts          # FR56: Serve SPA
+packages/web/src/client/webThemeBridge.css  # FR60: Theme toggle
+```
+
 ### Integration Points
 
 **Internal Communication Flow (Multi-Target):**
@@ -1793,6 +2138,22 @@ packages/desktop/src/ui/connection/              # FR50: First-run welcome scree
 │  │   main.js (AppState) ◄─► webview.html ◄─► styles.css         │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────┘
+
+┌─ Web Target ───────────────────────────────────────────────────┐
+│  ┌─────────────────┐    ┌──────────────────────────────────────┐  │
+│  │ server.ts       │───►│ API Proxy + WebSocket Server          │  │
+│  │ (Express/Node)  │    │  ├─► SessionManager (JWT/cookie)       │  │
+│  └─────────────────┘    │  ├─► @iris-te/core services            │  │
+│                         │  └─► ErrorHandler                      │  │
+│                         └───────────────┬────────────────────────┘  │
+│                                         │ WebMessageBridge           │
+│                                         │ (WebSocket)                │
+│                                         ▼                           │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │              @iris-te/webview (shared UI)                     │   │
+│  │   main.js (AppState) ◄─► webview.html ◄─► styles.css         │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 **External Integrations:**
@@ -1804,16 +2165,21 @@ packages/desktop/src/ui/connection/              # FR50: First-run welcome scree
 | Electron safeStorage | `electron.safeStorage` | ConnectionManager.ts | Desktop |
 | electron-store | `electron-store` | ConnectionManager.ts | Desktop |
 | electron-updater | `electron-updater` | main.ts | Desktop |
-| Atelier REST API | Native fetch | AtelierApiService.ts | Both (shared core) |
+| Atelier REST API | Native fetch | AtelierApiService.ts | All (shared core) |
+| Express/Fastify | `express` or `fastify` | server.ts | Web |
+| WebSocket | `ws` | wsServer.ts | Web |
+| Helmet | `helmet` | security.ts | Web |
+| CORS | `cors` | security.ts | Web |
+| Rate Limiting | `express-rate-limit` | security.ts | Web |
 
-**Data Flow (Shared — Both Targets):**
+**Data Flow (Shared — All Targets):**
 
 ```
 User Action (webview)
        │
        ▼ bridge.sendCommand()
 ┌─────────────────────────┐
-│ Host Handler             │  (TableEditorProvider OR Electron IPC)
+│ Host Handler             │  (TableEditorProvider OR Electron IPC OR Web Server)
 └────────┬────────────────┘
          │
          ▼
@@ -1862,6 +2228,9 @@ User Action (webview)
 | `packages/desktop/src/main/` | Electron main process | PascalCase |
 | `packages/desktop/src/renderer/` | Electron renderer adapters | PascalCase |
 | `packages/desktop/src/ui/` | Desktop-specific UI screens | lowercase directories |
+| `packages/web/src/server/` | Web server backend | camelCase |
+| `packages/web/src/client/` | Web client adapters | PascalCase |
+| `packages/web/src/ui/` | Web-specific UI screens | lowercase directories |
 
 **Test Organization:**
 
@@ -1871,6 +2240,7 @@ User Action (webview)
 | `packages/core/src/test/mocks/` | Mock data | `{category}.ts` |
 | `packages/vscode/src/test/*.test.ts` | VS Code integration tests | `{ClassName}.test.ts` |
 | `packages/desktop/src/test/*.test.ts` | Desktop integration tests | `{ClassName}.test.ts` |
+| `packages/web/src/test/*.test.ts` | Web integration tests | `{ClassName}.test.ts` |
 
 ### Development Workflow Integration
 
@@ -1883,6 +2253,12 @@ User Action (webview)
 - Run `npm run dev --workspace=@iris-te/desktop` for Electron dev mode with hot reload
 - Uses electron-reload or similar for fast iteration
 - Changes to webview assets reflect immediately; main process changes require restart
+
+**Development Server (Web):**
+- Run `npm run dev --workspace=@iris-te/web` for Express dev server with hot reload
+- Uses nodemon for server restart on changes
+- WebSocket reconnects automatically on server restart
+- Changes to webview assets reflect immediately; server changes require restart
 
 **Build Process:**
 ```bash
@@ -1898,6 +2274,14 @@ npm run package --workspace=@iris-te/vscode  # vsce package → .vsix
 # Desktop target
 npm run compile --workspace=@iris-te/desktop # esbuild → dist/
 npm run dist --workspace=@iris-te/desktop    # electron-builder → installers
+```
+
+**Build Process (Web):**
+```bash
+# Web target
+npm run compile --workspace=@iris-te/web   # esbuild → dist/
+npm run docker:build --workspace=@iris-te/web  # Docker build
+npm run docker:up --workspace=@iris-te/web     # docker-compose up
 ```
 
 **Deployment Structure (VS Code):**
@@ -1923,6 +2307,20 @@ Electron installer contains:
 │   └── node_modules/        # Production dependencies only
 ├── resources/               # App icon, installer assets
 └── electron runtime
+```
+
+**Deployment Structure (Web):**
+```
+Docker container:
+├── dist/
+│   ├── server.js          # Bundled server
+│   └── client/            # Bundled client assets
+├── public/
+│   ├── index.html         # SPA shell
+│   ├── webview/           # Shared webview assets (from @iris-te/webview)
+│   └── assets/            # Static assets
+├── node_modules/          # Production dependencies only
+└── package.json
 ```
 
 ## Architecture Validation Results
@@ -1954,7 +2352,7 @@ Project structure enables all architectural decisions:
 
 ### Requirements Coverage Validation ✅
 
-**Functional Requirements Coverage (50/50):**
+**Functional Requirements Coverage (60/60):**
 
 | Category | FRs | Architectural Support |
 |----------|-----|----------------------|
@@ -1969,8 +2367,10 @@ Project structure enables all architectural decisions:
 | Desktop Connection Mgmt | FR39-FR44 | ConnectionManager.ts + connection UI (desktop) |
 | Desktop Window Mgmt | FR45-FR47 | WindowManager.ts + tab bar (desktop) |
 | Desktop App Lifecycle | FR48-FR50 | WindowManager.ts + electron-updater + welcome screen (desktop) |
+| Web Connection Mgmt | FR51-FR55 | Web connection form + SessionManager + API proxy (web) |
+| Web Application Shell | FR56-FR60 | SPA shell + WebMessageBridge + webThemeBridge.css (web) |
 
-**Non-Functional Requirements Coverage (24/24):**
+**Non-Functional Requirements Coverage (38/38):**
 
 | Category | NFRs | Architectural Support |
 |----------|------|----------------------|
@@ -1981,6 +2381,10 @@ Project structure enables all architectural decisions:
 | Desktop Performance | NFR19-NFR20 | Electron 28+ launch optimization, tree-shaking |
 | Desktop Security | NFR21-NFR23 | safeStorage API, context isolation, typed IPC channels |
 | Desktop Reliability | NFR24 | electron-store for window state persistence |
+| Web Performance | NFR25-NFR27 | <3s load time, <100ms proxy latency, <1s WebSocket connection |
+| Web Security | NFR28-NFR33 | CORS, CSRF, rate limiting, helmet, credentials never server-side, HTTPS required |
+| Web Reliability | NFR34-NFR36 | WebSocket disconnect detection, session persistence, auto-reconnect |
+| Web Scalability | NFR37-NFR38 | Concurrent user support, browser compatibility (Chrome, Firefox, Safari, Edge) |
 
 ### Implementation Readiness Validation ✅
 
@@ -1993,7 +2397,7 @@ Project structure enables all architectural decisions:
 
 **Structure Completeness:**
 - ✅ Complete directory tree with all files named (monorepo layout)
-- ✅ All ~15 major components mapped to file locations across 4 packages
+- ✅ All ~20 major components mapped to file locations across 5 packages
 - ✅ Integration boundaries clearly defined (Host ↔ IMessageBridge ↔ Webview ↔ IRIS)
 - ✅ Requirements mapped to specific files (FR→file matrix, including FR39-FR50)
 
@@ -2024,8 +2428,8 @@ No blocking issues found during validation. The architecture is coherent and com
 
 **✅ Requirements Analysis**
 
-- [x] Project context thoroughly analyzed (50 FRs, 24 NFRs)
-- [x] Scale and complexity assessed (Medium, ~15 components)
+- [x] Project context thoroughly analyzed (60 FRs, 38 NFRs)
+- [x] Scale and complexity assessed (Medium, ~20 components)
 - [x] Technical constraints identified (Atelier API, Server Manager dependency)
 - [x] Cross-cutting concerns mapped (auth, errors, theming, parameterized queries)
 
@@ -2062,26 +2466,34 @@ No blocking issues found during validation. The architecture is coherent and com
 - Type-safe message passing with concrete interfaces (same types, both targets)
 - Security-first design (no credential storage in extension state; OS keychain for desktop)
 - Aligned with existing InterSystems ecosystem (Server Manager integration for VS Code)
-- ~80% code reuse between targets via monorepo shared packages
-- Theme abstraction layer enables consistent styling across both targets
+- Three-target architecture (VS Code + Desktop + Web) with ~80-95% code reuse
+- Theme abstraction layer enables consistent styling across all targets
 
 **Areas for Future Enhancement:**
 - Virtual scrolling for very large datasets (1000+ rows)
 - Offline mode / connection recovery
 - Query builder for custom SELECT statements
 - Multi-window support for desktop (multiple independent windows)
+- WebSocket connection pooling for high concurrent user counts
 
 **Growth Phase Features (Complete):**
 - Data Type Polish (Epic 7): Type-appropriate controls for boolean, date, time, numeric, NULL
 - Keyboard Shortcuts (Epic 8): Full keyboard navigation and editing
 - Export/Import (Epic 9): CSV/Excel export and import with validation
 
-**Desktop Phase Features (Planned):**
+**Desktop Phase Features (Complete):**
 - Monorepo Restructure (Epic 10): npm workspaces, shared core/webview extraction
 - Electron Shell (Epic 11): Main process, IPC bridge, tabs, native menus
 - Connection Manager (Epic 12): Server CRUD, test connection, safeStorage credentials
 - Build & Distribution (Epic 13): electron-builder, auto-update, CI/CD
 - Feature Parity & Testing (Epic 14): Cross-platform verification, polish
+
+**Web Phase Features (Planned):**
+- Web Server Foundation (Epic 15): Express/Fastify server, API proxy, WebSocket, security, sessions
+- Web Authentication (Epic 16): Connection form, credential handling, multi-connection
+- Web Application Shell (Epic 17): SPA, WebMessageBridge, theme bridge, responsive layout
+- Web Build & Deploy (Epic 18): Docker, environment config, CI/CD, HTTPS/TLS, monitoring
+- Web Feature Parity (Epic 19): Browser compatibility, performance testing, security audit
 
 ### Implementation Handoff
 
@@ -2095,10 +2507,10 @@ No blocking issues found during validation. The architecture is coherent and com
 - Refer to this document for all architectural questions
 - Prioritize security patterns (parameterized queries, no credential logging, context isolation)
 
-**Next Implementation Priority (Epic 10 — Monorepo Restructure):**
-1. Initialize monorepo with npm workspaces root package.json
-2. Create packages/core with extracted services, models, utils
-3. Create packages/webview with extracted UI assets and theme abstraction
-4. Create packages/vscode with remaining VS Code-specific code
-5. Verify VS Code extension builds and functions identically
+**Next Implementation Priority (Epic 15 — Web Server Foundation):**
+1. Initialize `packages/web` with Express server, health endpoint, dev server
+2. Implement Atelier API proxy with session-based auth forwarding
+3. Create WebSocket server for IMessageBridge communication
+4. Add security middleware (CORS, CSRF, rate limiting, helmet)
+5. Implement session management (JWT/cookie, timeout, concurrent sessions)
 

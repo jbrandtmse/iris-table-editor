@@ -21,7 +21,7 @@ workflowType: 'prd'
 projectType: 'greenfield'
 classification:
   projectType: developer_tool
-  projectTypeDetail: VS Code Extension + Standalone Desktop Application
+  projectTypeDetail: VS Code Extension + Standalone Desktop Application + Web-Hosted Application
   domain: general
   domainDetail: Developer Tooling
   complexity: medium
@@ -29,9 +29,11 @@ classification:
   distributionTargets:
     - VS Code Marketplace (extension)
     - GitHub Releases (desktop installer)
+    - Centralized web URL (browser)
   targetAudience:
     - IRIS developers (VS Code extension)
     - Operations and support staff (standalone desktop)
+    - Operations/support/any staff (web browser)
 ---
 
 # Product Requirements Document - iris-table-editor
@@ -41,17 +43,18 @@ classification:
 
 ## Executive Summary
 
-**IRIS Table Editor** is a multi-target tool for visual editing of InterSystems IRIS database tables without writing SQL. It provides an Excel-like grid interface available as both a **VS Code extension** for developers and a **standalone desktop application** (Windows/macOS) for operations and support staff.
+**IRIS Table Editor** is a multi-target tool for visual editing of InterSystems IRIS database tables without writing SQL. It provides an Excel-like grid interface available as a **VS Code extension** for developers, a **standalone desktop application** (Windows/macOS) for operations and support staff, and a **web-hosted application** for zero-install browser access.
 
 **Core Value Proposition:** Edit IRIS table data in 30 seconds instead of minutes spent writing SQL queries — regardless of whether users have VS Code installed.
 
 **Target Users:**
 - **IRIS developers** — VS Code extension integrated into their existing development environment
 - **Operations and support staff** — Standalone desktop application with built-in connection management, no VS Code required
+- **Web users** — Any user with a browser and network access to IRIS
 
-**Distribution:** Open source. VS Code extension via Marketplace; desktop application via GitHub Releases (Windows .exe, macOS .dmg).
+**Distribution:** Open source. VS Code extension via Marketplace; desktop application via GitHub Releases (Windows .exe, macOS .dmg); web application via centralized hosted URL.
 
-**Key Dependencies:** Atelier REST API (both targets). InterSystems Server Manager extension (VS Code target only). Electron (desktop target).
+**Key Dependencies:** Atelier REST API (all targets). InterSystems Server Manager extension (VS Code target only). Electron (desktop target). Node.js server with Express/Fastify (web target).
 
 ## Success Criteria
 
@@ -62,6 +65,7 @@ classification:
 - **Pain Eliminated**: No more writing manual UPDATE/INSERT statements for simple data changes
 - **Target Experience (VS Code)**: Browse → Select table → View grid → Edit cell → Save — all within VS Code
 - **Target Experience (Desktop)**: Launch app → Connect to server → Select table → Edit → Save — no IDE required
+- **Target Experience (Web)**: Navigate to URL → Enter credentials → Select table → Edit → Save — zero installation
 
 ### Business Success
 
@@ -70,6 +74,7 @@ classification:
 | 3 months | Internal dev adoption | Development team actively using VS Code extension daily instead of manual SQL |
 | 6 months | Ops/support adoption | Operations and support staff using standalone desktop app for routine data fixes |
 | 12 months | Community adoption | External users installing from VS Code Marketplace and GitHub Releases, positive reviews (4+ stars) |
+| 6 months | Zero-install adoption | Staff using web app for ad-hoc data edits without installing anything |
 | 12 months | Cross-team standard | Both developer and operations teams using IRIS Table Editor as primary data editing tool |
 
 ### Technical Success
@@ -91,6 +96,11 @@ classification:
 - **(Desktop - Epic 11)** Desktop app launches in under 3 seconds
 - **(Desktop - Epic 12)** Connection manager supports add/edit/delete/test with OS-encrypted credentials
 - **(Desktop - Epic 14)** Feature parity across 24 checkpoints between VS Code and desktop targets
+- **(Web - Epic 15)** Node.js server proxies Atelier API securely with session management
+- **(Web - Epic 16)** Browser-based connection form with session-scoped credential handling
+- **(Web - Epic 17)** WebSocket-based IMessageBridge enables real-time browser↔server communication
+- **(Web - Epic 18)** Docker containerization enables single-command deployment
+- **(Web - Epic 19)** Feature parity across all three targets verified (24+ checkpoints)
 
 ### Measurable Outcomes
 
@@ -106,6 +116,9 @@ classification:
 - **(Desktop - Epic 11)** Desktop app launches in under 3 seconds on standard hardware
 - **(Desktop - Epic 12)** Ops/support staff can go from install to first edit in under 60 seconds
 - **(Desktop - Epic 14)** All 24 feature parity checkpoints pass between VS Code and desktop targets
+- **(Web - Epic 15)** API proxy responds within 500ms for typical requests
+- **(Web - Epic 17)** Web app loads and is interactive within 3 seconds
+- **(Web - Epic 19)** All 24 feature parity checkpoints pass across three targets
 
 ## Product Scope
 
@@ -188,6 +201,43 @@ classification:
 - Feature parity verification across 24 checkpoints
 - Cross-platform testing (Windows + macOS)
 - Desktop-specific polish (first-run experience, native feel)
+
+### Web-Hosted Application (Epics 15-19)
+
+**Web Server Foundation (Epic 15):**
+- Node.js server (Express/Fastify) serving the web application
+- Atelier API proxy forwarding requests to user-specified IRIS servers
+- WebSocket server for IMessageBridge communication between browser and server
+- Security middleware: CORS, CSRF protection, rate limiting, helmet headers
+- Session management with JWT or cookie-based sessions
+
+**Web Authentication & Connection Management (Epic 16):**
+- Browser-based connection form (hostname, port, namespace, credentials)
+- Session-scoped credential handling (credentials stored in browser session, passed per API call)
+- Connection test with timeout and cancel support via server proxy
+- Multi-connection support (switch between IRIS servers within a session)
+- Session persistence and auto-reconnect on page reload
+
+**Web Application Shell & Message Bridge (Epic 17):**
+- Serve shared webview as a single-page application from packages/web
+- WebSocket-based IMessageBridge implementation (browser sends commands, receives events via WebSocket)
+- Web theme bridge with light/dark tokens and prefers-color-scheme detection
+- Full-window responsive grid layout optimized for browser viewport
+- Tab management for multiple open tables with URL-based navigation
+
+**Web Build, Deploy & Distribution (Epic 18):**
+- Docker containerization with multi-stage build
+- Environment configuration (IRIS server allowlists, TLS settings, port config)
+- CI/CD pipeline for web target (GitHub Actions)
+- HTTPS/TLS configuration with reverse proxy setup
+- Health check endpoints and structured logging
+
+**Web Integration Testing & Feature Parity (Epic 19):**
+- Feature parity verification across all three targets (24+ checkpoints)
+- Browser compatibility testing (Chrome, Firefox, Safari, Edge)
+- Performance testing with concurrent user load
+- Security audit (OWASP top 10, credential handling, proxy security)
+- Web-specific polish (loading states, offline detection, responsive edge cases)
 
 ### Vision (Future)
 
@@ -288,6 +338,21 @@ Sarah's team has adopted IRIS Table Editor but she doesn't use VS Code for any o
 
 ---
 
+### Journey 7: Web User - Zero-Install Data Editing
+
+**Persona: Alex, Database Administrator**
+
+Alex manages several IRIS instances across the organization. He needs to make quick data fixes from any computer without installing software.
+
+- **Opening Scene**: Alex gets a call about incorrect data in a production table. He's at a colleague's computer with no VS Code or IRIS Table Editor installed.
+- **Rising Action**: Alex opens a browser, navigates to the team's IRIS Table Editor web URL. He enters the production server credentials and clicks Connect.
+- **Climax**: The familiar grid loads instantly. Alex finds the incorrect record, double-clicks the cell, fixes the value, and presses Tab. Done — exactly the same experience as the VS Code extension and desktop app.
+- **Resolution**: Alex resolves the issue in 2 minutes from an unfamiliar computer. No installation required, no admin rights needed, no setup time.
+
+**Capabilities Revealed**: Zero-install browser access, web connection form, credential handling, feature parity with other targets
+
+---
+
 ### Journey Requirements Summary
 
 | Capability | Revealed By Journey |
@@ -311,12 +376,16 @@ Sarah's team has adopted IRIS Table Editor but she doesn't use VS Code for any o
 | **(Desktop)** Connection manager | Sarah Desktop (J6) |
 | **(Desktop)** Credential storage | Sarah Desktop (J6) |
 | **(Desktop)** Feature parity | Sarah Desktop (J6) |
+| **(Web)** Zero-install browser access | Alex Web (J7) |
+| **(Web)** Web connection form | Alex Web (J7) |
+| **(Web)** Session-scoped credentials | Alex Web (J7) |
+| **(Web)** Feature parity | Alex Web (J7) |
 
 ## Developer Tool Specific Requirements
 
 ### Project-Type Overview
 
-IRIS Table Editor is a **multi-target tool** providing visual database editing capabilities for InterSystems IRIS. It ships as both a **VS Code extension** (for developers) and a **standalone Electron desktop application** (for operations/support staff). Both targets share core logic and webview UI via a monorepo structure, connecting to IRIS through the Atelier REST API.
+IRIS Table Editor is a **multi-target tool** providing visual database editing capabilities for InterSystems IRIS. It ships as a **VS Code extension** (for developers), a **standalone Electron desktop application** (for operations/support staff), and a **web-hosted application** (for zero-install browser access). All three targets share core logic and webview UI via a monorepo structure, connecting to IRIS through the Atelier REST API.
 
 ### Technical Stack
 
@@ -339,6 +408,13 @@ IRIS Table Editor is a **multi-target tool** providing visual database editing c
 | Credential Storage | Electron safeStorage API | Desktop |
 | Packaging | vsce (VS Code), electron-builder (desktop) | Per-target |
 | Auto-Update | electron-updater + GitHub Releases | Desktop |
+| Web Shell | Express/Fastify (Node.js) | Web |
+| Real-time Communication | WebSocket (ws) | Web |
+| Message Bridge | WebMessageBridge (WebSocket) | Web |
+| Credential Handling | Browser SessionStorage | Web |
+| Containerization | Docker + docker-compose | Web |
+| Reverse Proxy | nginx/caddy | Web |
+| Session Management | JWT or cookie-based | Web |
 
 ### VS Code Integration
 
@@ -359,6 +435,16 @@ IRIS Table Editor is a **multi-target tool** providing visual database editing c
 - **Credential Storage**: OS keychain via Electron safeStorage (Windows Credential Manager / macOS Keychain)
 - **Theme System**: Light/dark mode toggle with `--ite-*` CSS variables mapped to hardcoded design tokens
 
+### Web Application Architecture
+
+- **Server Model**: Node.js Express/Fastify server proxying Atelier API requests
+- **Communication**: WebSocket-based IMessageBridge (browser↔server real-time messaging)
+- **Security**: CORS policy, CSRF protection, rate limiting, helmet security headers
+- **Authentication**: Session-based (JWT/cookie), credentials stored in browser SessionStorage
+- **Credential Flow**: Browser → server proxy → IRIS (credentials never stored server-side)
+- **Theme System**: Light/dark toggle via `--ite-*` CSS variables + `prefers-color-scheme` detection
+- **Deployment**: Docker container with nginx/caddy reverse proxy for TLS termination
+
 ### Installation Methods
 
 | Method | Description | Target |
@@ -368,6 +454,8 @@ IRIS Table Editor is a **multi-target tool** providing visual database editing c
 | Windows .exe installer | Desktop app for Windows 10+ | Desktop |
 | macOS .dmg installer | Desktop app for macOS 11+ | Desktop |
 | Portable .zip | No-install option for locked-down machines | Desktop |
+| Web URL | Navigate to hosted URL in any browser | Web |
+| Docker deployment | docker-compose for self-hosting | Web |
 | Source build | `npm run compile` for development | Both |
 
 ### Compatibility Requirements
@@ -381,6 +469,10 @@ IRIS Table Editor is a **multi-target tool** providing visual database editing c
 | Electron | 28+ | Desktop |
 | Windows | 10+ | Desktop |
 | macOS | 11+ (Big Sur) | Desktop |
+| Chrome | Latest 2 versions | Web |
+| Firefox | Latest 2 versions | Web |
+| Safari | Latest 2 versions | Web |
+| Edge | Latest 2 versions | Web |
 
 ### Documentation Requirements
 
@@ -535,6 +627,22 @@ IRIS Table Editor is a **multi-target tool** providing visual database editing c
 - **FR49**: Application checks for updates on startup and notifies user when an update is available
 - **FR50**: Application provides a first-run welcome screen with guided server setup
 
+### Web Connection Management (Web Target)
+
+- **FR51**: User can enter IRIS server connection details (hostname, port, namespace, credentials) in a browser form
+- **FR52**: User can test a server connection via the web proxy with timeout and cancel
+- **FR53**: User can save connection details to browser session for the current session
+- **FR54**: User can switch between multiple configured IRIS server connections
+- **FR55**: User can reconnect automatically when reloading the page (if session is active)
+
+### Web Application Shell (Web Target)
+
+- **FR56**: User can access the table editor by navigating to a URL in any modern browser
+- **FR57**: User can open multiple tables in browser tabs within the application
+- **FR58**: User can bookmark specific table views via URL state
+- **FR59**: User can use browser back/forward navigation between table views
+- **FR60**: User can toggle between light and dark themes (with system preference detection)
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -581,4 +689,30 @@ IRIS Table Editor is a **multi-target tool** providing visual database editing c
 ### Desktop Reliability (Desktop Target)
 
 - **NFR24**: Desktop application persists window state (position, size, last connection) across restarts via electron-store
+
+### Web Performance (Web Target)
+
+- **NFR25**: Web application loads and is interactive within 3 seconds on standard broadband
+- **NFR26**: API proxy adds no more than 100ms latency to IRIS requests
+- **NFR27**: WebSocket connection establishes within 1 second
+
+### Web Security (Web Target)
+
+- **NFR28**: Server implements CORS policy restricting origins
+- **NFR29**: All API proxy requests include CSRF protection
+- **NFR30**: Rate limiting prevents abuse (configurable requests per minute)
+- **NFR31**: Security headers (helmet) applied to all responses
+- **NFR32**: Credentials are never stored server-side; passed per-request from browser session
+- **NFR33**: HTTPS required for production deployment
+
+### Web Reliability (Web Target)
+
+- **NFR34**: Web application detects WebSocket disconnection and displays reconnection UI
+- **NFR35**: Browser session persists connection state across page reloads
+- **NFR36**: Concurrent users (10+) can use the application without interference
+
+### Web Compatibility (Web Target)
+
+- **NFR37**: Application works in Chrome, Firefox, Safari, and Edge (latest 2 versions)
+- **NFR38**: Application is responsive across viewport sizes (minimum 1024px width)
 
