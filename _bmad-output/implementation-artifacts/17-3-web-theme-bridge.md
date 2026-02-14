@@ -1,6 +1,6 @@
 # Story 17.3: Web Theme Bridge
 
-Status: review
+Status: done
 
 ## Story
 

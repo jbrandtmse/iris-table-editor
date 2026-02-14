@@ -57,6 +57,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .ite-page__header {
@@ -514,6 +515,7 @@ body {
 .ite-connected-view {
     display: flex;
     flex-direction: column;
+    flex: 1;
     width: 100%;
     max-width: 100%;
 }
@@ -521,11 +523,17 @@ body {
 .ite-connected-view__body {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 50vh;
-    text-align: center;
-    padding: 48px 24px;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+}
+
+.ite-connected-view__body > .ite-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
 }
 
 .ite-connected-view__description {
@@ -560,6 +568,35 @@ body {
 
 .ite-reconnect-banner__refresh {
     flex-shrink: 0;
+}
+
+/* ============================================
+   Responsive Adjustments (Story 17.4)
+   ============================================ */
+
+@media (max-width: 1200px) {
+    .ite-page__header {
+        padding: 12px 16px;
+    }
+
+    .ite-connection-header {
+        padding: 6px 12px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .ite-page__header {
+        padding: 10px 12px;
+    }
+
+    .ite-connection-header {
+        padding: 6px 10px;
+        gap: 8px;
+    }
+
+    .ite-page__content {
+        padding: 24px 12px;
+    }
 }
 
 /* ============================================
