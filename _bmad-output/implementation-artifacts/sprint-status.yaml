@@ -135,7 +135,7 @@ development_status:
   epic-10-retrospective: optional
 
   # Epic 11: Electron Shell & Window Management
-  epic-11: in-progress
+  epic-11: done
   11-1-electron-bootstrap: done
   11-2-ipc-bridge: done
   11-3-tab-bar: done

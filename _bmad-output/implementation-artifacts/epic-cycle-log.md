@@ -486,3 +486,61 @@ Proceeding to Epic 11: Electron Shell & Window Management...
 
 ---
 
+## Story 11.5: Window State Persistence
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/WindowStateManager.ts (WindowState, SidebarState, AppPersistentState interfaces, load/save, validation, isOnScreen, createDebouncedSave)
+- NEW: packages/desktop/src/ui/sidebar-resize.js (drag-to-resize handler + restoreAppState event listener)
+- NEW: packages/desktop/src/test/windowStateManager.test.ts (56 tests)
+- MODIFIED: packages/desktop/src/main/main.ts (WindowStateManager integration: load state, apply to BrowserWindow, off-screen detection, maximize restore, theme restore, resize/move/maximize/unmaximize/close tracking, debounced saves, restoreAppState event, onSidebarStateChanged callback)
+- MODIFIED: packages/desktop/src/main/ipc.ts (sidebarStateChanged command, onSidebarStateChanged callback, width clamping)
+- MODIFIED: packages/desktop/src/main/channelValidation.ts (sidebarStateChanged command, restoreAppState event)
+- MODIFIED: packages/desktop/src/ui/app-shell.html (resize handle div with ARIA attributes, sidebar-resize.js script)
+- MODIFIED: packages/desktop/src/ui/app-shell.css (.ite-app-shell__resize-handle styles)
+- MODIFIED: packages/desktop/src/ui/menu-handler.js (toggleSidebar sends sidebarStateChanged, syncs resize handle visibility)
+- MODIFIED: packages/desktop/src/test/channelValidation.test.ts (updated command/event counts)
+- MODIFIED: packages/desktop/src/test/menuBuilder.test.ts (updated command/event count assertions)
+
+**Key design decisions:**
+- WindowStateManager follows ConnectionManager fs-based persistence pattern (readFileSync/writeFileSync)
+- File mode 0o644 (no sensitive data, unlike ConnectionManager's 0o600)
+- isOnScreen() checks window center point against screen.getAllDisplays() bounds
+- createDebouncedSave() exported as standalone function for testability
+- Sidebar drag-to-resize clamps 200-400px (matching CSS min/max constraints)
+- Synchronous save on close event cancels debounced timer
+- Theme restored before window creation to avoid flash
+- screen module called only after app.whenReady() (Electron 33+ compatible)
+
+**Issues auto-resolved:** 5
+- HIGH: sidebarStateChanged width not clamped in IPC handler (compromised renderer could persist arbitrary values)
+- MEDIUM: Sidebar width captured AFTER display:none (getBoundingClientRect returns 0 when hidden)
+- MEDIUM: WindowStateManager sidebar validation range (100-600) mismatched CSS/JS clamp range (200-400)
+- LOW: Missing routing test for sidebarStateChanged IPC callback invocation
+- LOW: Resize handle has no ARIA attributes (role, aria-orientation, aria-label)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: 2e7b244
+
+---
+
+# Epic 11 Summary: Electron Shell & Window Management
+
+**Completed:** 2026-02-13
+**Stories processed:** 5 (11.1, 11.2, 11.3, 11.4, 11.5)
+**Total files touched:** ~35
+**Issues auto-resolved:** 25 (4 high, 16 medium, 5 low)
+**User inputs required:** 0
+**Rework iterations used:** 0
+**Commits created:** 5 (bff9307, 447e164, cd88c17, 855b23c, 2e7b244)
+
+**Epic Achievement:** Full Electron desktop shell with secure IPC bridge (contextIsolation + sandbox + channel validation), SessionManager for active connection state, tab bar with DOM-switching grid state management, native application menu (File/Edit/View/Help) with dynamic state updates, and window state persistence (bounds, sidebar resize, theme). All UI modules (tab-bar.js, menu-handler.js, sidebar-resize.js) follow IIFE pattern with messageBridge integration. 776 tests passing (241 vscode + 535 desktop).
+
+---
+
+Proceeding to Epic 13: Build, Package & Distribution...
+
