@@ -9,7 +9,8 @@
     "watch": "tsc --watch",
     "lint": "eslint src",
     "check-types": "tsc --noEmit",
-    "test": "node --test dist/test/**/*.test.js"
+    "test": "node --test dist/test/**/*.test.js",
+    "start": "electron dist/main/main.js"
   },
   "files": [
     "dist",
@@ -17,6 +18,9 @@
   ],
   "dependencies": {
     "@iris-te/core": "*"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
   },
   "license": "MIT"
 }

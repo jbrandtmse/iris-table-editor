@@ -313,7 +313,7 @@ Proceeding to Epic 12: Connection Manager...
 **User input required:** 0
 
 **Commits:**
-- Implementation: (pending)
+- Implementation: c15f9c0
 
 ---
 
@@ -332,4 +332,41 @@ Proceeding to Epic 12: Connection Manager...
 ---
 
 Proceeding to Epic 11: Electron Shell & Window Management...
+
+## Story 11.1: Electron Bootstrap
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/main.ts (Electron main process entry point)
+- NEW: packages/desktop/src/main/preload.ts (contextBridge exposing window.iteMessageBridge)
+- NEW: packages/desktop/src/main/ipc.ts (IPC handler registration and command routing)
+- NEW: packages/desktop/src/test/ipc.test.ts (30 tests)
+- MODIFIED: packages/desktop/package.json (electron devDependency, start script)
+- MODIFIED: packages/desktop/tsconfig.json (DOM lib for preload types)
+- MODIFIED: package.json (root start:desktop script)
+- MODIFIED: package-lock.json
+
+**Key design decisions:**
+- Security triad: nodeIntegration: false, contextIsolation: true, sandbox: true
+- Preload exposes window.iteMessageBridge (not electronAPI) — webview JS works unchanged
+- Single 'command' channel for renderer→main, 'event:{name}' channels for main→renderer
+- routeCommand() extracted as testable pure function (no Electron runtime needed)
+- CSS injection via webContents.insertCSS() for desktopThemeBridge.css
+- ConnectionManager config stored in app.getPath('userData')
+
+**Issues auto-resolved:** 5
+- HIGH: Missing navigation and window-open restrictions (added will-navigate block + setWindowOpenHandler deny)
+- MEDIUM: Broken macOS activate handler (hoisted service refs, wired createWindow)
+- MEDIUM: Duplicate IPC listeners on window recreation (removeAllListeners before registering)
+- MEDIUM: selectServer missing serverName validation (added guard)
+- MEDIUM: Test gap for selectServer validation (added test)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: (pending)
+
+---
 

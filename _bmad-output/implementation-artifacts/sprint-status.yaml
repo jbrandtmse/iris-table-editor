@@ -135,8 +135,8 @@ development_status:
   epic-10-retrospective: optional
 
   # Epic 11: Electron Shell & Window Management
-  epic-11: backlog
-  11-1-electron-bootstrap: backlog
+  epic-11: in-progress
+  11-1-electron-bootstrap: done
   11-2-ipc-bridge: backlog
   11-3-tab-bar: backlog
   11-4-native-menu: backlog
