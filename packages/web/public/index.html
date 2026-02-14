@@ -3,10 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Server-side helmet CSP header takes precedence and includes dynamic ws:/wss: origin -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self';">
+    <!-- Fallback CSP for when server-side helmet is not active (e.g., static file serving).
+         When helmet is active, the server's CSP header also applies (browsers enforce ALL policies).
+         The server CSP adds ws:/wss: to connect-src for WebSocket support. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self' ws: wss:;">
     <title>IRIS Table Editor</title>
     <link rel="stylesheet" href="connection-form.css">
+    <!-- Webview theme and styles (served from /webview/) -->
+    <link rel="stylesheet" href="/webview/desktopThemeBridge.css">
+    <link rel="stylesheet" href="/webview/theme.css">
+    <link rel="stylesheet" href="/webview/styles.css">
+    <link rel="stylesheet" href="/webview/grid-styles.css">
 </head>
 <body>
     <div class="ite-page">
@@ -145,9 +152,11 @@
                     </button>
                 </div>
 
-                <!-- Placeholder content for future grid/tabs -->
+                <!-- Shared webview UI (Story 17.1) -->
                 <div class="ite-connected-view__body">
-                    <p class="ite-connected-view__description">Grid view coming soon</p>
+                    <div class="ite-container">
+                        <!-- Webview main.js renders server/namespace/table selection and grid here -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -158,5 +167,11 @@
 
     <script src="connection-form.js"></script>
     <script src="ws-reconnect.js"></script>
+    <!-- WebMessageBridge must load BEFORE webview scripts (sets window.iteMessageBridge) -->
+    <script src="WebMessageBridge.js"></script>
+    <script src="spa-router.js"></script>
+    <!-- Shared webview scripts (served from /webview/) -->
+    <script src="/webview/main.js"></script>
+    <script src="/webview/grid.js"></script>
 </body>
 </html>

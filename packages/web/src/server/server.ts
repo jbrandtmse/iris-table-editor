@@ -55,6 +55,11 @@ export function createAppServer(options?: CreateServerOptions) {
     const publicDir = path.join(__dirname, '..', '..', 'public');
     appInstance.use(express.static(publicDir));
 
+    // Serve shared webview assets from @iris-te/webview package (Story 17.1)
+    const webviewPkgPath = path.dirname(require.resolve('@iris-te/webview/package.json'));
+    const webviewDir = path.join(webviewPkgPath, 'src');
+    appInstance.use('/webview', express.static(webviewDir));
+
     // Health check endpoint
     appInstance.get('/health', (_req, res) => {
         res.json({ status: 'ok' });
