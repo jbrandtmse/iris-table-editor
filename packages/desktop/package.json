@@ -10,7 +10,13 @@
     "lint": "eslint src",
     "check-types": "tsc --noEmit",
     "test": "node --test dist/test/**/*.test.js",
-    "start": "electron dist/main/main.js"
+    "start": "electron dist/main/main.js",
+    "generate-icons": "node scripts/generate-icons.js",
+    "stage-assets": "node scripts/stage-assets.js",
+    "dist": "npm run compile && npm run stage-assets && electron-builder",
+    "dist:win": "npm run compile && npm run stage-assets && electron-builder --win",
+    "dist:mac": "npm run compile && npm run stage-assets && electron-builder --mac",
+    "pack": "npm run compile && npm run stage-assets && electron-builder --dir"
   },
   "files": [
     "dist",
@@ -20,7 +26,8 @@
     "@iris-te/core": "*"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0"
   },
   "license": "MIT"
 }

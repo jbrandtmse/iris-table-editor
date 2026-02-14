@@ -10,7 +10,8 @@
     "test": "npm run test --workspace=packages/vscode && npm run test --workspace=packages/desktop",
     "watch": "npm run watch --workspace=packages/vscode",
     "package": "npm run package --workspace=packages/vscode",
-    "start:desktop": "npm run start --workspace=packages/desktop"
+    "start:desktop": "npm run start --workspace=packages/desktop",
+    "dist:desktop": "npm run compile && npm run dist --workspace=packages/desktop"
   },
   "devDependencies": {
     "eslint": "^9.39.2",

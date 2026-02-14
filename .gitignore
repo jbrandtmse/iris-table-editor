@@ -6,3 +6,5 @@ out/
 webview-dist/
 packages/vscode/resources/
 packages/vscode/LICENSE
+packages/desktop/app-dist/
+packages/desktop/release/

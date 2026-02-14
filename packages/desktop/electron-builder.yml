@@ -1,0 +1,51 @@
+# electron-builder configuration
+# Story 13.1: Electron Builder Config
+#
+# The app is staged by scripts/stage-assets.js into app-dist/ before building.
+# This preserves the monorepo relative path structure so all path.join() references
+# from compiled main.js continue to resolve correctly.
+
+appId: com.intersystems.iris-table-editor
+productName: IRIS Table Editor
+
+# Specify Electron version explicitly because in a monorepo the electron
+# dependency is hoisted and electron-builder cannot auto-detect it.
+electronVersion: "33.4.11"
+
+directories:
+  app: app-dist
+  output: release
+  buildResources: build-resources
+
+# Include everything in app-dist (already curated by stage-assets.js)
+files:
+  - "**/*"
+
+asar: true
+
+# Windows configuration
+win:
+  target: nsis
+  icon: build-resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: IRIS Table Editor
+
+# macOS configuration
+mac:
+  target: dmg
+  icon: build-resources/icon.png
+  category: public.app-category.developer-tools
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
