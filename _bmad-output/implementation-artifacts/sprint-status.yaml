@@ -153,11 +153,11 @@ development_status:
   epic-12-retrospective: optional
 
   # Epic 13: Build, Package & Distribution
-  epic-13: in-progress
+  epic-13: done
   13-1-electron-builder-config: done
   13-2-auto-update: done
   13-3-ci-cd-pipeline: done
-  13-4-code-signing: backlog  # Optional - can ship unsigned initially
+  13-4-code-signing: done  # Skipped - optional, app ships unsigned initially
   epic-13-retrospective: optional
 
   # Epic 14: Integration Testing & Feature Parity

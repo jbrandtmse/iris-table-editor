@@ -619,5 +619,64 @@ Proceeding to Epic 13: Build, Package & Distribution...
 
 ---
 
+## Story 13.3: CI/CD Pipeline
+
+**Status:** Complete
+**Files touched:**
+- NEW: .github/workflows/ci.yml (CI workflow for PRs/pushes to main)
+- NEW: .github/workflows/release.yml (release workflow for version tags, 5-job diamond)
+- NEW: scripts/sync-version.js (version synchronization across workspace packages)
+- NEW: packages/desktop/src/test/versionSync.test.ts (10 tests)
+- MODIFIED: package.json (root: version field, version:sync script)
+
+**Key design decisions:**
+- Diamond job dependency: lint-and-test → 3 parallel builds (vsix, win, mac) → create-release
+- `--publish never` on electron-builder to control release via softprops/action-gh-release
+- Version sync targets all 4 workspace packages (core, webview, vscode, desktop)
+- latest.yml + latest-mac.yml uploaded as release assets for electron-updater
+- xvfb-run wrapper for VS Code tests on Linux CI
+
+**Issues auto-resolved:** 5
+- HIGH: build-vsix job only compiled vscode workspace, missing @iris-te/core types (changed to full compile)
+- MEDIUM: Version sync skipped core and webview packages (added both)
+- MEDIUM: build-vsix runs redundant non-production esbuild (documented, no fix — vsce handles it)
+- LOW: Test cleanup uses try/finally instead of afterEach (functional, stylistic)
+- LOW: build-windows/build-macos compile unnecessary vscode workspace (documented, no fix)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: a7cd4b4
+
+---
+
+## Story 13.4: Code Signing (Optional)
+
+**Status:** Skipped (optional per epic definition)
+
+Per the epic file: "This story is optional for initial release. The app can ship unsigned with known OS warnings." Story 13.4 requires code signing certificates which are a per-organization procurement decision. The auto-update code (Story 13.2) already handles unsigned builds gracefully with silent error logging. Skipping this story does not block Epic 13 completion.
+
+---
+
+# Epic 13 Summary: Build, Package & Distribution
+
+**Completed:** 2026-02-13
+**Stories processed:** 3 (13.1, 13.2, 13.3) + 1 skipped (13.4 optional)
+**Total files touched:** ~20
+**Issues auto-resolved:** 17 (5 high, 6 medium, 6 low)
+**User inputs required:** 0
+**Rework iterations used:** 0
+**Commits created:** 3 (6db9a01, a63683a, a7cd4b4)
+
+**Epic Achievement:** Full build and distribution pipeline: electron-builder produces Windows NSIS and macOS DMG installers from staged monorepo assets, electron-updater enables auto-update via GitHub Releases, and GitHub Actions CI/CD runs lint+test on PRs and produces dual-target releases on version tags. Version sync ensures consistency across all 4 workspace packages. 843 tests passing (241 vscode + 602 desktop).
+
+---
+
+Proceeding to Epic 14: Integration Testing & Feature Parity...
+
+---
+
 ---
 
