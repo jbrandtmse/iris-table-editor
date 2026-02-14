@@ -1,10 +1,29 @@
 <workflow>
-  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>YOU are the TEAM LEAD orchestrator. You do NOT use workflow.xml for outer orchestration.</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
   <critical>Communicate all responses in {communication_language}</critical>
 
-  <critical>EPIC CYCLE ORCHESTRATOR - Autonomous Development Pipeline</critical>
-  <critical>Execute full development cycle for ALL stories in an Epic with minimal human intervention</critical>
+  <critical>TEAM-BASED EPIC CYCLE ORCHESTRATOR — Multi-Epic Autonomous Pipeline</critical>
+  <critical>Process ALL remaining non-done epics using worker agents for heavy phases</critical>
+
+  <team-architecture>
+    <role name="team-lead" agent="you">
+      Orchestrates everything. Handles: create-story (lightweight), git commits, sprint-status
+      updates, user questions, cycle-log management. ONLY agent that performs git operations.
+    </role>
+    <role name="dev-worker" agent="spawned-per-phase">
+      Executes dev-story workflow for a single story. Spawned via Task tool, shut down after completion.
+      Gets fresh context — no prior implementation knowledge from other phases.
+    </role>
+    <role name="review-worker" agent="spawned-per-phase">
+      Executes adversarial code-review for a single story. Spawned via Task tool, shut down after completion.
+      Gets fresh context — no implementation bias from dev phase.
+    </role>
+    <role name="test-worker" agent="spawned-per-phase">
+      Executes testarch-automate for a single story. Spawned via Task tool, shut down after completion.
+      Optional phase — skip if testarch workflow is not configured.
+    </role>
+  </team-architecture>
 
   <pause-conditions>
     <condition id="ambiguous_requirements">Acceptance criteria or requirements are unclear or contradictory</condition>
@@ -18,47 +37,48 @@
     <rule>When auto-resolving, document the decision in the story's Dev Agent Record</rule>
   </auto-resolve-rules>
 
-  <step n="1" goal="Initialize Epic Cycle">
+  <!-- ============================================================ -->
+  <!-- STEP 1: INITIALIZE — Discover all non-done epics, create team -->
+  <!-- ============================================================ -->
+  <step n="1" goal="Initialize Epic Cycle Pipeline">
     <action>Load {{sprint_status}} file completely</action>
     <action>Parse development_status section</action>
 
-    <check if="{{epic_num}} is not provided">
-      <ask>Which epic number would you like to process? (e.g., 1, 2, 3)</ask>
-      <action>Store user response as {{epic_num}}</action>
-    </check>
+    <action>Find ALL epics that are NOT status 'done' — process them in the order they appear in sprint-status.yaml (top to bottom)</action>
+    <action>For each non-done epic, find all stories with status: backlog, ready-for-dev, in-progress, or review</action>
+    <action>Store as {{epics_to_process}} list (each containing its {{stories_to_process}})</action>
 
-    <action>Find all stories matching pattern: {{epic_num}}-*-* in sprint_status</action>
-    <action>Filter to stories with status: backlog, ready-for-dev, in-progress, or review</action>
-    <action>Sort stories by story number (second number in key)</action>
-    <action>Store as {{stories_to_process}} list</action>
-
-    <check if="{{stories_to_process}} is empty">
-      <output>No stories to process in Epic {{epic_num}}. All stories may be complete or epic doesn't exist.</output>
+    <check if="{{epics_to_process}} is empty">
+      <output>No remaining epics to process. All epics in sprint-status.yaml are marked done.</output>
       <action>HALT</action>
     </check>
 
-    <action>Initialize {{cycle_log}} file with header</action>
+    <action>Create team "{{team_name}}" via TeamCreate tool</action>
+
+    <action>Initialize master {{cycle_log}} file with header</action>
     <output>
-      # Epic {{epic_num}} Development Cycle Log
+      # Epic Cycle Development Log
       Started: {{date}}
-      Stories to process: {{stories_to_process|length}}
+      Epics to process: {{epics_to_process|length}}
+      Total stories across all epics: {{total_stories_count}}
 
       ---
     </output>
 
     <output>
-      **EPIC CYCLE INITIATED**
+      **EPIC CYCLE PIPELINE INITIATED**
 
-      Epic: {{epic_num}}
-      Stories to process: {{stories_to_process|length}}
+      Epics to process: {{epics_to_process|length}}
+      Total stories: {{total_stories_count}}
+      Mode: Team-based (worker agents per phase)
 
       Will execute for each story:
-      1. create-story (prepare developer context)
-      2. dev-story (implement)
-      3. code-review (with auto-fix for high/medium issues)
-      4. git commit and push
-      5. testarch-automate (generate tests)
-      6. git commit and push
+      1. create-story (LEAD — lightweight)
+      2. dev-story (WORKER — fresh context)
+      3. code-review (WORKER — no implementation bias)
+      4. git commit and push (LEAD)
+      5. testarch-automate (WORKER — optional)
+      6. git commit and push (LEAD)
 
       **Pause conditions:**
       - Ambiguous requirements
@@ -69,230 +89,472 @@
     </output>
   </step>
 
-  <step n="2" goal="Process Each Story" for-each="story in {{stories_to_process}}">
-    <action>Extract story_key, epic_num, story_num, story_title from {{story}}</action>
-    <action>Set {{current_story}} = {{story}}</action>
-    <action>Log: "Processing Story {{epic_num}}.{{story_num}}: {{story_title}}"</action>
+  <!-- ============================================================ -->
+  <!-- STEP 2: OUTER LOOP — Process each epic                       -->
+  <!-- ============================================================ -->
+  <step n="2" goal="Process Each Epic" for-each="epic in {{epics_to_process}}">
+    <action>Extract epic_num, epic_title from {{epic}}</action>
+    <action>Mark epic status as in-progress in {{sprint_status}}</action>
+    <action>Find all non-done stories in this epic, sorted by story number</action>
+    <action>Store as {{stories_to_process}} for this epic</action>
 
-    <!-- Phase 2a: Create Story Context -->
-    <substep n="2a" goal="Create Story Context">
-      <check if="story status is 'backlog'">
-        <action>Execute create-story workflow as subagent</action>
-        <invoke-workflow
-          path="{project-root}/_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml"
-          inputs="story_key={{story_key}}"
-          mode="autonomous"
-          pause_on="{{pause-conditions}}" />
-
-        <check if="subagent paused with question">
-          <action>Surface question to user with context</action>
-          <output>
-            **QUESTION REQUIRED - Story {{epic_num}}.{{story_num}}**
-
-            Context: Creating story context for {{story_title}}
-            Phase: create-story
-
-            {{subagent_question}}
-
-            Please respond to continue.
-          </output>
-          <ask>Your answer:</ask>
-          <action>Pass answer to subagent as constraint</action>
-          <action>Resume subagent</action>
-        </check>
-
-        <action>Update sprint_status: {{story_key}} = ready-for-dev</action>
-      </check>
-    </substep>
-
-    <!-- Phase 2b: Develop Story -->
-    <substep n="2b" goal="Develop Story">
-      <check if="story status is 'backlog' OR 'ready-for-dev'">
-        <action>Execute dev-story workflow as subagent</action>
-        <invoke-workflow
-          path="{project-root}/_bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml"
-          inputs="story_file={{story_dir}}/{{story_key}}.md"
-          mode="autonomous"
-          pause_on="{{pause-conditions}}" />
-
-        <check if="subagent paused with question">
-          <action>Surface question to user with context</action>
-          <output>
-            **QUESTION REQUIRED - Story {{epic_num}}.{{story_num}}**
-
-            Context: Implementing {{story_title}}
-            Phase: dev-story
-            Files affected: {{subagent_files_touched}}
-
-            {{subagent_question}}
-
-            Key tradeoffs: {{subagent_tradeoffs}}
-
-            Please respond to continue.
-          </output>
-          <ask>Your answer:</ask>
-          <action>Pass answer to subagent as constraint</action>
-          <action>Resume subagent</action>
-        </check>
-
-        <action>Update sprint_status: {{story_key}} = review</action>
-        <action>Record files_touched from subagent</action>
-      </check>
-    </substep>
-
-    <!-- Phase 2c: Code Review with Auto-Fix -->
-    <substep n="2c" goal="Code Review">
-      <action>Execute code-review workflow as subagent</action>
-      <invoke-workflow
-        path="{project-root}/_bmad/bmm/workflows/4-implementation/code-review/workflow.yaml"
-        inputs="story_file={{story_dir}}/{{story_key}}.md"
-        mode="autonomous"
-        auto_resolve_severity="high,medium" />
-
-      <action>Collect review findings</action>
-      <action>For each high/medium issue: auto-resolve using best judgment</action>
-      <action>Document auto-resolved issues in {{issues_auto_resolved}}</action>
-
-      <check if="review found constraint risks (security, compliance, performance, interop)">
-        <action>Surface to user</action>
-        <output>
-          **CONSTRAINT RISK - Story {{epic_num}}.{{story_num}}**
-
-          Context: Code review found potential constraint violations
-          Phase: code-review
-
-          {{constraint_risk_details}}
-
-          Affected files: {{affected_files}}
-
-          Options:
-          1. Proceed with suggested fix
-          2. Provide alternative approach
-          3. Accept risk and continue
-
-          Please advise.
-        </output>
-        <ask>Your choice (1/2/3) or alternative:</ask>
-        <action>Apply user decision</action>
-      </check>
-
-      <check if="any issues remain unresolved">
-        <action>Re-run dev-story to apply fixes</action>
-        <action>Re-run code-review to verify</action>
-      </check>
-
-      <action>Update sprint_status: {{story_key}} = done</action>
-    </substep>
-
-    <!-- Phase 2d: Git Commit Implementation -->
-    <substep n="2d" goal="Commit Implementation">
-      <action>Stage all modified files from dev-story</action>
-      <action>Create commit with message: "feat({{epic_num}}.{{story_num}}): {{story_title}} - implementation complete"</action>
-      <action>Push to remote</action>
-      <action>Record commit_hash_impl</action>
-    </substep>
-
-    <!-- Phase 2e: Test Automation (Optional) -->
-    <substep n="2e" goal="Generate Test Automation" optional="true">
-      <action>Execute testarch-automate workflow as subagent</action>
-      <invoke-workflow
-        path="{project-root}/_bmad/bmm/workflows/testarch/automate/workflow.yaml"
-        inputs="coverage_target=critical-paths"
-        mode="autonomous" />
-
-      <check if="tests generated">
-        <action>Stage test files</action>
-        <action>Create commit with message: "test({{epic_num}}.{{story_num}}): {{story_title}} - automation tests"</action>
-        <action>Push to remote</action>
-        <action>Record commit_hash_tests</action>
-      </check>
-    </substep>
-
-    <!-- Phase 2f: Log Story Completion -->
-    <substep n="2f" goal="Log Completion">
-      <action>Append to {{cycle_log}}:</action>
-      <output>
-        ## Story {{epic_num}}.{{story_num}}: {{story_title}}
-
-        **Status:** Complete
-        **Files touched:**
-        {{files_touched}}
-
-        **Key design decisions:**
-        {{design_decisions}}
-
-        **Issues auto-resolved:** {{issues_auto_resolved|length}}
-        {{#each issues_auto_resolved}}
-        - {{severity}}: {{description}} → {{resolution}}
-        {{/each}}
-
-        **User input required:** {{user_questions|length}}
-        {{#each user_questions}}
-        - Q: {{question}}
-          A: {{answer}}
-        {{/each}}
-
-        **Commits:**
-        - Implementation: {{commit_hash_impl}}
-        - Tests: {{commit_hash_tests}}
-
-        ---
-      </output>
-
-      <output>
-        **STORY COMPLETE: {{epic_num}}.{{story_num}} - {{story_title}}**
-
-        Files: {{files_touched|length}} touched
-        Auto-resolved: {{issues_auto_resolved|length}} issues
-        User input: {{user_questions|length}} questions
-
-        Proceeding to next story...
-      </output>
-    </substep>
-  </step>
-
-  <step n="3" goal="Epic Cycle Complete">
-    <action>Calculate summary statistics</action>
-    <action>Append final summary to {{cycle_log}}</action>
-
-    <output>
-      # Epic {{epic_num}} Cycle Summary
-
-      **Completed:** {{date}}
-      **Stories processed:** {{stories_processed}}
-      **Total files touched:** {{total_files}}
-      **Issues auto-resolved:** {{total_auto_resolved}}
-      **User inputs required:** {{total_user_inputs}}
-
-      **Commits created:** {{total_commits}}
-
-      ## Recommendations
-
-      {{#if epic_complete}}
-      - Epic {{epic_num}} is complete!
-      - Consider running `/bmad-bmm-retrospective` to capture learnings
-      - Ready to proceed to Epic {{next_epic_num}} if available
-      {{else}}
-      - Some stories may need additional work
-      - Check sprint-status.yaml for remaining items
-      {{/if}}
-    </output>
-
-    <action>Check if all stories in epic are now 'done'</action>
-    <check if="all epic stories done">
+    <check if="{{stories_to_process}} is empty">
+      <output>Epic {{epic_num}} has no remaining stories. Marking as done.</output>
       <action>Update sprint_status: epic-{{epic_num}} = done</action>
-      <output>Epic {{epic_num}} marked as COMPLETE in sprint-status.yaml</output>
+      <action>Continue to next epic</action>
     </check>
 
     <output>
-      **EPIC CYCLE COMPLETE**
+      **STARTING EPIC {{epic_num}}: {{epic_title}}**
+      Stories to process: {{stories_to_process|length}}
+    </output>
 
+    <!-- ============================================================ -->
+    <!-- STEP 2.x: INNER LOOP — Process each story (SEQUENTIAL)      -->
+    <!-- Stories run sequentially to avoid merge conflicts and         -->
+    <!-- respect dependencies between stories.                        -->
+    <!-- ============================================================ -->
+    <step n="2.x" goal="Process Each Story" for-each="story in {{stories_to_process}}">
+      <action>Extract story_key, story_num, story_title from {{story}}</action>
+      <action>Set {{current_story}} = {{story}}</action>
+      <action>Log: "Processing Story {{epic_num}}.{{story_num}}: {{story_title}}"</action>
+
+      <!-- ======================================== -->
+      <!-- Phase 2a: Create Story Context (LEAD)    -->
+      <!-- ======================================== -->
+      <substep n="2a" goal="Create Story Context" execution="lead_direct">
+        <check if="story status is 'backlog'">
+          <action>Lead executes create-story workflow DIRECTLY (lightweight, no worker needed)</action>
+          <action>
+            Follow the create-story workflow:
+            1. Read the workflow config at {{sub_workflows.create_story.workflow}}
+            2. Read the workflow.xml engine at {{sub_workflows.workflow_engine}}
+            3. Execute the create-story instructions per the workflow engine
+            4. This prepares the story file with full developer context
+          </action>
+
+          <check if="pause condition triggered (ambiguous requirements, design choice)">
+            <action>Surface question to user with full context</action>
+            <output>
+              **QUESTION REQUIRED — Story {{epic_num}}.{{story_num}}**
+
+              Context: Creating story context for {{story_title}}
+              Phase: create-story
+
+              {{question_details}}
+
+              Please respond to continue.
+            </output>
+            <ask>Your answer:</ask>
+            <action>Apply user answer and continue</action>
+          </check>
+
+          <action>Update sprint_status: {{story_key}} = ready-for-dev</action>
+        </check>
+      </substep>
+
+      <!-- ======================================== -->
+      <!-- Phase 2b: Dev Story (WORKER AGENT)       -->
+      <!-- ======================================== -->
+      <substep n="2b" goal="Develop Story" execution="worker_agent">
+        <check if="story status is 'backlog' OR 'ready-for-dev'">
+          <action>Spawn "dev-worker" via Task tool with subagent_type="general-purpose"</action>
+
+          <worker-prompt name="dev-worker">
+            You are a DEVELOPMENT WORKER agent in the bmad-epic-pipeline team. Your job is to implement a single story.
+
+            **CRITICAL: Execute these steps in order:**
+
+            1. READ the COMPLETE workflow engine file: {{sub_workflows.workflow_engine}}
+            2. READ the COMPLETE dev-story workflow config: {{sub_workflows.dev_story.workflow}}
+            3. READ the instructions file referenced in that workflow config
+            4. READ the story file: {{story_dir}}/{{story_key}}.md
+            5. Execute the dev-story workflow AUTONOMOUSLY per the workflow engine instructions
+               - Implement all tasks and subtasks in the story
+               - Write tests as specified
+               - Run compile, lint, and test commands to validate
+               - Update the story file with completion status
+            6. If you encounter a BLOCKER you cannot resolve:
+               - Send a message to "team-lead" via SendMessage describing the blocker
+               - Wait for guidance before proceeding
+            7. When complete, send a summary message to "team-lead" via SendMessage:
+               - List all files created/modified
+               - List any design decisions made
+               - List any issues encountered and how they were resolved
+               - Confirm story status
+
+            **IMPORTANT:**
+            - Do NOT perform git commits — the team lead handles all git operations
+            - Do NOT modify sprint-status.yaml — the team lead handles status updates
+            - Work AUTONOMOUSLY — only message team-lead for true blockers
+            - Story: {{epic_num}}.{{story_num}} — {{story_title}}
+          </worker-prompt>
+
+          <action>Wait for dev-worker completion (worker sends summary via SendMessage)</action>
+          <action>Handle any escalated blockers from worker — resolve with project context or escalate to user</action>
+          <action>Send shutdown_request to dev-worker after completion</action>
+
+          <action>Update sprint_status: {{story_key}} = review</action>
+          <action>Record files_touched from worker's summary</action>
+        </check>
+      </substep>
+
+      <!-- ======================================== -->
+      <!-- Phase 2c: Code Review (WORKER AGENT)     -->
+      <!-- Fresh context — no implementation bias   -->
+      <!-- ======================================== -->
+      <substep n="2c" goal="Code Review" execution="worker_agent">
+        <action>Spawn "review-worker" via Task tool with subagent_type="general-purpose"</action>
+
+        <worker-prompt name="review-worker">
+          You are a CODE REVIEW WORKER agent in the bmad-epic-pipeline team. Your job is to perform an adversarial code review of a completed story implementation.
+
+          **CRITICAL: Execute these steps in order:**
+
+          1. READ the COMPLETE workflow engine file: {{sub_workflows.workflow_engine}}
+          2. READ the COMPLETE code-review workflow config: {{sub_workflows.code_review.workflow}}
+          3. READ the instructions file referenced in that workflow config
+          4. READ the story file: {{story_dir}}/{{story_key}}.md
+          5. Execute the code-review workflow AUTONOMOUSLY per the workflow engine instructions
+             - Review ALL code changes for this story
+             - Find real problems: code quality, test coverage, architecture compliance, security, performance
+             - Auto-fix ALL high and medium severity issues (do not ask — just fix them)
+             - Low severity: fix if straightforward, otherwise document
+             - Run compile, lint, and test after any fixes to validate
+          6. If you encounter a BLOCKER you cannot resolve:
+             - Send a message to "team-lead" via SendMessage describing the issue
+             - Wait for guidance
+          7. When complete, send a summary message to "team-lead" via SendMessage:
+             - List all findings by severity (high/medium/low)
+             - List which findings were auto-resolved and how
+             - List any UNRESOLVED findings that need rework
+             - Confirm whether the story PASSES review or NEEDS REWORK
+
+          **IMPORTANT:**
+          - Do NOT perform git commits — the team lead handles all git operations
+          - Do NOT modify sprint-status.yaml — the team lead handles status updates
+          - Be ADVERSARIAL — challenge everything, find real issues
+          - Auto-resolve severity: {{auto_resolve_severity}}
+          - Story: {{epic_num}}.{{story_num}} — {{story_title}}
+        </worker-prompt>
+
+        <action>Wait for review-worker completion</action>
+        <action>Send shutdown_request to review-worker after completion</action>
+        <action>Collect review results from worker's summary</action>
+
+        <!-- Rework loop if unresolved issues remain -->
+        <check if="review-worker reported NEEDS REWORK and unresolved issues exist">
+          <action>Initialize rework_iteration = 0</action>
+
+          <loop while="unresolved issues exist AND rework_iteration less than {{max_rework_iterations}}">
+            <action>Increment rework_iteration</action>
+            <output>
+              **REWORK ITERATION {{rework_iteration}}/{{max_rework_iterations}} — Story {{epic_num}}.{{story_num}}**
+              Unresolved issues from code review require fixes.
+            </output>
+
+            <!-- Spawn new dev-worker to fix issues -->
+            <action>Spawn "dev-worker" via Task tool with subagent_type="general-purpose"</action>
+            <worker-prompt name="dev-worker-rework">
+              You are a DEVELOPMENT WORKER agent tasked with FIXING specific code review findings.
+
+              **CRITICAL: Execute these steps in order:**
+
+              1. READ the story file: {{story_dir}}/{{story_key}}.md
+              2. The following UNRESOLVED code review findings must be fixed:
+
+              {{unresolved_findings}}
+
+              3. Fix each finding directly in the codebase
+              4. Run compile, lint, and test commands to validate fixes
+              5. Send a summary to "team-lead" via SendMessage listing each fix applied
+
+              **IMPORTANT:**
+              - Do NOT perform git commits
+              - Do NOT modify sprint-status.yaml
+              - Focus ONLY on fixing the listed findings — no other changes
+              - Story: {{epic_num}}.{{story_num}} — {{story_title}}
+            </worker-prompt>
+
+            <action>Wait for dev-worker completion, then shutdown</action>
+
+            <!-- Spawn new review-worker to verify fixes -->
+            <action>Spawn "review-worker" via Task tool with subagent_type="general-purpose"</action>
+            <worker-prompt name="review-worker-verify">
+              You are a CODE REVIEW WORKER agent verifying that previous review findings have been fixed.
+
+              **CRITICAL: Execute these steps in order:**
+
+              1. READ the COMPLETE workflow engine file: {{sub_workflows.workflow_engine}}
+              2. READ the COMPLETE code-review workflow config: {{sub_workflows.code_review.workflow}}
+              3. READ the instructions file referenced in that workflow config
+              4. READ the story file: {{story_dir}}/{{story_key}}.md
+              5. Verify the following findings were properly resolved:
+
+              {{unresolved_findings}}
+
+              6. Also check for any NEW issues introduced by the fixes
+              7. Run compile, lint, and test to validate
+              8. Send a summary to "team-lead" via SendMessage:
+                 - Which findings are now RESOLVED
+                 - Any remaining UNRESOLVED findings
+                 - Any NEW findings introduced
+                 - Whether story PASSES review or still NEEDS REWORK
+
+              **IMPORTANT:**
+              - Do NOT perform git commits
+              - Do NOT modify sprint-status.yaml
+              - Story: {{epic_num}}.{{story_num}} — {{story_title}}
+            </worker-prompt>
+
+            <action>Wait for review-worker completion, then shutdown</action>
+            <action>Update unresolved issues list from review results</action>
+          </loop>
+
+          <check if="unresolved issues STILL exist after max_rework_iterations">
+            <action>Escalate to user with full context</action>
+            <output>
+              **REWORK LIMIT REACHED — Story {{epic_num}}.{{story_num}}**
+
+              After {{max_rework_iterations}} rework iterations, the following issues remain unresolved:
+
+              {{remaining_unresolved_findings}}
+
+              Options:
+              1. Accept current state and continue (issues documented)
+              2. Provide guidance on how to resolve
+              3. Skip this story and continue to next
+
+              Please advise.
+            </output>
+            <ask>Your choice (1/2/3) or guidance:</ask>
+            <action>Apply user decision</action>
+          </check>
+        </check>
+
+        <action>Update sprint_status: {{story_key}} = done</action>
+      </substep>
+
+      <!-- ================================================ -->
+      <!-- Phase 2d: Git Commit Implementation (LEAD)       -->
+      <!-- ONLY the lead performs git operations              -->
+      <!-- ================================================ -->
+      <substep n="2d" goal="Commit Implementation" execution="lead_direct">
+        <action>Run git status to verify working tree state</action>
+        <action>Stage SPECIFIC modified/created files using git add (NEVER git add -A)</action>
+        <action>Create commit: "feat({{epic_num}}.{{story_num}}): {{story_title}} - implementation complete"</action>
+        <action>Push to remote</action>
+        <action>Record {{commit_hash_impl}}</action>
+
+        <git-safety>
+          <rule>NEVER use git add -A or git add .</rule>
+          <rule>ALWAYS stage specific files by name</rule>
+          <rule>Verify working tree state before each commit</rule>
+          <rule>Only the lead agent performs git operations — NEVER workers</rule>
+        </git-safety>
+      </substep>
+
+      <!-- ================================================ -->
+      <!-- Phase 2e: Test Automation (WORKER AGENT, optional)-->
+      <!-- ================================================ -->
+      <substep n="2e" goal="Generate Test Automation" execution="worker_agent" optional="true">
+        <action>Spawn "test-worker" via Task tool with subagent_type="general-purpose"</action>
+
+        <worker-prompt name="test-worker">
+          You are a TEST AUTOMATION WORKER agent in the bmad-epic-pipeline team. Your job is to generate test automation for a completed story.
+
+          **CRITICAL: Execute these steps in order:**
+
+          1. READ the COMPLETE workflow engine file: {{sub_workflows.workflow_engine}}
+          2. READ the COMPLETE testarch-automate workflow config: {{sub_workflows.testarch_automate.workflow}}
+          3. READ the instructions file referenced in that workflow config
+          4. READ the story file: {{story_dir}}/{{story_key}}.md
+          5. Execute the testarch-automate workflow AUTONOMOUSLY per the workflow engine instructions
+             - Generate test automation covering critical paths
+             - Ensure tests pass when run
+          6. If you encounter a BLOCKER:
+             - Send a message to "team-lead" via SendMessage
+             - Wait for guidance
+          7. When complete, send a summary to "team-lead" via SendMessage:
+             - List all test files created
+             - Test execution results (pass/fail counts)
+             - Coverage summary
+
+          **IMPORTANT:**
+          - Do NOT perform git commits
+          - Do NOT modify sprint-status.yaml
+          - Story: {{epic_num}}.{{story_num}} — {{story_title}}
+        </worker-prompt>
+
+        <action>Wait for test-worker completion, then shutdown</action>
+
+        <check if="test worker generated tests successfully">
+          <!-- Phase 2f: Git Commit Tests (LEAD) -->
+          <action>Run git status</action>
+          <action>Stage SPECIFIC test files using git add</action>
+          <action>Create commit: "test({{epic_num}}.{{story_num}}): {{story_title}} - automation tests"</action>
+          <action>Push to remote</action>
+          <action>Record {{commit_hash_tests}}</action>
+        </check>
+      </substep>
+
+      <!-- ======================================== -->
+      <!-- Phase 2g: Log Story Completion (LEAD)    -->
+      <!-- ======================================== -->
+      <substep n="2g" goal="Log Story Completion" execution="lead_direct">
+        <action>Append to {{cycle_log}}:</action>
+        <output>
+          ## Story {{epic_num}}.{{story_num}}: {{story_title}}
+
+          **Status:** Complete
+          **Files touched:**
+          {{files_touched}}
+
+          **Key design decisions:**
+          {{design_decisions}}
+
+          **Issues auto-resolved:** {{issues_auto_resolved|length}}
+          {{#each issues_auto_resolved}}
+          - {{severity}}: {{description}} → {{resolution}}
+          {{/each}}
+
+          **Rework iterations:** {{rework_iterations_used}}
+
+          **User input required:** {{user_questions|length}}
+          {{#each user_questions}}
+          - Q: {{question}}
+            A: {{answer}}
+          {{/each}}
+
+          **Commits:**
+          - Implementation: {{commit_hash_impl}}
+          - Tests: {{commit_hash_tests}}
+
+          ---
+        </output>
+
+        <output>
+          **STORY COMPLETE: {{epic_num}}.{{story_num}} — {{story_title}}**
+
+          Files: {{files_touched|length}} touched
+          Auto-resolved: {{issues_auto_resolved|length}} issues
+          Rework iterations: {{rework_iterations_used}}
+          User input: {{user_questions|length}} questions
+
+          Proceeding to next story...
+        </output>
+      </substep>
+    </step>
+    <!-- END story inner loop -->
+
+    <!-- Epic completion -->
+    <action>Check if all stories in epic {{epic_num}} are now 'done'</action>
+    <check if="all epic stories done">
+      <action>Update sprint_status: epic-{{epic_num}} = done</action>
+    </check>
+
+    <action>Append epic summary to {{cycle_log}}</action>
+    <output>
+      # Epic {{epic_num}} Summary: {{epic_title}}
+
+      **Completed:** {{date}}
+      **Stories processed:** {{stories_processed_in_epic}}
+      **Total files touched:** {{total_files_in_epic}}
+      **Issues auto-resolved:** {{total_auto_resolved_in_epic}}
+      **User inputs required:** {{total_user_inputs_in_epic}}
+      **Rework iterations used:** {{total_rework_in_epic}}
+      **Commits created:** {{total_commits_in_epic}}
+
+      ---
+
+      Proceeding to next epic...
+    </output>
+  </step>
+  <!-- END epic outer loop -->
+
+  <!-- ============================================================ -->
+  <!-- STEP 3: ALL EPICS COMPLETE — Final summary, team cleanup     -->
+  <!-- ============================================================ -->
+  <step n="3" goal="All Epics Complete">
+    <action>Calculate master summary statistics across ALL epics processed</action>
+    <action>Append final summary to {{cycle_log}}</action>
+
+    <output>
+      # Epic Cycle Pipeline — Final Summary
+
+      **Completed:** {{date}}
+      **Epics processed:** {{total_epics_processed}}
+      **Stories processed:** {{total_stories_processed}}
+      **Total files touched:** {{grand_total_files}}
+      **Issues auto-resolved:** {{grand_total_auto_resolved}}
+      **User inputs required:** {{grand_total_user_inputs}}
+      **Rework iterations used:** {{grand_total_rework}}
+      **Commits created:** {{grand_total_commits}}
+
+      ## Per-Epic Breakdown
+      {{#each epics_processed}}
+      - Epic {{epic_num}}: {{stories_count}} stories, {{commits_count}} commits — {{status}}
+      {{/each}}
+
+      ## Recommendations
+      - Review cycle log for any documented issues
+      - Consider running `/bmad-bmm-retrospective` to capture learnings
+      - Check sprint-status.yaml for overall project status
+    </output>
+
+    <!-- Clean up the team -->
+    <action>Send shutdown_request to any remaining active workers</action>
+    <action>Delete team "{{team_name}}" via TeamDelete tool</action>
+
+    <output>
+      **EPIC CYCLE PIPELINE COMPLETE**
+
+      All {{total_epics_processed}} epics processed.
       Full log available at: {{cycle_log}}
 
       Next steps:
       - Review cycle log for any items needing attention
-      - Run retrospective if epic is complete
-      - Start next epic with `/bmad-bmm-epic-cycle epic_num={{next_epic_num}}`
+      - Run `/bmad-bmm-retrospective` per epic for lessons learned
+      - Check sprint-status.yaml for remaining work
     </output>
   </step>
+
+  <!-- ============================================================ -->
+  <!-- ERROR HANDLING — 4-tier escalation                           -->
+  <!-- ============================================================ -->
+  <error-handling>
+    <tier n="1" name="Worker Self-Resolution">
+      Workers handle standard issues autonomously: compilation errors, test failures during TDD,
+      linting issues, minor refactoring needed. These are expected parts of development and
+      should NOT be escalated.
+    </tier>
+    <tier n="2" name="Lead Mediation">
+      Worker sends blocker to team-lead via SendMessage. Lead resolves using project context,
+      architecture knowledge, and sprint-status awareness. Examples: dependency conflicts between
+      stories, unclear story requirements that lead can resolve from epic context.
+    </tier>
+    <tier n="3" name="User Escalation">
+      Lead surfaces unresolvable blockers to user with full context. Lead provides:
+      - What was attempted
+      - Why it failed
+      - Suggested options (minimum 2)
+      - Impact of each option
+      Used for: ambiguous requirements, design decisions, constraint risks.
+    </tier>
+    <tier n="4" name="Rework Loop">
+      Code review issues trigger re-dev and re-review cycle. Maximum {{max_rework_iterations}}
+      iterations before escalating to user. Each iteration spawns FRESH workers (no context
+      contamination from previous attempts).
+    </tier>
+  </error-handling>
+
+  <!-- ============================================================ -->
+  <!-- SPRINT-STATUS COORDINATION                                   -->
+  <!-- ============================================================ -->
+  <coordination>
+    <rule>Lead OWNS all epic-level status transitions (not-started → in-progress → done)</rule>
+    <rule>Workers update story-level status as part of their workflow execution</rule>
+    <rule>Lead VERIFIES sprint-status after each worker completes — corrects if needed</rule>
+    <rule>Lead re-reads sprint-status before processing each new story (catches external changes)</rule>
+  </coordination>
 </workflow>

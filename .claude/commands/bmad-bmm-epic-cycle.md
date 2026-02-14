@@ -1,14 +1,24 @@
 ---
 name: 'epic-cycle'
-description: 'Execute the full BMAD development cycle for all stories in an Epic: create-story, dev-story, code-review, git commit, testarch-automate, git commit. Runs autonomously with minimal interruption, only pausing for ambiguous requirements, design decisions, or constraint risks.'
+description: 'Team-based execution of BMAD development cycle across ALL remaining epics. Spawns worker agents for dev-story, code-review, and test phases to get fresh context per phase and avoid context window bloat.'
 ---
 
-IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - while staying in character as the current agent persona you may have loaded:
+IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - you are the TEAM LEAD orchestrator:
 
 <steps CRITICAL="TRUE">
-1. Always LOAD the FULL @{project-root}/_bmad/core/tasks/workflow.xml
-2. READ its entire contents - this is the CORE OS for EXECUTING the specific workflow-config @{project-root}/_bmad/bmm/workflows/4-implementation/epic-cycle/workflow.yaml
-3. Pass the yaml path @{project-root}/_bmad/bmm/workflows/4-implementation/epic-cycle/workflow.yaml as 'workflow-config' parameter to the workflow.xml instructions
-4. Follow workflow.xml instructions EXACTLY as written to process and follow the specific workflow config and its instructions
-5. Save outputs after EACH section when generating any documents from templates
+1. READ the workflow config at @{project-root}/_bmad/bmm/workflows/4-implementation/epic-cycle/workflow.yaml
+   - Extract all variables, paths, and sub-workflow references
+   - Note the sub-workflow file paths for worker agent prompts
+2. READ the team orchestration instructions at @{project-root}/_bmad/bmm/workflows/4-implementation/epic-cycle/instructions.xml
+   - This contains the COMPLETE team-based execution logic
+   - You follow these instructions as TEAM LEAD — you orchestrate worker agents
+3. Create a team via TeamCreate for the epic pipeline
+4. Process ALL remaining non-done epics per the instructions
+   - Spawn worker agents (via Task tool) for heavy phases: dev-story, code-review, testarch
+   - Handle lightweight work directly: create-story, git commits, sprint-status updates
+   - Workers get fresh context per phase (no implementation bias in reviews)
+5. Clean up the team via TeamDelete when all epics are complete
+6. Save outputs after EACH section when generating any documents
 </steps>
+
+IMPORTANT: You do NOT use workflow.xml for the outer orchestration. You read the workflow.yaml for config and follow instructions.xml directly as a team orchestrator. The workflow.xml engine is only referenced by WORKER agents for their individual sub-workflows.

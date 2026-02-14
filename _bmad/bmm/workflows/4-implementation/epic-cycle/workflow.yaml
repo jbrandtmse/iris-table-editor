@@ -1,6 +1,6 @@
-# Epic Development Cycle Workflow
+# Epic Development Cycle Workflow — Team-Based Multi-Epic Orchestration
 name: epic-cycle
-description: "Execute the full BMAD development cycle for all stories in an Epic: create-story → dev-story → code-review → git commit → testarch-automate → git commit. Runs autonomously with minimal interruption, only pausing for ambiguous requirements, design decisions, or constraint risks."
+description: "Team-based execution of the full BMAD development cycle across ALL remaining epics. Spawns worker agents for heavy phases (dev-story, code-review, testarch) to get fresh context per phase. Lead agent handles create-story, git commits, and sprint-status coordination."
 author: "BMad"
 
 # Critical variables from config
@@ -21,27 +21,48 @@ template: false
 
 # Variables and inputs
 variables:
-  # Epic targeting
-  epic_num: "" # Target epic number (required - user must specify)
+  # Epic targeting — NO epic_num required; processes ALL non-done epics
+  # Epic order: process in the order they appear in sprint-status.yaml (top to bottom)
 
   # Sprint tracking
   sprint_status: "{implementation_artifacts}/sprint-status.yaml"
   story_dir: "{implementation_artifacts}"
 
-  # Cycle log output
-  cycle_log: "{implementation_artifacts}/epic-{{epic_num}}-cycle-log.md"
+  # Cycle log output (master log across all epics)
+  cycle_log: "{implementation_artifacts}/epic-cycle-log.md"
+
+  # Team configuration
+  team_name: "bmad-epic-pipeline"
 
   # Behavior controls
   auto_resolve_severity: "high,medium" # Auto-resolve these severities in code review
+  max_rework_iterations: 2 # Max dev→review rework loops before escalating to user
   pause_conditions:
     - "ambiguous_requirements"
     - "design_choice_needed"
     - "constraint_risk" # security, compliance, performance, interoperability
 
+# Sub-workflow paths (used in worker agent prompts)
+sub_workflows:
+  workflow_engine: "{project-root}/_bmad/core/tasks/workflow.xml"
+  create_story:
+    workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/create-story/workflow.yaml"
+    description: "Prepare story with full developer context"
+  dev_story:
+    workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml"
+    description: "Implement story tasks and tests"
+  code_review:
+    workflow: "{project-root}/_bmad/bmm/workflows/4-implementation/code-review/workflow.yaml"
+    description: "Adversarial code review with auto-fix"
+  testarch_automate:
+    workflow: "{project-root}/_bmad/bmm/workflows/testarch/automate/workflow.yaml"
+    description: "Generate test automation coverage"
+    optional: true
+
 # Smart input file references
 input_file_patterns:
   epics:
-    description: "Epic file containing stories to process"
+    description: "Epic files containing stories to process"
     whole: "{planning_artifacts}/*epic*.md"
     sharded: "{planning_artifacts}/*epic*/*.md"
     load_strategy: "FULL_LOAD"
@@ -53,35 +74,42 @@ input_file_patterns:
 
 # Execution configuration
 execution_hints:
-  interactive: false # Minimize prompts - autonomous operation
+  interactive: false # Minimize prompts — autonomous operation
   autonomous: true # Proceed without user input unless blocked
-  iterative: true # Process multiple stories
-  subagent_mode: true # Each workflow step runs as subagent
+  iterative: true # Process multiple stories across multiple epics
+  team_mode: true # Lead agent orchestrates worker agents
+  subagent_mode: true # Workers execute individual workflow phases
 
-# Workflow sequence definition
+# Workflow sequence definition (reference for lead orchestration)
 workflow_sequence:
   - step: create-story
-    workflow: bmad-bmm-create-story
+    execution: lead_direct # Lead handles directly (lightweight)
+    workflow: "{sub_workflows.create_story.workflow}"
     description: "Prepare story with full developer context"
   - step: dev-story
-    workflow: bmad-bmm-dev-story
+    execution: worker_agent # Spawn dev-worker
+    workflow: "{sub_workflows.dev_story.workflow}"
     description: "Implement story tasks and tests"
   - step: code-review
-    workflow: bmad-bmm-code-review
+    execution: worker_agent # Spawn review-worker (fresh context, no implementation bias)
+    workflow: "{sub_workflows.code_review.workflow}"
     description: "Adversarial code review with auto-fix"
     auto_resolve: true
   - step: git-commit-impl
+    execution: lead_direct
     action: git_commit_push
     description: "Commit and push implementation"
-    message_template: "feat({{epic_num}}.{{story_num}}): {{story_title}} - implementation complete"
+    message_template: "feat({epic_num}.{story_num}): {story_title} - implementation complete"
   - step: testarch-automate
-    workflow: bmad-bmm-testarch-automate
+    execution: worker_agent # Spawn test-worker
+    workflow: "{sub_workflows.testarch_automate.workflow}"
     description: "Generate test automation coverage"
     optional: true
   - step: git-commit-tests
+    execution: lead_direct
     action: git_commit_push
     description: "Commit and push test automation"
-    message_template: "test({{epic_num}}.{{story_num}}): {{story_title}} - automation tests"
+    message_template: "test({epic_num}.{story_num}): {story_title} - automation tests"
 
 standalone: true
 
@@ -90,3 +118,4 @@ tags:
   - epic
   - development-cycle
   - orchestration
+  - team-based
