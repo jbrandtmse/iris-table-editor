@@ -140,7 +140,7 @@ development_status:
   11-2-ipc-bridge: done
   11-3-tab-bar: done
   11-4-native-menu: done
-  11-5-window-state-persistence: backlog
+  11-5-window-state-persistence: done
   epic-11-retrospective: optional
 
   # Epic 12: Connection Manager

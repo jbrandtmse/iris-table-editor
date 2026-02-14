@@ -188,13 +188,13 @@ describe('Story 11.4: Native Menu', () => {
         });
 
         it('should have correct total command count after Story 11.4', () => {
-            // Was 21 (Story 11.3), +1 tabStateChanged = 22
-            assert.strictEqual(ALLOWED_COMMANDS.size, 22);
+            // Was 21 (Story 11.3), +1 tabStateChanged = 22, +1 sidebarStateChanged (Story 11.5) = 23
+            assert.strictEqual(ALLOWED_COMMANDS.size, 23);
         });
 
         it('should have correct total event count after Story 11.4', () => {
-            // Was 20 (Story 11.3), +4 (menuAction, menuSetNull, menuToggleFilterPanel, menuShowShortcuts) = 24
-            assert.strictEqual(ALLOWED_EVENTS.size, 24);
+            // Was 20 (Story 11.3), +4 (menuAction, menuSetNull, menuToggleFilterPanel, menuShowShortcuts) = 24, +1 restoreAppState (Story 11.5) = 25
+            assert.strictEqual(ALLOWED_EVENTS.size, 25);
         });
 
         it('should validate tabStateChanged as a valid command', () => {

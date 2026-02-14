@@ -1,11 +1,13 @@
 /**
  * Electron main process entry point
  * Story 11.1: Electron Bootstrap
+ * Story 11.5: Window State Persistence
  *
  * Creates the BrowserWindow with security-hardened webPreferences,
  * instantiates services, registers IPC handlers, and loads the server list UI.
+ * Persists and restores window bounds, sidebar state, and theme preference.
  */
-import { app, BrowserWindow, Menu, nativeTheme, dialog } from 'electron';
+import { app, BrowserWindow, Menu, nativeTheme, dialog, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ConnectionManager } from './ConnectionManager';
@@ -16,6 +18,12 @@ import type { IDesktopConnectionProgressPayload, IServerSpec } from '@iris-te/co
 import { registerIpcHandlers, sendEvent } from './ipc';
 import { buildApplicationMenu, updateMenuState } from './menuBuilder';
 import type { MenuState } from './menuBuilder';
+import {
+    WindowStateManager,
+    isOnScreen,
+    createDebouncedSave,
+} from './WindowStateManager';
+import type { AppPersistentState } from './WindowStateManager';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -26,6 +34,10 @@ let connectionManagerRef: ConnectionManager | null = null;
 let lifecycleManagerRef: ConnectionLifecycleManager | null = null;
 let sessionManagerRef: SessionManager | null = null;
 
+// Story 11.5: Module-level state manager reference
+let windowStateManagerRef: WindowStateManager | null = null;
+let currentAppState: AppPersistentState | null = null;
+
 // Story 11.4: Menu state tracking
 const menuState: MenuState = {
     isConnected: false,
@@ -35,15 +47,22 @@ const menuState: MenuState = {
 
 /**
  * Create the main application window with security-hardened settings.
+ * Story 11.5: Applies saved window state (bounds, maximize, theme).
  */
 function createWindow(
     connectionManager: ConnectionManager,
     lifecycleManager: ConnectionLifecycleManager,
     sessionManager: SessionManager
 ): BrowserWindow {
-    const win = new BrowserWindow({
-        width: 1200,
-        height: 800,
+    // Story 11.5: Load saved state
+    const stateManager = windowStateManagerRef!;
+    const savedState = stateManager.load();
+    currentAppState = savedState;
+
+    // Story 11.5: Build BrowserWindow options from saved state
+    const windowOptions: Electron.BrowserWindowConstructorOptions = {
+        width: savedState.window.width,
+        height: savedState.window.height,
         title: 'IRIS Table Editor',
         webPreferences: {
             nodeIntegration: false,
@@ -51,7 +70,35 @@ function createWindow(
             sandbox: true,
             preload: path.join(__dirname, 'preload.js'),
         },
-    });
+    };
+
+    // Story 11.5: Apply saved position if on-screen
+    if (savedState.window.x !== undefined && savedState.window.y !== undefined) {
+        const displays = screen.getAllDisplays().map(d => d.bounds);
+        if (isOnScreen(
+            savedState.window.x,
+            savedState.window.y,
+            savedState.window.width,
+            savedState.window.height,
+            displays
+        )) {
+            windowOptions.x = savedState.window.x;
+            windowOptions.y = savedState.window.y;
+        } else {
+            console.log(`${LOG_PREFIX} Saved window position is off-screen, centering on primary display`);
+        }
+    }
+
+    const win = new BrowserWindow(windowOptions);
+
+    // Story 11.5: Restore maximized state after creation
+    if (savedState.window.isMaximized) {
+        win.maximize();
+    }
+
+    // Story 11.5: Restore theme from saved state
+    nativeTheme.themeSource = savedState.theme;
+    menuState.themeSource = savedState.theme;
 
     // Security: Prevent navigation away from the app's own file:// pages.
     // This blocks phishing attacks where injected content navigates to a malicious URL.
@@ -71,10 +118,19 @@ function createWindow(
     });
 
     // Story 11.4: Register IPC handlers with menu state callback
+    // Story 11.5: Add sidebarStateChanged callback
     registerIpcHandlers(win, connectionManager, lifecycleManager, sessionManager, {
         onTabStateChanged: (payload: { tabCount: number }) => {
             menuState.hasOpenTabs = payload.tabCount > 0;
             updateMenuState(menuState);
+        },
+        onSidebarStateChanged: (payload: { width: number; isVisible: boolean }) => {
+            if (currentAppState) {
+                currentAppState.sidebar.width = payload.width;
+                currentAppState.sidebar.isVisible = payload.isVisible;
+                stateManager.save(currentAppState);
+                console.log(`${LOG_PREFIX} Sidebar state saved: width=${payload.width}, visible=${payload.isVisible}`);
+            }
         },
     });
 
@@ -105,6 +161,13 @@ function createWindow(
             nativeTheme.themeSource = theme;
             menuState.themeSource = theme;
             updateMenuState(menuState);
+
+            // Story 11.5: Persist theme change
+            if (currentAppState) {
+                currentAppState.theme = theme;
+                stateManager.save(currentAppState);
+                console.log(`${LOG_PREFIX} Theme state saved: ${theme}`);
+            }
         },
         onShowShortcuts: () => {
             sendEvent(win, 'menuAction', { action: 'showShortcuts' });
@@ -130,8 +193,81 @@ function createWindow(
     win.loadFile(htmlPath);
 
     // Inject desktopThemeBridge.css after the page loads
+    // Story 11.5: Send restoreAppState event after page loads
     win.webContents.on('did-finish-load', () => {
         injectThemeCSS(win);
+
+        // Story 11.5: Restore sidebar state in the renderer
+        sendEvent(win, 'restoreAppState', {
+            sidebar: savedState.sidebar,
+        });
+    });
+
+    // Story 11.5: Track window state changes
+    const debouncedSave = createDebouncedSave(() => {
+        if (currentAppState) {
+            stateManager.save(currentAppState);
+        }
+    }, 500);
+
+    win.on('resize', () => {
+        if (!win.isMaximized()) {
+            const bounds = win.getBounds();
+            if (currentAppState) {
+                currentAppState.window.width = bounds.width;
+                currentAppState.window.height = bounds.height;
+                currentAppState.window.x = bounds.x;
+                currentAppState.window.y = bounds.y;
+            }
+            debouncedSave.call();
+        }
+    });
+
+    win.on('move', () => {
+        if (!win.isMaximized()) {
+            const bounds = win.getBounds();
+            if (currentAppState) {
+                currentAppState.window.x = bounds.x;
+                currentAppState.window.y = bounds.y;
+            }
+            debouncedSave.call();
+        }
+    });
+
+    win.on('maximize', () => {
+        if (currentAppState) {
+            currentAppState.window.isMaximized = true;
+            stateManager.save(currentAppState);
+        }
+    });
+
+    win.on('unmaximize', () => {
+        if (currentAppState) {
+            currentAppState.window.isMaximized = false;
+            // Capture the restored (unmaximized) bounds
+            const bounds = win.getBounds();
+            currentAppState.window.width = bounds.width;
+            currentAppState.window.height = bounds.height;
+            currentAppState.window.x = bounds.x;
+            currentAppState.window.y = bounds.y;
+            stateManager.save(currentAppState);
+        }
+    });
+
+    // Story 11.5: Final synchronous save on close (capture last state)
+    win.on('close', () => {
+        debouncedSave.cancel();
+        if (currentAppState) {
+            if (!win.isMaximized()) {
+                const bounds = win.getBounds();
+                currentAppState.window.width = bounds.width;
+                currentAppState.window.height = bounds.height;
+                currentAppState.window.x = bounds.x;
+                currentAppState.window.y = bounds.y;
+            }
+            stateManager.save(currentAppState);
+            console.log(`${LOG_PREFIX} Final window state saved on close`);
+        }
     });
 
     win.on('closed', () => {
@@ -172,6 +308,9 @@ app.whenReady().then(() => {
         configDir,
         credentialStore,
     });
+
+    // Story 11.5: Instantiate WindowStateManager
+    windowStateManagerRef = new WindowStateManager(configDir);
 
     // Create session manager for data operations
     const sessionManager = new SessionManager();

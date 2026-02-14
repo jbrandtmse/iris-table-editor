@@ -42,6 +42,8 @@ export const ALLOWED_COMMANDS = new Set([
     'activateTab',
     // Menu commands (Story 11.4)
     'tabStateChanged',
+    // State persistence commands (Story 11.5)
+    'sidebarStateChanged',
 ]);
 
 /**
@@ -77,6 +79,8 @@ export const ALLOWED_EVENTS = new Set([
     'menuSetNull',
     'menuToggleFilterPanel',
     'menuShowShortcuts',
+    // State persistence events (Story 11.5)
+    'restoreAppState',
 ]);
 
 /**

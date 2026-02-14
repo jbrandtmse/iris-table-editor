@@ -37,6 +37,25 @@
 }
 
 /* ============================================
+   Sidebar Resize Handle (Story 11.5)
+   ============================================ */
+
+.ite-app-shell__resize-handle {
+    width: 4px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background-color: transparent;
+    transition: background-color 0.15s ease;
+    position: relative;
+    z-index: 10;
+}
+
+.ite-app-shell__resize-handle:hover,
+.ite-app-shell__resize-handle:active {
+    background-color: var(--ite-focus-border, #007acc);
+}
+
+/* ============================================
    Main Panel (tab bar + content)
    ============================================ */
 

@@ -74,11 +74,26 @@
 
             case 'toggleSidebar': {
                 var sidebar = document.querySelector('.ite-app-shell__sidebar');
+                var resizeHandle = document.getElementById('sidebarResizeHandle');
                 if (sidebar) {
                     // Use computed style to detect visibility regardless of how it was hidden
                     var computedDisplay = window.getComputedStyle(sidebar).display;
                     var isHidden = computedDisplay === 'none' || sidebar.style.display === 'none';
+                    // Story 11.5: Capture sidebar width BEFORE changing display
+                    // so getBoundingClientRect() returns the real width while still visible
+                    var sidebarWidth = isHidden
+                        ? Math.round(parseFloat(sidebar.style.width) || 280)
+                        : Math.round(sidebar.getBoundingClientRect().width || 280);
                     sidebar.style.display = isHidden ? '' : 'none';
+                    // Story 11.5: Also toggle resize handle visibility
+                    if (resizeHandle) {
+                        resizeHandle.style.display = isHidden ? '' : 'none';
+                    }
+                    // Story 11.5: Send sidebar state to main process for persistence
+                    messageBridge.sendCommand('sidebarStateChanged', {
+                        width: sidebarWidth,
+                        isVisible: isHidden, // was hidden, now visible (or vice versa)
+                    });
                 }
                 break;
             }

@@ -37,6 +37,10 @@
             </div>
         </div>
 
+        <!-- Story 11.5: Sidebar resize handle -->
+        <div class="ite-app-shell__resize-handle" id="sidebarResizeHandle"
+             role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
+
         <!-- ============================================
              Main Panel (tab bar + content area)
              ============================================ -->
@@ -325,11 +329,12 @@
     <div id="ite-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
     <div id="ite-form-live-region" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
-    <!-- Scripts: order matters — server-form before server-list, tab-bar after, menu-handler after tab-bar, grid last -->
+    <!-- Scripts: order matters — server-form before server-list, tab-bar after, menu-handler after tab-bar, sidebar-resize after menu-handler, grid last -->
     <script src="connection/server-form.js"></script>
     <script src="connection/server-list.js"></script>
     <script src="tabs/tab-bar.js"></script>
     <script src="menu-handler.js"></script>
+    <script src="sidebar-resize.js"></script>
     <script src="../../../webview/src/grid.js"></script>
 </body>
 </html>

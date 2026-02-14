@@ -118,9 +118,11 @@ export function requireSession(
 /**
  * Optional callbacks for menu-related IPC commands.
  * Story 11.4: Allows main.ts to react to tab state changes for menu updates.
+ * Story 11.5: Allows main.ts to react to sidebar state changes for persistence.
  */
 export interface IpcCallbacks {
     onTabStateChanged?: (payload: { tabCount: number }) => void;
+    onSidebarStateChanged?: (payload: { width: number; isVisible: boolean }) => void;
 }
 
 /**
@@ -579,6 +581,20 @@ export async function routeCommand(
             console.log(`${LOG_PREFIX} Tab state changed: tabCount=${tabCount}`);
             if (callbacks?.onTabStateChanged) {
                 callbacks.onTabStateChanged({ tabCount });
+            }
+            break;
+        }
+
+        case 'sidebarStateChanged': {
+            // Story 11.5: Renderer reports sidebar state changes for persistence
+            const sidebarPayload = payload as { width: number; isVisible: boolean };
+            let sidebarWidth = typeof sidebarPayload?.width === 'number' ? sidebarPayload.width : 280;
+            // Clamp width to valid CSS range (matches app-shell.css min-width/max-width)
+            sidebarWidth = Math.max(200, Math.min(400, Math.round(sidebarWidth)));
+            const isVisible = typeof sidebarPayload?.isVisible === 'boolean' ? sidebarPayload.isVisible : true;
+            console.log(`${LOG_PREFIX} Sidebar state changed: width=${sidebarWidth}, isVisible=${isVisible}`);
+            if (callbacks?.onSidebarStateChanged) {
+                callbacks.onSidebarStateChanged({ width: sidebarWidth, isVisible });
             }
             break;
         }

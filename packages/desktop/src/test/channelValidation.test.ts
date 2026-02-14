@@ -81,8 +81,18 @@ describe('Channel Validation', () => {
             }
         });
 
-        it('should have exactly 22 commands', () => {
-            assert.strictEqual(ALLOWED_COMMANDS.size, 22);
+        it('should include all state persistence commands (Story 11.5)', () => {
+            const statePersistenceCommands = [
+                'sidebarStateChanged',
+            ];
+
+            for (const cmd of statePersistenceCommands) {
+                assert.ok(ALLOWED_COMMANDS.has(cmd), `Missing state persistence command: ${cmd}`);
+            }
+        });
+
+        it('should have exactly 23 commands', () => {
+            assert.strictEqual(ALLOWED_COMMANDS.size, 23);
         });
     });
 
@@ -147,8 +157,18 @@ describe('Channel Validation', () => {
             }
         });
 
-        it('should have exactly 24 events', () => {
-            assert.strictEqual(ALLOWED_EVENTS.size, 24);
+        it('should include all state persistence events (Story 11.5)', () => {
+            const statePersistenceEvents = [
+                'restoreAppState',
+            ];
+
+            for (const evt of statePersistenceEvents) {
+                assert.ok(ALLOWED_EVENTS.has(evt), `Missing state persistence event: ${evt}`);
+            }
+        });
+
+        it('should have exactly 25 events', () => {
+            assert.strictEqual(ALLOWED_EVENTS.size, 25);
         });
     });
 
@@ -162,6 +182,7 @@ describe('Channel Validation', () => {
             assert.strictEqual(isValidCommand('deleteRow'), true);
             assert.strictEqual(isValidCommand('activateTab'), true);
             assert.strictEqual(isValidCommand('tabStateChanged'), true);
+            assert.strictEqual(isValidCommand('sidebarStateChanged'), true);
         });
 
         it('should return false for invalid commands', () => {
@@ -193,6 +214,7 @@ describe('Channel Validation', () => {
             assert.strictEqual(isValidEvent('menuSetNull'), true);
             assert.strictEqual(isValidEvent('menuToggleFilterPanel'), true);
             assert.strictEqual(isValidEvent('menuShowShortcuts'), true);
+            assert.strictEqual(isValidEvent('restoreAppState'), true);
         });
 
         it('should return false for invalid events', () => {
