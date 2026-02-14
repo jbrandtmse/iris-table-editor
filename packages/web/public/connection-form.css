@@ -29,6 +29,13 @@
     --ite-input-placeholder-fg: var(--ite-theme-input-placeholder-fg);
     --ite-font-family: var(--ite-theme-font-family);
     --ite-font-size: var(--ite-theme-font-size);
+    --ite-warning-fg: var(--ite-theme-warning-fg);
+    --ite-error-bg: var(--ite-theme-error-bg);
+    --ite-error-border: var(--ite-theme-error-border);
+    --ite-success-bg: var(--ite-theme-success-bg);
+    --ite-success-border: var(--ite-theme-success-border);
+    --ite-warning-bg: var(--ite-theme-warning-bg);
+    --ite-warning-border: var(--ite-theme-warning-border);
 }
 
 /* ============================================
@@ -270,15 +277,15 @@ body {
 }
 
 .ite-connection-form__message--error {
-    background-color: rgba(244, 71, 71, 0.15);
+    background-color: var(--ite-error-bg);
     color: var(--ite-error-fg);
-    border: 1px solid rgba(244, 71, 71, 0.3);
+    border: 1px solid var(--ite-error-border);
 }
 
 .ite-connection-form__message--success {
-    background-color: rgba(137, 209, 133, 0.15);
+    background-color: var(--ite-success-bg);
     color: var(--ite-success-fg);
-    border: 1px solid rgba(137, 209, 133, 0.3);
+    border: 1px solid var(--ite-success-border);
 }
 
 /* ============================================
@@ -308,15 +315,15 @@ body {
 }
 
 .ite-connection-form__test-result--success {
-    background-color: rgba(137, 209, 133, 0.15);
+    background-color: var(--ite-success-bg);
     color: var(--ite-success-fg);
-    border: 1px solid rgba(137, 209, 133, 0.3);
+    border: 1px solid var(--ite-success-border);
 }
 
 .ite-connection-form__test-result--error {
-    background-color: rgba(244, 71, 71, 0.15);
+    background-color: var(--ite-error-bg);
     color: var(--ite-error-fg);
-    border: 1px solid rgba(244, 71, 71, 0.3);
+    border: 1px solid var(--ite-error-border);
 }
 
 /* ============================================
@@ -472,7 +479,7 @@ body {
 
 .ite-recent-connections__remove:hover {
     color: var(--ite-error-fg);
-    background-color: rgba(244, 71, 71, 0.1);
+    background-color: var(--ite-error-bg);
 }
 
 .ite-recent-connections__remove:focus-visible {
@@ -550,9 +557,9 @@ body {
     justify-content: center;
     gap: 12px;
     padding: 8px 16px;
-    background-color: rgba(244, 171, 71, 0.15);
-    border-bottom: 1px solid rgba(244, 171, 71, 0.4);
-    color: var(--ite-theme-warning-fg);
+    background-color: var(--ite-warning-bg);
+    border-bottom: 1px solid var(--ite-warning-border);
+    color: var(--ite-warning-fg);
     font-size: 0.9em;
     width: 100%;
 }

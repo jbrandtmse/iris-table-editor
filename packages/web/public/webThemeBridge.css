@@ -131,6 +131,14 @@
     --ite-theme-testing-passed: #388e3c;
     --ite-theme-testing-failed: #d32f2f;
 
+    /* Semantic feedback backgrounds (semi-transparent overlays for messages/banners) */
+    --ite-theme-error-bg: rgba(211, 47, 47, 0.15);
+    --ite-theme-error-border: rgba(211, 47, 47, 0.3);
+    --ite-theme-success-bg: rgba(56, 142, 60, 0.15);
+    --ite-theme-success-border: rgba(56, 142, 60, 0.3);
+    --ite-theme-warning-bg: rgba(191, 136, 3, 0.15);
+    --ite-theme-warning-border: rgba(191, 136, 3, 0.4);
+
     /* Diff */
     --ite-theme-diff-inserted-bg: rgba(155, 185, 85, 0.2);
     --ite-theme-diff-inserted-line-bg: rgba(155, 185, 85, 0.1);
@@ -261,6 +269,14 @@
     --ite-theme-git-added-fg: #81b88b;
     --ite-theme-testing-passed: #89d185;
     --ite-theme-testing-failed: #f44747;
+
+    /* Semantic feedback backgrounds (semi-transparent overlays for messages/banners) */
+    --ite-theme-error-bg: rgba(244, 71, 71, 0.15);
+    --ite-theme-error-border: rgba(244, 71, 71, 0.3);
+    --ite-theme-success-bg: rgba(137, 209, 133, 0.15);
+    --ite-theme-success-border: rgba(137, 209, 133, 0.3);
+    --ite-theme-warning-bg: rgba(204, 167, 0, 0.15);
+    --ite-theme-warning-border: rgba(204, 167, 0, 0.4);
 
     /* Diff */
     --ite-theme-diff-inserted-bg: rgba(155, 185, 85, 0.2);
@@ -393,6 +409,14 @@
         --ite-theme-git-added-fg: #81b88b;
         --ite-theme-testing-passed: #89d185;
         --ite-theme-testing-failed: #f44747;
+
+        /* Semantic feedback backgrounds (semi-transparent overlays for messages/banners) */
+        --ite-theme-error-bg: rgba(244, 71, 71, 0.15);
+        --ite-theme-error-border: rgba(244, 71, 71, 0.3);
+        --ite-theme-success-bg: rgba(137, 209, 133, 0.15);
+        --ite-theme-success-border: rgba(137, 209, 133, 0.3);
+        --ite-theme-warning-bg: rgba(204, 167, 0, 0.15);
+        --ite-theme-warning-border: rgba(204, 167, 0, 0.4);
 
         /* Diff */
         --ite-theme-diff-inserted-bg: rgba(155, 185, 85, 0.2);

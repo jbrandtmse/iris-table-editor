@@ -11,9 +11,9 @@
     var STORAGE_KEY = 'ite-theme-preference';
 
     // Sun icon (shown in dark mode, click to switch to light)
-    var SUN_ICON = '\u2600\uFE0F';
+    var SUN_ICON = '\u2600';
     // Moon icon (shown in light mode, click to switch to dark)
-    var MOON_ICON = '\uD83C\uDF19';
+    var MOON_ICON = '\u263D';
 
     /**
      * Get the OS preferred color scheme.
