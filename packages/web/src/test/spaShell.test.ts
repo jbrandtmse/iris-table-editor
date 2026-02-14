@@ -94,8 +94,10 @@ describe('SPA Shell (Story 17.1)', () => {
                 `Expected application/json for API routes but got ${contentType}`
             );
 
-            const body = await response.json();
-            assert.deepStrictEqual(body, { status: 'ok' });
+            const body = await response.json() as { status: string; uptime: number; connections: number };
+            assert.strictEqual(body.status, 'ok');
+            assert.strictEqual(typeof body.uptime, 'number');
+            assert.strictEqual(typeof body.connections, 'number');
         });
 
         it('should return HTML for root URL', async () => {

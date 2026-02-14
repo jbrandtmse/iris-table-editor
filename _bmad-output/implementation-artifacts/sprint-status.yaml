@@ -201,12 +201,12 @@ development_status:
   epic-17-retrospective: optional
 
   # Epic 18: Web Build, Deploy & Distribution
-  epic-18: in-progress
+  epic-18: done
   18-1-docker-containerization: done
   18-2-environment-configuration: done
   18-3-ci-cd-pipeline-web: done
   18-4-https-tls-configuration: done
-  18-5-monitoring-logging: backlog
+  18-5-monitoring-logging: done
   epic-18-retrospective: optional
 
   # Epic 19: Web Integration Testing & Feature Parity

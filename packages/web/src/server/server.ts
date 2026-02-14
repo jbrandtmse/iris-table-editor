@@ -4,6 +4,7 @@ import * as https from 'https';
 import * as fs from 'fs';
 import type { Server } from 'http';
 import type { Server as HttpsServer } from 'https';
+import type { Request, Response, NextFunction } from 'express';
 import * as path from 'path';
 import { SessionManager } from './sessionManager';
 import { setupApiProxy } from './apiProxy';
@@ -13,6 +14,7 @@ import type { SetupWebSocketOptions, WebSocketServerHandle } from './wsServer';
 import { setupSecurity } from './security';
 import type { SecurityOptions, SecurityHandle } from './security';
 import { getConfig, validateConfig, logStartupConfig as logConfig } from './config';
+import { logger, categorizeError } from './logger';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -81,9 +83,32 @@ export function createAppServer(options?: CreateServerOptions) {
     const webviewDir = path.join(webviewPkgPath, 'src');
     appInstance.use('/webview', express.static(webviewDir));
 
-    // Health check endpoint
+    // Request logging middleware - after static files (Story 18.5, Task 3)
+    appInstance.use((req, res, next) => {
+        // Skip health checks and static assets
+        if (req.path === '/health' || req.path.startsWith('/webview') || req.path.endsWith('.css') || req.path.endsWith('.js') || req.path.endsWith('.ico')) {
+            next();
+            return;
+        }
+        const start = Date.now();
+        res.on('finish', () => {
+            logger.info('Request completed', {
+                method: req.method,
+                url: req.url,
+                status: res.statusCode,
+                duration: Date.now() - start,
+            });
+        });
+        next();
+    });
+
+    // Health check endpoint (Story 18.5, Task 1)
     appInstance.get('/health', (_req, res) => {
-        res.json({ status: 'ok' });
+        res.json({
+            status: 'ok',
+            uptime: Math.floor(process.uptime()),
+            connections: sessionMgr.getSessionCount(),
+        });
     });
 
     // API proxy routes - BEFORE SPA catch-all (Task 5.1, 5.2)
@@ -95,6 +120,29 @@ export function createAppServer(options?: CreateServerOptions) {
             if (err && !res.headersSent) {
                 res.status(500).json({ error: 'Internal server error' });
             }
+        });
+    });
+
+    // Global error handler - LAST middleware (Story 18.5, Task 4)
+    // Express requires 4 parameters to recognize this as an error handler
+    appInstance.use((err: Error & { code?: string; statusCode?: number }, req: Request, res: Response, _next: NextFunction) => {
+        const category = categorizeError(err);
+        const isDev = cfg.nodeEnv !== 'production';
+
+        logger.error('Unhandled error', {
+            category,
+            code: err.code || 'UNKNOWN',
+            message: err.message,
+            method: req.method,
+            url: req.url,
+            ...(isDev ? { stack: err.stack } : {}),
+        });
+
+        const status = err.statusCode || 500;
+        res.status(status).json({
+            error: err.message || 'Internal server error',
+            category,
+            ...(isDev ? { stack: err.stack } : {}),
         });
     });
 

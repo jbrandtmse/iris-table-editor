@@ -64,8 +64,10 @@ describe('Express Server', () => {
             const response = await fetch(`${baseUrl}/health`);
             assert.strictEqual(response.status, 200);
 
-            const body = await response.json();
-            assert.deepStrictEqual(body, { status: 'ok' });
+            const body = await response.json() as { status: string; uptime: number; connections: number };
+            assert.strictEqual(body.status, 'ok');
+            assert.strictEqual(typeof body.uptime, 'number');
+            assert.strictEqual(typeof body.connections, 'number');
         });
 
         it('should return JSON content type', async () => {
