@@ -221,49 +221,65 @@ describe('.dockerignore', () => {
 // ============================================
 
 describe('Environment variable support', () => {
-    it('server.ts should read PORT from environment', () => {
-        const serverPath = path.join(webPkgDir, 'src', 'server', 'server.ts');
-        const content = fs.readFileSync(serverPath, 'utf-8');
-        assert.ok(content.includes('process.env.PORT'), 'server.ts should read PORT from env');
+    it('config.ts should be the centralized config module', () => {
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        assert.ok(fs.existsSync(configPath), 'config.ts should exist as centralized config');
     });
 
-    it('security.ts should read ALLOWED_ORIGINS from environment', () => {
-        const securityPath = path.join(webPkgDir, 'src', 'server', 'security.ts');
-        const content = fs.readFileSync(securityPath, 'utf-8');
-        assert.ok(content.includes('process.env.ALLOWED_ORIGINS'), 'security.ts should read ALLOWED_ORIGINS from env');
+    it('config.ts should read PORT from environment', () => {
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        const content = fs.readFileSync(configPath, 'utf-8');
+        assert.ok(content.includes('process.env.PORT'), 'config.ts should read PORT from env');
     });
 
-    it('security.ts should support SESSION_SECRET as CSRF fallback', () => {
-        const securityPath = path.join(webPkgDir, 'src', 'server', 'security.ts');
-        const content = fs.readFileSync(securityPath, 'utf-8');
-        assert.ok(content.includes('process.env.SESSION_SECRET'), 'security.ts should read SESSION_SECRET from env');
+    it('config.ts should read ALLOWED_ORIGINS from environment', () => {
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        const content = fs.readFileSync(configPath, 'utf-8');
+        assert.ok(content.includes('process.env.ALLOWED_ORIGINS'), 'config.ts should read ALLOWED_ORIGINS from env');
     });
 
-    it('security.ts should warn when SESSION_SECRET is missing in production', () => {
-        const securityPath = path.join(webPkgDir, 'src', 'server', 'security.ts');
-        const content = fs.readFileSync(securityPath, 'utf-8');
-        assert.ok(content.includes('WARNING') && content.includes('SESSION_SECRET'), 'Should warn about missing SESSION_SECRET');
+    it('config.ts should read SESSION_SECRET from environment', () => {
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        const content = fs.readFileSync(configPath, 'utf-8');
+        assert.ok(content.includes('process.env.SESSION_SECRET'), 'config.ts should read SESSION_SECRET from env');
     });
 
-    it('sessionManager.ts should read SESSION_TIMEOUT from environment', () => {
-        const sessionMgrPath = path.join(webPkgDir, 'src', 'server', 'sessionManager.ts');
-        const content = fs.readFileSync(sessionMgrPath, 'utf-8');
-        assert.ok(content.includes('process.env.SESSION_TIMEOUT'), 'sessionManager.ts should read SESSION_TIMEOUT from env');
+    it('config.ts should validate SESSION_SECRET in production', () => {
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        const content = fs.readFileSync(configPath, 'utf-8');
+        assert.ok(content.includes('SESSION_SECRET must be set in production'), 'Should error about missing SESSION_SECRET in production');
+    });
+
+    it('config.ts should read SESSION_TIMEOUT from environment', () => {
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        const content = fs.readFileSync(configPath, 'utf-8');
+        assert.ok(content.includes('process.env.SESSION_TIMEOUT'), 'config.ts should read SESSION_TIMEOUT from env');
     });
 
     it('server.ts should log startup configuration', () => {
         const serverPath = path.join(webPkgDir, 'src', 'server', 'server.ts');
         const content = fs.readFileSync(serverPath, 'utf-8');
-        assert.ok(content.includes('logStartupConfig'), 'server.ts should call logStartupConfig');
-        assert.ok(content.includes('Configuration:'), 'server.ts should log configuration header');
+        assert.ok(content.includes('logStartupConfig') || content.includes('logConfig'), 'server.ts should call logStartupConfig');
     });
 
     it('startup log should not expose secret values', () => {
-        const serverPath = path.join(webPkgDir, 'src', 'server', 'server.ts');
-        const content = fs.readFileSync(serverPath, 'utf-8');
+        const configPath = path.join(webPkgDir, 'src', 'server', 'config.ts');
+        const content = fs.readFileSync(configPath, 'utf-8');
         // The log should show (set) or (not set), not the actual secret value
         assert.ok(content.includes("'(set)'") || content.includes('"(set)"'), 'Should mask secret as (set) when present');
         assert.ok(content.includes("'(not set,") || content.includes('"(not set,'), 'Should show (not set) when absent');
+    });
+
+    it('security.ts should import config from config module', () => {
+        const securityPath = path.join(webPkgDir, 'src', 'server', 'security.ts');
+        const content = fs.readFileSync(securityPath, 'utf-8');
+        assert.ok(content.includes("from './config'"), 'security.ts should import from config module');
+    });
+
+    it('server.ts should import config from config module', () => {
+        const serverPath = path.join(webPkgDir, 'src', 'server', 'server.ts');
+        const content = fs.readFileSync(serverPath, 'utf-8');
+        assert.ok(content.includes("from './config'"), 'server.ts should import from config module');
     });
 });
 

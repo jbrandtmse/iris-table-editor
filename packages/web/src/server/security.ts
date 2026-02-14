@@ -11,7 +11,6 @@
  * - RATE_LIMIT_MAX: max requests per minute window (default: 100)
  * - CSRF_SECRET: secret for CSRF token signing (falls back to SESSION_SECRET, then auto-generated)
  */
-import * as crypto from 'crypto';
 import type { Express, Request, Response, NextFunction } from 'express';
 import type { ServerResponse } from 'http';
 import helmet from 'helmet';
@@ -19,6 +18,7 @@ import cors from 'cors';
 import { doubleCsrf } from 'csrf-csrf';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
+import { getConfig } from './config';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -34,26 +34,6 @@ const CSRF_EXEMPT_PATHS = ['/api/connect', '/api/test-connection', '/health'];
  * HTTP methods that are "safe" (read-only) and skip CSRF checks.
  */
 const CSRF_SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
-
-/**
- * Parse ALLOWED_ORIGINS env var into an origin list.
- * Returns undefined when not set (same-origin default).
- */
-function parseAllowedOrigins(): string[] | undefined {
-    const envOrigins = process.env.ALLOWED_ORIGINS;
-    if (!envOrigins) {
-        return undefined;
-    }
-    return envOrigins.split(',').map((o) => o.trim()).filter(Boolean);
-}
-
-/**
- * Get or generate the CSRF signing secret.
- * Falls back: CSRF_SECRET -> SESSION_SECRET -> random.
- */
-function getCsrfSecret(): string {
-    return process.env.CSRF_SECRET || process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-}
 
 /**
  * Result of setupSecurity — exposes the CSRF token generator so the
@@ -80,7 +60,8 @@ export interface SecurityOptions {
  * @returns SecurityHandle with CSRF token generator
  */
 export function setupSecurity(app: Express, options?: SecurityOptions): SecurityHandle {
-    const allowedOrigins = parseAllowedOrigins();
+    const cfg = getConfig();
+    const allowedOrigins = cfg.allowedOrigins;
 
     // --- Helmet: security headers ---
     // CSP connect-src needs ws:/wss: for WebSocket, but scheme-only wildcards
@@ -123,10 +104,7 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
     app.use(cookieParser());
 
     // --- CSRF (double-submit cookie via csrf-csrf) ---
-    if (!process.env.CSRF_SECRET && !process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-        console.warn(`${LOG_PREFIX} WARNING: SESSION_SECRET is not set. CSRF tokens will use a random secret that changes on restart, invalidating active sessions.`);
-    }
-    const csrfSecret = options?.csrfSecret || getCsrfSecret();
+    const csrfSecret = options?.csrfSecret || cfg.csrfSecret;
 
     const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
         getSecret: () => csrfSecret,
@@ -139,7 +117,7 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
         cookieOptions: {
             httpOnly: true,
             sameSite: 'strict',
-            secure: process.env.NODE_ENV === 'production',
+            secure: cfg.nodeEnv === 'production',
             path: '/',
         },
         getCsrfTokenFromRequest: (req: Request) => {
@@ -187,16 +165,15 @@ export function setupSecurity(app: Express, options?: SecurityOptions): Security
     });
 
     // --- Rate limiting ---
-    const maxRequests = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
     app.use(rateLimit({
         windowMs: 60 * 1000, // 1 minute
-        max: isNaN(maxRequests) ? 100 : maxRequests,
+        max: cfg.rateLimitMax,
         standardHeaders: true,
         legacyHeaders: false,
         message: { error: 'Too many requests, please try again later.' },
     }));
 
-    console.log(`${LOG_PREFIX} Security middleware configured (rate limit: ${isNaN(maxRequests) ? 100 : maxRequests} req/min)`);
+    console.log(`${LOG_PREFIX} Security middleware configured (rate limit: ${cfg.rateLimitMax} req/min)`);
 
     return { generateCsrfToken };
 }

@@ -202,8 +202,8 @@ development_status:
 
   # Epic 18: Web Build, Deploy & Distribution
   epic-18: in-progress
-  18-1-docker-containerization: ready-for-dev
-  18-2-environment-configuration: backlog
+  18-1-docker-containerization: done
+  18-2-environment-configuration: done
   18-3-ci-cd-pipeline-web: backlog
   18-4-https-tls-configuration: backlog
   18-5-monitoring-logging: backlog

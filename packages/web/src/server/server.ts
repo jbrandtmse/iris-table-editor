@@ -1,6 +1,9 @@
 import express from 'express';
 import { createServer } from 'http';
+import * as https from 'https';
+import * as fs from 'fs';
 import type { Server } from 'http';
+import type { Server as HttpsServer } from 'https';
 import * as path from 'path';
 import { SessionManager } from './sessionManager';
 import { setupApiProxy } from './apiProxy';
@@ -9,6 +12,7 @@ import { setupWebSocket } from './wsServer';
 import type { SetupWebSocketOptions, WebSocketServerHandle } from './wsServer';
 import { setupSecurity } from './security';
 import type { SecurityOptions, SecurityHandle } from './security';
+import { getConfig, validateConfig, logStartupConfig as logConfig } from './config';
 
 const LOG_PREFIX = '[IRIS-TE]';
 
@@ -31,12 +35,24 @@ export interface CreateServerOptions {
 }
 
 /**
- * Create an Express app + HTTP server with all routes configured.
+ * Create an Express app + HTTP/HTTPS server with all routes configured.
  * Used by tests to create isolated server instances with injected dependencies.
  */
 export function createAppServer(options?: CreateServerOptions) {
     const appInstance = express();
-    const httpServer = createServer(appInstance);
+    const cfg = getConfig();
+
+    // Create HTTPS server if TLS is configured, otherwise HTTP
+    let httpServer: Server | HttpsServer;
+    if (cfg.tlsCert && cfg.tlsKey) {
+        const tlsOptions = {
+            cert: fs.readFileSync(cfg.tlsCert),
+            key: fs.readFileSync(cfg.tlsKey),
+        };
+        httpServer = https.createServer(tlsOptions, appInstance);
+    } else {
+        httpServer = createServer(appInstance);
+    }
     const sessionMgr = new SessionManager({
         sessionTimeoutMs: options?.sessionTimeoutMs,
         cleanupIntervalMs: options?.cleanupIntervalMs,
@@ -78,7 +94,8 @@ export function createAppServer(options?: CreateServerOptions) {
     });
 
     // WebSocket server - attach to HTTP server (Story 15.3)
-    const wsHandle = setupWebSocket(httpServer, sessionMgr, options?.wsOptions);
+    // Cast is safe: ws accepts both http.Server and https.Server
+    const wsHandle = setupWebSocket(httpServer as Server, sessionMgr, options?.wsOptions);
 
     // Wire WebSocket session expiry notification into SessionManager (Story 15.5, Task 2)
     sessionMgr.setOnSessionExpired((token: string) => {
@@ -91,34 +108,32 @@ export function createAppServer(options?: CreateServerOptions) {
 // Default instance for production use and backward compatibility
 const { app, server, sessionManager, wsHandle } = createAppServer();
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const appConfig = getConfig();
 
-function startServer(port: number = PORT): Promise<Server> {
+function startServer(port: number = appConfig.port): Promise<Server> {
     return new Promise((resolve, reject) => {
         server.once('error', reject);
         server.listen(port, () => {
             server.removeListener('error', reject);
-            console.log(`${LOG_PREFIX} Server running on http://localhost:${port}`);
-            resolve(server);
+            const protocol = appConfig.tlsCert && appConfig.tlsKey ? 'https' : 'http';
+            console.log(`${LOG_PREFIX} Server running on ${protocol}://localhost:${port}`);
+            resolve(server as Server);
         });
     });
 }
 
 /**
  * Log startup configuration (without secrets).
+ * @deprecated Use logStartupConfig from config.ts instead. Kept for backward compatibility.
  */
-function logStartupConfig(port: number): void {
-    console.log(`${LOG_PREFIX} Configuration:`);
-    console.log(`${LOG_PREFIX}   PORT=${port}`);
-    console.log(`${LOG_PREFIX}   SESSION_SECRET=${process.env.SESSION_SECRET ? '(set)' : '(not set, using random)'}`);
-    console.log(`${LOG_PREFIX}   ALLOWED_ORIGINS=${process.env.ALLOWED_ORIGINS || '(not set, same-origin only)'}`);
-    console.log(`${LOG_PREFIX}   SESSION_TIMEOUT=${process.env.SESSION_TIMEOUT || '1800'}s`);
-    console.log(`${LOG_PREFIX}   NODE_ENV=${process.env.NODE_ENV || 'development'}`);
+function logStartupConfig(_port?: number): void {
+    logConfig(getConfig());
 }
 
 // Start server when run directly (not imported as module)
 if (require.main === module) {
-    logStartupConfig(PORT);
+    validateConfig(appConfig);
+    logConfig(appConfig);
     startServer().catch((err) => {
         console.error(`${LOG_PREFIX} Failed to start server:`, err);
         process.exit(1);
