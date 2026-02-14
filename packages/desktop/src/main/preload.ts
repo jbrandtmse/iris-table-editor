@@ -1,11 +1,13 @@
 /**
  * Electron preload script - exposed as window.iteMessageBridge
  * Story 11.1: Electron Bootstrap
+ * Story 11.2: IPC Bridge — channel validation
  *
  * Exposes the IMessageBridge interface to the renderer process via contextBridge.
  * Uses ipcRenderer for communication with the main process.
  *
  * Security: Only exposes typed wrapper functions, never raw ipcRenderer.
+ * Channel validation: Validates command and event names against allowlists.
  * State: In-memory state persistence (no disk persistence yet, Story 11.5).
  *
  * IPC channel design:
@@ -13,6 +15,7 @@
  * - Inbound (main -> renderer): ipcRenderer.on('event:{eventName}', (_, payload) => ...)
  */
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { isValidCommand, isValidEvent } from './channelValidation';
 
 const LOG_PREFIX = '[IRIS-TE Preload]';
 
@@ -87,20 +90,30 @@ function removeWrapper(
 const messageBridge = {
     /**
      * Send a command from the renderer to the main process.
+     * Validates command name against the allowlist before sending.
      * @param command - Command name (e.g., 'getServers', 'connectServer')
      * @param payload - Command payload data
      */
     sendCommand(command: string, payload: unknown): void {
+        if (!isValidCommand(command)) {
+            console.warn(`${LOG_PREFIX} Rejected invalid command: "${command}"`);
+            return;
+        }
         console.log(`${LOG_PREFIX} Sending command: ${command}`);
         ipcRenderer.send('command', { command, payload });
     },
 
     /**
      * Register a handler for events from the main process.
+     * Validates event name against the allowlist before subscribing.
      * @param event - Event name (e.g., 'serversLoaded', 'connectionProgress')
      * @param handler - Callback receiving the event payload
      */
     onEvent(event: string, handler: (payload: unknown) => void): void {
+        if (!isValidEvent(event)) {
+            console.warn(`${LOG_PREFIX} Rejected invalid event subscription: "${event}"`);
+            return;
+        }
         const wrapper = getWrapper(event, handler);
         ipcRenderer.on(`event:${event}`, wrapper);
     },

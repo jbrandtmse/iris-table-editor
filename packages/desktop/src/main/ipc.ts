@@ -1,6 +1,7 @@
 /**
  * IPC handler registration for Electron main process
  * Story 11.1: Electron Bootstrap
+ * Story 11.2: IPC Bridge — data command routing
  *
  * Routes commands from the renderer process to appropriate service methods.
  * Sends event responses back to the renderer via BrowserWindow.webContents.
@@ -12,12 +13,22 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import type { ConnectionManager, ServerConfig } from './ConnectionManager';
 import type { ConnectionLifecycleManager } from './ConnectionLifecycleManager';
+import type { SessionManager } from './SessionManager';
 import type {
     IDesktopSaveServerPayload,
     IDesktopUpdateServerPayload,
     IDesktopTestConnectionPayload,
     IDesktopServerNamePayload,
     IDesktopServerInfo,
+    ISelectTablePayload,
+    IGetTablesPayload,
+    IRequestDataPayload,
+    IPaginatePayload,
+    IRefreshPayload,
+    ISaveCellPayload,
+    IInsertRowPayload,
+    IDeleteRowPayload,
+    IServerSpec,
 } from '@iris-te/core';
 
 const LOG_PREFIX = '[IRIS-TE IPC]';
@@ -73,6 +84,38 @@ function toServerInfo(config: ServerConfig): IDesktopServerInfo {
 }
 
 /**
+ * Default page size for data queries
+ */
+const DEFAULT_PAGE_SIZE = 100;
+
+/**
+ * Check if a session is active and return the session info needed for data operations.
+ * Sends an error event if not connected.
+ *
+ * @param sessionManager - SessionManager instance
+ * @param win - BrowserWindow for error events
+ * @param context - Command name for error context
+ * @returns Session info or null if not connected
+ */
+export function requireSession(
+    sessionManager: SessionManager | undefined,
+    win: BrowserWindow,
+    context: string
+): { spec: IServerSpec; username: string; password: string } | null {
+    if (!sessionManager || !sessionManager.isActive()) {
+        sendError(win, 'Not connected to a server', context);
+        return null;
+    }
+
+    // isActive() guarantees these are non-null
+    return {
+        spec: sessionManager.getServerSpec()!,
+        username: sessionManager.getUsername()!,
+        password: sessionManager.getPassword()!,
+    };
+}
+
+/**
  * Route a command to the appropriate service method.
  * Extracted as a standalone function for testability without Electron runtime.
  *
@@ -81,13 +124,15 @@ function toServerInfo(config: ServerConfig): IDesktopServerInfo {
  * @param win - The BrowserWindow to send events back to
  * @param connectionManager - ConnectionManager instance
  * @param lifecycleManager - ConnectionLifecycleManager instance
+ * @param sessionManager - SessionManager instance for data commands
  */
 export async function routeCommand(
     command: string,
     payload: unknown,
     win: BrowserWindow,
     connectionManager: ConnectionManager,
-    lifecycleManager: ConnectionLifecycleManager
+    lifecycleManager: ConnectionLifecycleManager,
+    sessionManager?: SessionManager
 ): Promise<void> {
     switch (command) {
         case 'getServers': {
@@ -210,6 +255,294 @@ export async function routeCommand(
             break;
         }
 
+        // ============================================
+        // Data commands (Story 11.2)
+        // ============================================
+
+        case 'getNamespaces': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const nsResult = await sessionManager!.getMetadataService()!.getNamespaces(
+                session.spec, session.username, session.password
+            );
+
+            if (nsResult.success) {
+                sendEvent(win, 'namespaceList', { namespaces: nsResult.namespaces || [] });
+            } else {
+                sendError(win, nsResult.error?.message || 'Failed to get namespaces', command);
+            }
+            break;
+        }
+
+        case 'getTables': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const { namespace } = payload as IGetTablesPayload;
+            if (!namespace) {
+                sendError(win, 'No namespace provided', command);
+                return;
+            }
+
+            sessionManager!.setNamespace(namespace);
+
+            const tablesResult = await sessionManager!.getMetadataService()!.getTables(
+                session.spec, namespace, session.username, session.password
+            );
+
+            if (tablesResult.success) {
+                sendEvent(win, 'tableList', { tables: tablesResult.tables || [], namespace });
+            } else {
+                sendError(win, tablesResult.error?.message || 'Failed to get tables', command);
+            }
+            break;
+        }
+
+        case 'selectTable': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const selectTablePayload = payload as ISelectTablePayload;
+            const { namespace: stNamespace, tableName: stTableName } = selectTablePayload;
+            if (!stNamespace || !stTableName) {
+                sendError(win, 'Namespace and table name are required', command);
+                return;
+            }
+
+            sendEvent(win, 'tableLoading', { loading: true, context: 'Loading table schema...' });
+            const schemaResult = await sessionManager!.getMetadataService()!.getTableSchema(
+                session.spec, stNamespace, stTableName, session.username, session.password
+            );
+            sendEvent(win, 'tableLoading', { loading: false, context: '' });
+
+            if (schemaResult.success && schemaResult.schema) {
+                sessionManager!.setNamespace(stNamespace);
+                sessionManager!.setTable(stTableName, schemaResult.schema);
+                sendEvent(win, 'tableSchema', {
+                    tableName: stTableName,
+                    namespace: stNamespace,
+                    serverName: sessionManager!.getServerName() || '',
+                    columns: schemaResult.schema.columns,
+                });
+            } else {
+                sendError(win, schemaResult.error?.message || 'Failed to get table schema', command);
+            }
+            break;
+        }
+
+        case 'requestData': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const reqPayload = payload as IRequestDataPayload;
+            const reqNamespace = sessionManager!.getCurrentNamespace();
+            const reqTableName = sessionManager!.getCurrentTableName();
+            const reqSchema = sessionManager!.getCurrentSchema();
+
+            if (!reqNamespace || !reqTableName || !reqSchema) {
+                sendError(win, 'No table selected', command);
+                return;
+            }
+
+            const pageSize = reqPayload.pageSize || DEFAULT_PAGE_SIZE;
+            const page = reqPayload.page || 1;
+            const offset = (page - 1) * pageSize;
+
+            sendEvent(win, 'tableLoading', { loading: true, context: 'Loading table data...' });
+            const dataResult = await sessionManager!.getQueryExecutor()!.getTableData(
+                session.spec, reqNamespace, reqTableName, reqSchema,
+                pageSize, offset, session.username, session.password,
+                reqPayload.filters, reqPayload.sortColumn ?? null, reqPayload.sortDirection
+            );
+            sendEvent(win, 'tableLoading', { loading: false, context: '' });
+
+            if (dataResult.success) {
+                sendEvent(win, 'tableData', {
+                    rows: dataResult.rows || [],
+                    totalRows: dataResult.totalRows || 0,
+                    page,
+                    pageSize,
+                });
+            } else {
+                sendError(win, dataResult.error?.message || 'Failed to load table data', command);
+            }
+            break;
+        }
+
+        case 'refresh': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const refreshPayload = payload as IRefreshPayload;
+            const refreshNamespace = sessionManager!.getCurrentNamespace();
+            const refreshTableName = sessionManager!.getCurrentTableName();
+            const refreshSchema = sessionManager!.getCurrentSchema();
+
+            if (!refreshNamespace || !refreshTableName || !refreshSchema) {
+                sendError(win, 'No table selected', command);
+                return;
+            }
+
+            sendEvent(win, 'tableLoading', { loading: true, context: 'Refreshing table data...' });
+            const refreshResult = await sessionManager!.getQueryExecutor()!.getTableData(
+                session.spec, refreshNamespace, refreshTableName, refreshSchema,
+                DEFAULT_PAGE_SIZE, 0, session.username, session.password,
+                refreshPayload.filters, refreshPayload.sortColumn ?? null, refreshPayload.sortDirection
+            );
+            sendEvent(win, 'tableLoading', { loading: false, context: '' });
+
+            if (refreshResult.success) {
+                sendEvent(win, 'tableData', {
+                    rows: refreshResult.rows || [],
+                    totalRows: refreshResult.totalRows || 0,
+                    page: 1,
+                    pageSize: DEFAULT_PAGE_SIZE,
+                });
+            } else {
+                sendError(win, refreshResult.error?.message || 'Failed to refresh table data', command);
+            }
+            break;
+        }
+
+        case 'paginateNext':
+        case 'paginatePrev': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const pagPayload = payload as IPaginatePayload;
+            const pagNamespace = sessionManager!.getCurrentNamespace();
+            const pagTableName = sessionManager!.getCurrentTableName();
+            const pagSchema = sessionManager!.getCurrentSchema();
+
+            if (!pagNamespace || !pagTableName || !pagSchema) {
+                sendError(win, 'No table selected', command);
+                return;
+            }
+
+            const pagPageSize = pagPayload.pageSize || DEFAULT_PAGE_SIZE;
+            const newPage = command === 'paginateNext'
+                ? pagPayload.currentPage + 1
+                : Math.max(1, pagPayload.currentPage - 1);
+            const pagOffset = (newPage - 1) * pagPageSize;
+
+            sendEvent(win, 'tableLoading', { loading: true, context: 'Loading page...' });
+            const pagResult = await sessionManager!.getQueryExecutor()!.getTableData(
+                session.spec, pagNamespace, pagTableName, pagSchema,
+                pagPageSize, pagOffset, session.username, session.password,
+                pagPayload.filters, pagPayload.sortColumn ?? null, pagPayload.sortDirection
+            );
+            sendEvent(win, 'tableLoading', { loading: false, context: '' });
+
+            if (pagResult.success) {
+                sendEvent(win, 'tableData', {
+                    rows: pagResult.rows || [],
+                    totalRows: pagResult.totalRows || 0,
+                    page: newPage,
+                    pageSize: pagPageSize,
+                });
+            } else {
+                sendError(win, pagResult.error?.message || 'Failed to load page data', command);
+            }
+            break;
+        }
+
+        case 'saveCell': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const saveCellPayload = payload as ISaveCellPayload;
+            const saveNamespace = sessionManager!.getCurrentNamespace();
+            const saveTableName = sessionManager!.getCurrentTableName();
+
+            if (!saveNamespace || !saveTableName) {
+                sendError(win, 'No table selected', command);
+                return;
+            }
+
+            const updateResult = await sessionManager!.getQueryExecutor()!.updateCell(
+                session.spec, saveNamespace, saveTableName,
+                saveCellPayload.columnName, saveCellPayload.newValue,
+                saveCellPayload.primaryKeyColumn, saveCellPayload.primaryKeyValue,
+                session.username, session.password
+            );
+
+            sendEvent(win, 'saveCellResult', {
+                success: updateResult.success,
+                rowIndex: saveCellPayload.rowIndex,
+                colIndex: saveCellPayload.colIndex,
+                columnName: saveCellPayload.columnName,
+                oldValue: saveCellPayload.oldValue,
+                newValue: saveCellPayload.newValue,
+                primaryKeyValue: saveCellPayload.primaryKeyValue,
+                error: updateResult.error ? {
+                    message: updateResult.error.message,
+                    code: updateResult.error.code,
+                } : undefined,
+            });
+            break;
+        }
+
+        case 'insertRow': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const insertPayload = payload as IInsertRowPayload;
+            const insertNamespace = sessionManager!.getCurrentNamespace();
+            const insertTableName = sessionManager!.getCurrentTableName();
+
+            if (!insertNamespace || !insertTableName) {
+                sendError(win, 'No table selected', command);
+                return;
+            }
+
+            const insertResult = await sessionManager!.getQueryExecutor()!.insertRow(
+                session.spec, insertNamespace, insertTableName,
+                insertPayload.columns, insertPayload.values,
+                session.username, session.password
+            );
+
+            sendEvent(win, 'insertRowResult', {
+                success: insertResult.success,
+                newRowIndex: insertPayload.newRowIndex,
+                error: insertResult.error ? {
+                    message: insertResult.error.message,
+                    code: insertResult.error.code,
+                } : undefined,
+            });
+            break;
+        }
+
+        case 'deleteRow': {
+            const session = requireSession(sessionManager, win, command);
+            if (!session) { return; }
+
+            const deletePayload = payload as IDeleteRowPayload;
+            const deleteNamespace = sessionManager!.getCurrentNamespace();
+            const deleteTableName = sessionManager!.getCurrentTableName();
+
+            if (!deleteNamespace || !deleteTableName) {
+                sendError(win, 'No table selected', command);
+                return;
+            }
+
+            const deleteResult = await sessionManager!.getQueryExecutor()!.deleteRow(
+                session.spec, deleteNamespace, deleteTableName,
+                deletePayload.primaryKeyColumn, deletePayload.primaryKeyValue,
+                session.username, session.password
+            );
+
+            sendEvent(win, 'deleteRowResult', {
+                success: deleteResult.success,
+                rowIndex: deletePayload.rowIndex,
+                error: deleteResult.error ? {
+                    message: deleteResult.error.message,
+                    code: deleteResult.error.code,
+                } : undefined,
+            });
+            break;
+        }
+
         default: {
             console.warn(`${LOG_PREFIX} Unknown command: ${command}`);
             sendError(win, `Unknown command: ${command}`, 'routeCommand');
@@ -225,11 +558,13 @@ export async function routeCommand(
  * @param win - The BrowserWindow to communicate with
  * @param connectionManager - ConnectionManager instance for server CRUD
  * @param lifecycleManager - ConnectionLifecycleManager for connect/disconnect
+ * @param sessionManager - SessionManager for data commands (Story 11.2)
  */
 export function registerIpcHandlers(
     win: BrowserWindow,
     connectionManager: ConnectionManager,
-    lifecycleManager: ConnectionLifecycleManager
+    lifecycleManager: ConnectionLifecycleManager,
+    sessionManager?: SessionManager
 ): void {
     // Remove any previously registered 'command' listeners to avoid duplicates
     // when window is recreated (e.g., macOS activate). ipcMain.on is global,
@@ -241,7 +576,7 @@ export function registerIpcHandlers(
         console.log(`${LOG_PREFIX} Received command: ${command}`);
 
         try {
-            await routeCommand(command, payload, win, connectionManager, lifecycleManager);
+            await routeCommand(command, payload, win, connectionManager, lifecycleManager, sessionManager);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error(`${LOG_PREFIX} Error handling command "${command}": ${errorMessage}`);

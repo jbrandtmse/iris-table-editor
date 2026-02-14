@@ -137,7 +137,7 @@ development_status:
   # Epic 11: Electron Shell & Window Management
   epic-11: in-progress
   11-1-electron-bootstrap: done
-  11-2-ipc-bridge: backlog
+  11-2-ipc-bridge: done
   11-3-tab-bar: backlog
   11-4-native-menu: backlog
   11-5-window-state-persistence: backlog

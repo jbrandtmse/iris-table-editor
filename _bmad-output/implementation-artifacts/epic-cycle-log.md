@@ -366,6 +366,41 @@ Proceeding to Epic 11: Electron Shell & Window Management...
 **User input required:** 0
 
 **Commits:**
+- Implementation: bff9307
+
+---
+
+## Story 11.2: IPC Bridge
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/SessionManager.ts (active session state manager)
+- NEW: packages/desktop/src/main/channelValidation.ts (channel allowlists and validation)
+- NEW: packages/desktop/src/test/sessionManager.test.ts (24 tests)
+- NEW: packages/desktop/src/test/ipcDataCommands.test.ts (38 tests)
+- NEW: packages/desktop/src/test/channelValidation.test.ts (17 tests)
+- MODIFIED: packages/desktop/src/main/ipc.ts (10 data command routes, requireSession helper, tableLoading events)
+- MODIFIED: packages/desktop/src/main/main.ts (SessionManager instantiation, lifecycle wiring)
+- MODIFIED: packages/desktop/src/main/preload.ts (channel validation imports)
+- MODIFIED: packages/desktop/src/index.ts (SessionManager export)
+
+**Key design decisions:**
+- SessionManager holds in-memory-only credentials, service instances, and table context
+- Channel validation extracted into separate module for testability without Electron
+- requireSession() helper centralizes session guard for all data commands
+- tableLoading events sent for all async data operations (VS Code parity)
+
+**Issues auto-resolved:** 4
+- MEDIUM: Silent session start failure when password decryption fails (added warning logs)
+- MEDIUM: tableLoading event never sent by desktop IPC (added to all data commands)
+- MEDIUM: Redundant null guards before requireSession() (consolidated into helper)
+- MEDIUM: sortColumn || null coerces empty string (changed to ??)
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
 - Implementation: (pending)
 
 ---

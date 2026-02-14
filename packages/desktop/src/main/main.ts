@@ -11,7 +11,8 @@ import * as fs from 'fs';
 import { ConnectionManager } from './ConnectionManager';
 import { NodeCryptoCredentialStore } from './NodeCryptoCredentialStore';
 import { ConnectionLifecycleManager } from './ConnectionLifecycleManager';
-import type { IDesktopConnectionProgressPayload } from '@iris-te/core';
+import { SessionManager } from './SessionManager';
+import type { IDesktopConnectionProgressPayload, IServerSpec } from '@iris-te/core';
 import { registerIpcHandlers, sendEvent } from './ipc';
 
 const LOG_PREFIX = '[IRIS-TE]';
@@ -21,13 +22,15 @@ let mainWindow: BrowserWindow | null = null;
 // Module-level service references for macOS activate handler
 let connectionManagerRef: ConnectionManager | null = null;
 let lifecycleManagerRef: ConnectionLifecycleManager | null = null;
+let sessionManagerRef: SessionManager | null = null;
 
 /**
  * Create the main application window with security-hardened settings.
  */
 function createWindow(
     connectionManager: ConnectionManager,
-    lifecycleManager: ConnectionLifecycleManager
+    lifecycleManager: ConnectionLifecycleManager,
+    sessionManager: SessionManager
 ): BrowserWindow {
     const win = new BrowserWindow({
         width: 1200,
@@ -59,7 +62,7 @@ function createWindow(
     });
 
     // Register IPC handlers for renderer communication
-    registerIpcHandlers(win, connectionManager, lifecycleManager);
+    registerIpcHandlers(win, connectionManager, lifecycleManager, sessionManager);
 
     // Load the server list HTML from the UI directory
     const htmlPath = path.join(__dirname, '../../src/ui/connection/server-list.html');
@@ -109,10 +112,43 @@ app.whenReady().then(() => {
         credentialStore,
     });
 
+    // Create session manager for data operations
+    const sessionManager = new SessionManager();
+
     // Create lifecycle manager with callback that sends events to the renderer
+    // and wires session start/end to connection status changes
     const lifecycleManager = new ConnectionLifecycleManager(
         connectionManager,
         (payload: IDesktopConnectionProgressPayload) => {
+            // Wire session lifecycle to connection state
+            if (payload.status === 'connected') {
+                // Start session when connected
+                const serverConfig = connectionManager.getServer(payload.serverName);
+                if (serverConfig) {
+                    const password = connectionManager.getDecryptedPassword(payload.serverName);
+                    if (password) {
+                        const spec: IServerSpec = {
+                            name: serverConfig.name,
+                            scheme: serverConfig.ssl ? 'https' : 'http',
+                            host: serverConfig.hostname,
+                            port: serverConfig.port,
+                            pathPrefix: serverConfig.pathPrefix || '',
+                            username: serverConfig.username,
+                        };
+                        sessionManager.startSession(
+                            payload.serverName, spec, serverConfig.username, password
+                        );
+                    } else {
+                        console.warn(`${LOG_PREFIX} Connected to "${payload.serverName}" but failed to retrieve password — data commands will not work`);
+                    }
+                } else {
+                    console.warn(`${LOG_PREFIX} Connected to "${payload.serverName}" but server config not found — data commands will not work`);
+                }
+            } else if (payload.status === 'disconnected' || payload.status === 'cancelled' || payload.status === 'error') {
+                // End session on disconnect/cancel/error
+                sessionManager.endSession();
+            }
+
             if (mainWindow) {
                 sendEvent(mainWindow, 'connectionProgress', payload);
             }
@@ -122,8 +158,9 @@ app.whenReady().then(() => {
     // Store service references at module level for macOS activate handler
     connectionManagerRef = connectionManager;
     lifecycleManagerRef = lifecycleManager;
+    sessionManagerRef = sessionManager;
 
-    mainWindow = createWindow(connectionManager, lifecycleManager);
+    mainWindow = createWindow(connectionManager, lifecycleManager, sessionManager);
 
     console.log(`${LOG_PREFIX} Application ready`);
 });
@@ -135,8 +172,8 @@ app.on('window-all-closed', () => {
 
 // macOS: Recreate window when dock icon is clicked and no windows exist
 app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0 && connectionManagerRef && lifecycleManagerRef) {
+    if (BrowserWindow.getAllWindows().length === 0 && connectionManagerRef && lifecycleManagerRef && sessionManagerRef) {
         console.log(`${LOG_PREFIX} Recreating window on activate`);
-        mainWindow = createWindow(connectionManagerRef, lifecycleManagerRef);
+        mainWindow = createWindow(connectionManagerRef, lifecycleManagerRef, sessionManagerRef);
     }
 });
