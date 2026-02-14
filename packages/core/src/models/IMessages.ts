@@ -452,7 +452,20 @@ export type DesktopConnectionEvent =
     | { event: 'serverSaveError'; payload: IDesktopServerSaveErrorPayload }
     | { event: 'serverConfigLoaded'; payload: IDesktopServerConfigPayload }
     | { event: 'testConnectionResult'; payload: IDesktopTestConnectionResultPayload }
+    | { event: 'credentialWarning'; payload: IDesktopCredentialWarningPayload }
     | { event: 'error'; payload: IErrorPayload };
+
+// ============================================
+// Story 12.4: Credential Storage Messages
+// ============================================
+
+/**
+ * Payload for credentialWarning event (when encryption is unavailable)
+ * Story 12.4: Credential Storage
+ */
+export interface IDesktopCredentialWarningPayload {
+    message: string;
+}
 
 // ============================================
 // Story 12.3: Test Connection Messages

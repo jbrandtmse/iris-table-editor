@@ -148,7 +148,7 @@ development_status:
   12-1-server-list-ui: done
   12-2-server-form: done
   12-3-test-connection: done
-  12-4-credential-storage: backlog
+  12-4-credential-storage: done
   12-5-connection-lifecycle: backlog
   epic-12-retrospective: optional
 

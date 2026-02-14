@@ -1,15 +1,17 @@
 /**
  * ConnectionManager - Server CRUD + JSON file persistence
  * Story 12.1: Server List UI
+ * Story 12.4: Credential Storage - Added ICredentialStore integration
  *
  * Manages server configurations for the desktop application.
  * Uses plain Node.js file I/O for persistence (JSON file store).
- * Story 12.4 will add safeStorage encryption for credentials.
+ * Optionally encrypts passwords via ICredentialStore abstraction.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import { AtelierApiService, ErrorCodes } from '@iris-te/core';
 import type { IServerSpec } from '@iris-te/core';
+import type { ICredentialStore } from './ICredentialStore';
 
 /**
  * Server configuration stored in the JSON file
@@ -29,7 +31,7 @@ export interface ServerConfig {
     description?: string;
     /** Whether to use SSL/TLS */
     ssl: boolean;
-    /** Password stored in plaintext (Story 12.4 adds encryption) */
+    /** Encrypted password (or plaintext if no credential store) */
     encryptedPassword: string;
     /** URL path prefix (e.g., "/iris") */
     pathPrefix?: string;
@@ -51,6 +53,8 @@ export interface ConnectionManagerOptions {
     configDir: string;
     /** Config file name (default: "servers.json") */
     configFileName?: string;
+    /** Optional credential store for encrypting/decrypting passwords (Story 12.4) */
+    credentialStore?: ICredentialStore;
 }
 
 /**
@@ -99,34 +103,75 @@ const REQUIRED_FIELDS: Array<keyof ServerConfig> = ['name', 'hostname', 'port', 
 /**
  * Manages server configurations with JSON file persistence.
  * Provides CRUD operations and validation for server entries.
+ * Story 12.4: Optionally encrypts passwords via ICredentialStore.
  */
 export class ConnectionManager {
     private readonly configPath: string;
+    private readonly credentialStore?: ICredentialStore;
     private store: ServerStore;
 
     constructor(options: ConnectionManagerOptions) {
         const fileName = options.configFileName || DEFAULT_CONFIG_FILENAME;
         this.configPath = path.join(options.configDir, fileName);
+        this.credentialStore = options.credentialStore;
         this.store = { version: STORE_VERSION, servers: [] };
         this.loadFromDisk();
     }
 
     /**
-     * Get all saved servers
-     * @returns Array of server configurations (copies to prevent mutation)
+     * Get all saved servers.
+     * Returns copies with passwords stripped (empty string) for display safety.
+     * Use getDecryptedPassword() to retrieve the actual password for a specific server.
+     * @returns Array of server configurations with passwords stripped
      */
     getServers(): ServerConfig[] {
-        return this.store.servers.map(s => ({ ...s }));
+        return this.store.servers.map(s => ({
+            ...s,
+            encryptedPassword: this.credentialStore ? '' : s.encryptedPassword,
+        }));
     }
 
     /**
-     * Get a single server by name
+     * Get a single server by name.
+     * If a credential store is available, returns the decrypted password.
+     * If no credential store, returns the raw stored value (backward compat).
      * @param name - Server name to look up
      * @returns Server configuration or undefined if not found
      */
     getServer(name: string): ServerConfig | undefined {
         const server = this.store.servers.find(s => s.name === name);
-        return server ? { ...server } : undefined;
+        if (!server) {
+            return undefined;
+        }
+
+        const copy = { ...server };
+
+        if (this.credentialStore) {
+            if (this.credentialStore.isAvailable() && copy.encryptedPassword) {
+                try {
+                    copy.encryptedPassword = this.credentialStore.decrypt(copy.encryptedPassword);
+                } catch (error) {
+                    console.warn(`${LOG_PREFIX} Failed to decrypt password for "${name}": ${error}`);
+                    copy.encryptedPassword = '';
+                }
+            } else {
+                // Store unavailable or empty password — return empty string, not raw ciphertext
+                copy.encryptedPassword = '';
+            }
+        }
+
+        return copy;
+    }
+
+    /**
+     * Get the decrypted password for a specific server.
+     * Convenience method for the connection flow.
+     * @param serverName - Server name to look up
+     * @returns Decrypted password, or empty string if not found/unavailable
+     */
+    getDecryptedPassword(serverName: string): string {
+        const server = this.getServer(serverName);
+        return server?.encryptedPassword ?? '';
     }
 
     /**
@@ -138,7 +183,10 @@ export class ConnectionManager {
     }
 
     /**
-     * Save a new server configuration
+     * Save a new server configuration.
+     * If credential store is available, encrypts the password before storage.
+     * If credential store is unavailable (isAvailable() returns false), stores empty
+     * string and logs a warning.
      * @param config - Server configuration to save
      * @throws Error if validation fails or name already exists
      */
@@ -149,13 +197,18 @@ export class ConnectionManager {
             throw new Error(`Server with name "${config.name}" already exists`);
         }
 
-        this.store.servers.push({ ...config });
+        const toStore = { ...config };
+        toStore.encryptedPassword = this.encryptPassword(config.encryptedPassword);
+
+        this.store.servers.push(toStore);
         this.saveToDisk();
         console.log(`${LOG_PREFIX} Server "${config.name}" saved`);
     }
 
     /**
-     * Update an existing server configuration
+     * Update an existing server configuration.
+     * If new password is provided (non-empty), encrypt it.
+     * If password is empty string, preserve the existing encrypted value (edit mode keep-existing).
      * @param name - Current server name to update
      * @param config - New server configuration (name may differ for rename)
      * @throws Error if server not found or validation fails
@@ -173,7 +226,19 @@ export class ConnectionManager {
             throw new Error(`Server with name "${config.name}" already exists`);
         }
 
-        this.store.servers[index] = { ...config };
+        const toStore = { ...config };
+
+        if (this.credentialStore) {
+            if (config.encryptedPassword === '') {
+                // Empty password means "keep existing" in edit mode
+                toStore.encryptedPassword = this.store.servers[index].encryptedPassword;
+            } else {
+                // New password provided — encrypt it
+                toStore.encryptedPassword = this.encryptPassword(config.encryptedPassword);
+            }
+        }
+
+        this.store.servers[index] = toStore;
         this.saveToDisk();
         console.log(`${LOG_PREFIX} Server "${name}" updated`);
     }
@@ -199,6 +264,7 @@ export class ConnectionManager {
      * Creates a temporary AtelierApiService, builds IServerSpec, sets 10s timeout,
      * and delegates to AtelierApiService.testConnection().
      * Maps error codes to user-friendly messages.
+     * Password comes from the form directly (plaintext, not stored).
      *
      * @param config - Connection configuration from the form
      * @returns Result with success flag and user-friendly message
@@ -237,6 +303,32 @@ export class ConnectionManager {
      */
     getConfigPath(): string {
         return this.configPath;
+    }
+
+    /**
+     * Encrypt a password using the credential store, if available.
+     * - If credential store is available: encrypts and returns encrypted string
+     * - If credential store is unavailable (isAvailable() false): returns empty string, logs warning
+     * - If no credential store configured: returns password unchanged (backward compat)
+     */
+    private encryptPassword(password: string): string {
+        if (!this.credentialStore) {
+            // No credential store — backward compatibility passthrough
+            return password;
+        }
+
+        if (!this.credentialStore.isAvailable()) {
+            // Credential store exists but unavailable — don't persist password
+            console.warn(`${LOG_PREFIX} Credential store unavailable, password will not be persisted`);
+            return '';
+        }
+
+        if (!password) {
+            // Empty password — nothing to encrypt
+            return '';
+        }
+
+        return this.credentialStore.encrypt(password);
     }
 
     /**

@@ -60,6 +60,8 @@ export type {
     // Story 12.3: Test Connection message types
     IDesktopTestConnectionPayload,
     IDesktopTestConnectionResultPayload,
+    // Story 12.4: Credential Storage message types
+    IDesktopCredentialWarningPayload,
 } from './models/IMessages';
 
 // Services

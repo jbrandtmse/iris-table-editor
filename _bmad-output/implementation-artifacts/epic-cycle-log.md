@@ -245,6 +245,38 @@ Proceeding to Epic 12: Connection Manager...
 **User input required:** 0
 
 **Commits:**
+- Implementation: 9fc1d97
+
+---
+
+## Story 12.4: Credential Storage
+
+**Status:** Complete
+**Files touched:**
+- NEW: packages/desktop/src/main/ICredentialStore.ts (ICredentialStore interface)
+- NEW: packages/desktop/src/main/NodeCryptoCredentialStore.ts (AES-256-GCM Node.js crypto implementation)
+- NEW: packages/desktop/src/test/credentialStore.test.ts (50 tests)
+- MODIFIED: packages/desktop/src/main/ConnectionManager.ts (credentialStore integration, getDecryptedPassword(), encrypt/decrypt in CRUD)
+- MODIFIED: packages/desktop/src/index.ts (ICredentialStore and NodeCryptoCredentialStore exports)
+- MODIFIED: packages/core/src/models/IMessages.ts (IDesktopCredentialWarningPayload, credentialWarning event)
+- MODIFIED: packages/core/src/index.ts (IDesktopCredentialWarningPayload export)
+
+**Key design decisions:**
+- ICredentialStore abstraction enables future swap to Electron safeStorage (Epic 11)
+- NodeCryptoCredentialStore uses AES-256-GCM with scryptSync key derivation from os.hostname() + os.userInfo().username
+- Storage format: base64(iv[12] + authTag[16] + ciphertext) — self-contained for decryption
+- Backward compatibility: no credentialStore = plaintext passthrough (all existing tests unaffected)
+- getServers() strips passwords when credential store present; getDecryptedPassword() for connection flow
+- Unavailable credential store: passwords stored as empty strings, credentialWarning event emitted
+
+**Issues auto-resolved:** 1
+- MEDIUM: getServer() returned raw ciphertext when credential store unavailable (fixed to return '')
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
 - Implementation: (pending)
 
 ---
