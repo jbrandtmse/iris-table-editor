@@ -10,6 +10,7 @@ stepsCompleted:
   - 8
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
+  - _bmad-output/planning-artifacts/sprint-change-proposal-2026-02-13.md
   - docs/initial-prompt.md
   - CLAUDE.md
 workflowType: 'architecture'
@@ -19,6 +20,8 @@ date: '2026-01-26'
 lastStep: 8
 status: 'complete'
 completedAt: '2026-01-26'
+lastUpdated: '2026-02-13'
+updateReason: 'Sprint Change Proposal - Standalone Desktop Application (Epics 10-14)'
 ---
 
 # Architecture Decision Document
@@ -41,16 +44,16 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - User Interface (4 FRs): Light/dark theme support, sidebar access, command palette access
 
 **Non-Functional Requirements:**
-18 requirements defining quality attributes:
-- Performance: 2s table load (<500 rows), 1s save, 1s list operations, non-blocking UI, no startup delay
-- Security: No credential storage, Server Manager auth provider only, parameterized queries, no sensitive logging, HTTPS when available
+24 requirements defining quality attributes:
+- Performance: 2s table load (<500 rows), 1s save, 1s list operations, non-blocking UI, no startup delay, desktop launch <3s
+- Security: No credential storage in extension state, Server Manager auth (VS Code), safeStorage OS keychain (desktop), parameterized queries, no sensitive logging, HTTPS when available, context isolation (desktop)
 - Integration: Graceful Server Manager detection, version compatibility, namespace encoding (%→%25), API version handling
-- Reliability: Clear error messages, no data corruption on partial failure, network disconnect detection, connection recovery
+- Reliability: Clear error messages, no data corruption on partial failure, network disconnect detection, connection recovery, window state persistence (desktop)
 
 **Scale & Complexity:**
-- Primary domain: VS Code Extension with REST API Integration
-- Complexity level: Low-Medium
-- Estimated architectural components: ~10 major components
+- Primary domain: Multi-target tool (VS Code Extension + Electron Desktop App) with REST API Integration
+- Complexity level: Medium
+- Estimated architectural components: ~15 major components (shared core + per-target shells)
 
 ### Technical Constraints & Dependencies
 
@@ -64,11 +67,12 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Cross-Cutting Concerns Identified
 
-1. **Authentication Flow**: Affects all data operations; credentials obtained via `vscode.authentication.getSession()` with Server Manager provider
-2. **Error Handling**: Unified error parsing from Atelier API `status.errors` array; user-friendly message transformation
-3. **Theme Compatibility**: CSS variables for VS Code theme colors throughout webview UI
-4. **Parameterized Queries**: All SQL operations must use `?` placeholders - enforced in SqlBuilder utility
-5. **Connection State**: Server selection state affects table list, data display, and all CRUD operations
+1. **Authentication Flow**: Target-dependent — VS Code uses `vscode.authentication.getSession()` with Server Manager provider; desktop uses built-in connection manager with safeStorage credentials
+2. **Error Handling**: Unified error parsing from Atelier API `status.errors` array; user-friendly message transformation (shared core)
+3. **Theme Compatibility**: Abstracted `--ite-*` CSS variables with per-target bridge files (VS Code maps from `--vscode-*`; desktop provides hardcoded light/dark tokens)
+4. **Parameterized Queries**: All SQL operations must use `?` placeholders — enforced in SqlBuilder utility (shared core)
+5. **Connection State**: Server selection state affects table list, data display, and all CRUD operations (shared core)
+6. **Message Bridge**: IMessageBridge abstraction — webview code never knows which target it's running in; VS Code uses postMessage, Electron uses contextBridge IPC
 
 ## Starter Template Evaluation
 
@@ -120,6 +124,434 @@ npx --package yo --package generator-code -- yo code
 2. Configure extensionDependencies in package.json
 3. Add views/viewsContainers for sidebar panel
 4. Expand directory structure per documented architecture
+
+## Monorepo Structure & Package Boundaries
+
+### Monorepo Layout
+
+The project uses npm workspaces to share code between VS Code extension and Electron desktop targets.
+
+```
+iris-table-editor/
+├── package.json                    # Root workspace config
+├── packages/
+│   ├── core/                       # Shared services, models, utils
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── services/
+│   │       │   ├── AtelierApiService.ts
+│   │       │   ├── QueryExecutor.ts
+│   │       │   ├── TableMetadataService.ts
+│   │       │   ├── ExportService.ts
+│   │       │   └── ImportService.ts
+│   │       ├── models/
+│   │       │   ├── IServerSpec.ts
+│   │       │   ├── ITableData.ts
+│   │       │   ├── ITableSchema.ts
+│   │       │   ├── IAtelierResponse.ts
+│   │       │   ├── IMessages.ts
+│   │       │   ├── IUserError.ts
+│   │       │   ├── IColumnTypes.ts
+│   │       │   └── IExportImport.ts
+│   │       └── utils/
+│   │           ├── ErrorHandler.ts
+│   │           ├── SqlBuilder.ts
+│   │           ├── UrlBuilder.ts
+│   │           ├── DataTypeFormatter.ts
+│   │           ├── DateParser.ts
+│   │           └── CsvParser.ts
+│   ├── webview/                    # Shared UI (runs in both targets)
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── webview.html
+│   │       ├── styles.css          # Uses --ite-* variables only
+│   │       ├── theme.css           # --ite-* variable definitions
+│   │       ├── main.js             # AppState, event handlers, grid
+│   │       └── KeyboardShortcuts.ts
+│   ├── vscode/                     # VS Code extension target
+│   │   ├── package.json            # Extension manifest
+│   │   ├── tsconfig.json
+│   │   ├── esbuild.js
+│   │   └── src/
+│   │       ├── extension.ts
+│   │       ├── providers/
+│   │       │   ├── TableEditorProvider.ts
+│   │       │   └── ServerConnectionManager.ts
+│   │       └── vscodeThemeBridge.css  # Maps --vscode-* → --ite-theme-*
+│   └── desktop/                    # Electron desktop target
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── electron-builder.yml
+│       └── src/
+│           ├── main/
+│           │   ├── main.ts         # Electron main process entry
+│           │   ├── ipc.ts          # IPC handler registration
+│           │   ├── ConnectionManager.ts  # Server CRUD + safeStorage
+│           │   └── WindowManager.ts      # BrowserWindow + state
+│           ├── renderer/
+│           │   ├── preload.ts      # contextBridge exposure
+│           │   └── desktopThemeBridge.css  # Hardcoded light/dark tokens
+│           └── ui/
+│               ├── connection/     # Server list, server form
+│               └── settings/       # App preferences
+```
+
+### Package Dependency Rules
+
+| Package | Can Import From | Cannot Import From |
+|---------|----------------|--------------------|
+| `@iris-te/core` | Node.js stdlib only | `vscode`, `electron`, `@iris-te/webview` |
+| `@iris-te/webview` | `@iris-te/core` (types only) | `vscode`, `electron` |
+| `@iris-te/vscode` | `@iris-te/core`, `@iris-te/webview`, `vscode` | `electron` |
+| `@iris-te/desktop` | `@iris-te/core`, `@iris-te/webview`, `electron` | `vscode` |
+
+### Root package.json Workspace Config
+
+```json
+{
+  "name": "iris-table-editor",
+  "private": true,
+  "workspaces": [
+    "packages/core",
+    "packages/webview",
+    "packages/vscode",
+    "packages/desktop"
+  ]
+}
+```
+
+## IMessageBridge Abstraction
+
+The webview code communicates with its host (VS Code extension host or Electron main process) exclusively through the IMessageBridge interface. The webview never knows which target it's running in.
+
+### Interface Definition
+
+```typescript
+// packages/core/src/models/IMessageBridge.ts
+
+interface IMessageBridge {
+  /** Send a command from webview to host */
+  sendCommand(command: string, payload: unknown): void;
+
+  /** Register a handler for events from host */
+  onEvent(event: string, handler: (payload: unknown) => void): void;
+
+  /** Remove an event handler */
+  offEvent(event: string, handler: (payload: unknown) => void): void;
+}
+```
+
+### VS Code Implementation
+
+```typescript
+// packages/vscode/src/VSCodeMessageBridge.ts
+
+class VSCodeMessageBridge implements IMessageBridge {
+  private vscodeApi = acquireVsCodeApi();
+
+  sendCommand(command: string, payload: unknown): void {
+    this.vscodeApi.postMessage({ command, payload });
+  }
+
+  onEvent(event: string, handler: (payload: unknown) => void): void {
+    window.addEventListener('message', (e) => {
+      if (e.data.event === event) handler(e.data.payload);
+    });
+  }
+
+  offEvent(event: string, handler: (payload: unknown) => void): void {
+    // Remove matching listener
+  }
+}
+```
+
+### Electron Implementation
+
+```typescript
+// packages/desktop/src/renderer/ElectronMessageBridge.ts
+
+class ElectronMessageBridge implements IMessageBridge {
+  sendCommand(command: string, payload: unknown): void {
+    window.electronAPI.sendCommand(command, payload);
+  }
+
+  onEvent(event: string, handler: (payload: unknown) => void): void {
+    window.electronAPI.onEvent(event, handler);
+  }
+
+  offEvent(event: string, handler: (payload: unknown) => void): void {
+    window.electronAPI.offEvent(event, handler);
+  }
+}
+```
+
+### Bridge Injection
+
+The webview's `main.js` receives the bridge at initialization:
+
+```javascript
+// packages/webview/src/main.js
+let bridge; // IMessageBridge instance
+
+function initializeApp(messageBridge) {
+  bridge = messageBridge;
+  // All subsequent communication uses bridge.sendCommand() / bridge.onEvent()
+}
+```
+
+## Theme Abstraction Layer
+
+### CSS Variable Architecture
+
+All shared styles use `--ite-*` variables. Each target provides values via a bridge CSS file.
+
+```css
+/* packages/webview/src/theme.css — Abstract variable definitions */
+:root {
+  --ite-bg: var(--ite-theme-bg);
+  --ite-fg: var(--ite-theme-fg);
+  --ite-bg-secondary: var(--ite-theme-bg-secondary);
+  --ite-border: var(--ite-theme-border);
+  --ite-accent: var(--ite-theme-accent);
+  --ite-error: var(--ite-theme-error);
+  --ite-success: var(--ite-theme-success);
+  --ite-input-bg: var(--ite-theme-input-bg);
+  --ite-input-fg: var(--ite-theme-input-fg);
+  --ite-input-border: var(--ite-theme-input-border);
+  --ite-focus-ring: var(--ite-theme-focus-ring);
+  --ite-grid-header-bg: var(--ite-theme-grid-header-bg);
+  --ite-grid-row-hover: var(--ite-theme-grid-row-hover);
+  --ite-grid-row-selected: var(--ite-theme-grid-row-selected);
+  --ite-scrollbar-bg: var(--ite-theme-scrollbar-bg);
+  --ite-scrollbar-thumb: var(--ite-theme-scrollbar-thumb);
+}
+```
+
+### VS Code Theme Bridge
+
+```css
+/* packages/vscode/src/vscodeThemeBridge.css */
+:root {
+  --ite-theme-bg: var(--vscode-editor-background);
+  --ite-theme-fg: var(--vscode-editor-foreground);
+  --ite-theme-bg-secondary: var(--vscode-sideBar-background);
+  --ite-theme-border: var(--vscode-panel-border);
+  --ite-theme-accent: var(--vscode-focusBorder);
+  --ite-theme-error: var(--vscode-errorForeground);
+  --ite-theme-success: var(--vscode-testing-iconPassed);
+  --ite-theme-input-bg: var(--vscode-input-background);
+  --ite-theme-input-fg: var(--vscode-input-foreground);
+  --ite-theme-input-border: var(--vscode-input-border);
+  --ite-theme-focus-ring: var(--vscode-focusBorder);
+  --ite-theme-grid-header-bg: var(--vscode-editorGroupHeader-tabsBackground);
+  --ite-theme-grid-row-hover: var(--vscode-list-hoverBackground);
+  --ite-theme-grid-row-selected: var(--vscode-list-activeSelectionBackground);
+  --ite-theme-scrollbar-bg: var(--vscode-scrollbarSlider-background);
+  --ite-theme-scrollbar-thumb: var(--vscode-scrollbarSlider-activeBackground);
+}
+```
+
+### Desktop Theme Bridge
+
+```css
+/* packages/desktop/src/renderer/desktopThemeBridge.css */
+
+/* Light theme (default) */
+:root {
+  --ite-theme-bg: #ffffff;
+  --ite-theme-fg: #1e1e1e;
+  --ite-theme-bg-secondary: #f3f3f3;
+  --ite-theme-border: #e0e0e0;
+  --ite-theme-accent: #0078d4;
+  --ite-theme-error: #d32f2f;
+  --ite-theme-success: #388e3c;
+  --ite-theme-input-bg: #ffffff;
+  --ite-theme-input-fg: #1e1e1e;
+  --ite-theme-input-border: #cccccc;
+  --ite-theme-focus-ring: #0078d4;
+  --ite-theme-grid-header-bg: #f5f5f5;
+  --ite-theme-grid-row-hover: #e8e8e8;
+  --ite-theme-grid-row-selected: #cce5ff;
+  --ite-theme-scrollbar-bg: #f0f0f0;
+  --ite-theme-scrollbar-thumb: #c1c1c1;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --ite-theme-bg: #1e1e1e;
+  --ite-theme-fg: #d4d4d4;
+  --ite-theme-bg-secondary: #252526;
+  --ite-theme-border: #3c3c3c;
+  --ite-theme-accent: #0078d4;
+  --ite-theme-error: #f44747;
+  --ite-theme-success: #89d185;
+  --ite-theme-input-bg: #3c3c3c;
+  --ite-theme-input-fg: #d4d4d4;
+  --ite-theme-input-border: #5a5a5a;
+  --ite-theme-focus-ring: #0078d4;
+  --ite-theme-grid-header-bg: #2d2d2d;
+  --ite-theme-grid-row-hover: #2a2d2e;
+  --ite-theme-grid-row-selected: #094771;
+  --ite-theme-scrollbar-bg: #1e1e1e;
+  --ite-theme-scrollbar-thumb: #424242;
+}
+```
+
+### Migration Pattern
+
+During Epic 10, all existing `--vscode-*` references in `styles.css` are replaced with `--ite-*` equivalents:
+
+```css
+/* BEFORE (current) */
+background: var(--vscode-editor-background);
+
+/* AFTER (migrated) */
+background: var(--ite-bg);
+```
+
+## Electron Architecture
+
+### Main Process Design
+
+```typescript
+// packages/desktop/src/main/main.ts
+
+import { app, BrowserWindow } from 'electron';
+import { WindowManager } from './WindowManager';
+import { ConnectionManager } from './ConnectionManager';
+import { registerIpcHandlers } from './ipc';
+
+app.whenReady().then(() => {
+  const connectionManager = new ConnectionManager();
+  const windowManager = new WindowManager();
+
+  registerIpcHandlers(connectionManager);
+  windowManager.createMainWindow();
+});
+```
+
+### Security Configuration
+
+```typescript
+// BrowserWindow creation
+const win = new BrowserWindow({
+  webPreferences: {
+    nodeIntegration: false,        // REQUIRED: no Node in renderer
+    contextIsolation: true,        // REQUIRED: isolated worlds
+    preload: path.join(__dirname, 'preload.js'),
+    sandbox: true                  // Additional sandboxing
+  }
+});
+```
+
+### Preload Script (Context Bridge)
+
+```typescript
+// packages/desktop/src/renderer/preload.ts
+import { contextBridge, ipcRenderer } from 'electron';
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  sendCommand: (command: string, payload: unknown) => {
+    ipcRenderer.send('command', { command, payload });
+  },
+  onEvent: (event: string, handler: (payload: unknown) => void) => {
+    ipcRenderer.on(`event:${event}`, (_e, payload) => handler(payload));
+  },
+  offEvent: (event: string, handler: (payload: unknown) => void) => {
+    ipcRenderer.removeListener(`event:${event}`, handler);
+  }
+});
+```
+
+### IPC Handler Registration
+
+```typescript
+// packages/desktop/src/main/ipc.ts
+import { ipcMain } from 'electron';
+
+export function registerIpcHandlers(connectionManager: ConnectionManager) {
+  ipcMain.on('command', async (event, { command, payload }) => {
+    switch (command) {
+      case 'selectServer':
+        await handleSelectServer(event, payload, connectionManager);
+        break;
+      case 'loadTables':
+        await handleLoadTables(event, payload, connectionManager);
+        break;
+      // ... all existing commands from IMessages.ts
+    }
+  });
+}
+
+function sendEvent(event: Electron.IpcMainEvent, eventName: string, payload: unknown) {
+  event.sender.send(`event:${eventName}`, payload);
+}
+```
+
+## Credential Storage (Desktop)
+
+### Pattern
+
+```
+User enters password
+    → safeStorage.encryptString(password)
+    → store encrypted blob in electron-store config file
+    → on reconnect: safeStorage.decryptString(blob)
+    → use decrypted password for Basic Auth header
+```
+
+### Implementation
+
+```typescript
+// packages/desktop/src/main/ConnectionManager.ts
+import { safeStorage } from 'electron';
+import Store from 'electron-store';
+
+interface ServerConfig {
+  name: string;
+  hostname: string;
+  port: number;
+  namespace: string;
+  username: string;
+  encryptedPassword: string;  // Base64-encoded encrypted blob
+  ssl: boolean;
+}
+
+class ConnectionManager {
+  private store = new Store<{ servers: ServerConfig[] }>();
+
+  saveServer(config: Omit<ServerConfig, 'encryptedPassword'> & { password: string }): void {
+    const encrypted = safeStorage.encryptString(config.password);
+    const serverConfig: ServerConfig = {
+      ...config,
+      encryptedPassword: encrypted.toString('base64')
+    };
+    // password field is NOT stored
+    const servers = this.store.get('servers', []);
+    servers.push(serverConfig);
+    this.store.set('servers', servers);
+  }
+
+  getPassword(serverName: string): string {
+    const server = this.getServer(serverName);
+    const buffer = Buffer.from(server.encryptedPassword, 'base64');
+    return safeStorage.decryptString(buffer);
+  }
+
+  getServers(): Omit<ServerConfig, 'encryptedPassword'>[] {
+    return this.store.get('servers', []).map(({ encryptedPassword, ...rest }) => rest);
+  }
+}
+```
+
+### Security Guarantees
+
+- Passwords are NEVER stored in plaintext on disk
+- `safeStorage` uses OS-level encryption: Windows Credential Manager, macOS Keychain
+- Config file (`electron-store`) stores only encrypted blobs
+- Passwords are decrypted only in memory, only when needed for authentication
+- Desktop app follows same "never log credentials" rule as VS Code extension (NFR9)
 
 ## Core Architectural Decisions
 
@@ -1111,83 +1543,120 @@ this.postMessage({ event: 'error', payload: atelierResponse.status.errors[0] });
 
 ### Complete Project Directory Structure
 
+> **Note:** The project uses a monorepo structure (Epic 10+). The pre-monorepo flat structure is preserved in `packages/vscode/` for reference. See "Monorepo Structure & Package Boundaries" section above for the full monorepo layout.
+
 ```
 iris-table-editor/
 ├── .vscode/
-│   ├── launch.json                 # F5 debugging configuration
-│   ├── tasks.json                  # Build tasks
+│   ├── launch.json                 # F5 debugging for VS Code extension + Electron
+│   ├── tasks.json                  # Build tasks (per-target)
 │   └── settings.json               # Workspace settings
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                  # CI pipeline (lint, test, build)
-├── src/
-│   ├── extension.ts                # Entry point - activation, command registration
-│   ├── providers/
-│   │   ├── TableEditorProvider.ts  # WebviewViewProvider - main UI orchestration
-│   │   └── ServerConnectionManager.ts # Server Manager API integration
-│   ├── services/
-│   │   ├── AtelierApiService.ts    # HTTP client for Atelier REST API
-│   │   ├── QueryExecutor.ts        # CRUD operations (SELECT, INSERT, UPDATE, DELETE)
-│   │   ├── TableMetadataService.ts # Schema retrieval with TTL caching
-│   │   ├── ExportService.ts        # (Epic 9) CSV/Excel export with streaming
-│   │   └── ImportService.ts        # (Epic 9) CSV/Excel import with validation
-│   ├── models/
-│   │   ├── IServerSpec.ts          # Server connection interface
-│   │   ├── ITableData.ts           # Table row data interface
-│   │   ├── ITableSchema.ts         # Column metadata interface
-│   │   ├── IAtelierResponse.ts     # Atelier API response interface
-│   │   ├── IMessages.ts            # Command/Event type definitions
-│   │   ├── IUserError.ts           # Error payload interface
-│   │   ├── IColumnTypes.ts         # (Epic 7) Column type mapping interfaces
-│   │   └── IExportImport.ts        # (Epic 9) Export/Import interfaces
-│   ├── utils/
-│   │   ├── ErrorHandler.ts         # Error parsing and user message mapping
-│   │   ├── SqlBuilder.ts           # Parameterized query generation
-│   │   ├── UrlBuilder.ts           # Atelier URL construction with encoding
-│   │   ├── DataTypeFormatter.ts    # (Epic 7) Type-specific display/input formatting
-│   │   ├── DateParser.ts           # (Epic 7) Flexible date/time parsing
-│   │   ├── CsvParser.ts            # (Epic 9) CSV parsing and generation
-│   │   └── KeyboardShortcuts.ts    # (Epic 8) Keyboard shortcut definitions
-│   └── test/
-│       ├── AtelierApiService.test.ts
-│       ├── QueryExecutor.test.ts
-│       ├── SqlBuilder.test.ts
-│       ├── ErrorHandler.test.ts
-│       ├── DataTypeFormatter.test.ts  # (Epic 7)
-│       ├── DateParser.test.ts         # (Epic 7)
-│       ├── ExportService.test.ts      # (Epic 9)
-│       ├── ImportService.test.ts      # (Epic 9)
-│       └── mocks/
-│           └── atelierResponses.ts # Mock API responses for testing
-├── media/
-│   ├── webview.html                # Webview HTML with CSP and nonce
-│   ├── styles.css                  # VS Code theme-aware styles (BEM with ite- prefix)
-│   └── main.js                     # Webview client logic (AppState, event handlers)
+│       ├── ci.yml                  # CI pipeline: lint, test, build (both targets)
+│       └── release.yml             # Release pipeline: desktop installers + VS Code .vsix
+├── packages/
+│   ├── core/                       # Shared: services, models, utils
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── services/
+│   │       │   ├── AtelierApiService.ts
+│   │       │   ├── QueryExecutor.ts
+│   │       │   ├── TableMetadataService.ts
+│   │       │   ├── ExportService.ts
+│   │       │   └── ImportService.ts
+│   │       ├── models/
+│   │       │   ├── IServerSpec.ts
+│   │       │   ├── ITableData.ts
+│   │       │   ├── ITableSchema.ts
+│   │       │   ├── IAtelierResponse.ts
+│   │       │   ├── IMessages.ts
+│   │       │   ├── IMessageBridge.ts
+│   │       │   ├── IUserError.ts
+│   │       │   ├── IColumnTypes.ts
+│   │       │   └── IExportImport.ts
+│   │       ├── utils/
+│   │       │   ├── ErrorHandler.ts
+│   │       │   ├── SqlBuilder.ts
+│   │       │   ├── UrlBuilder.ts
+│   │       │   ├── DataTypeFormatter.ts
+│   │       │   ├── DateParser.ts
+│   │       │   └── CsvParser.ts
+│   │       └── test/
+│   │           ├── AtelierApiService.test.ts
+│   │           ├── QueryExecutor.test.ts
+│   │           ├── SqlBuilder.test.ts
+│   │           ├── ErrorHandler.test.ts
+│   │           ├── DataTypeFormatter.test.ts
+│   │           ├── DateParser.test.ts
+│   │           ├── ExportService.test.ts
+│   │           ├── ImportService.test.ts
+│   │           └── mocks/
+│   │               └── atelierResponses.ts
+│   ├── webview/                    # Shared: UI assets
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── webview.html
+│   │       ├── styles.css          # BEM with ite- prefix, uses --ite-* vars
+│   │       ├── theme.css           # --ite-* variable definitions
+│   │       ├── main.js             # AppState, event handlers, grid
+│   │       └── KeyboardShortcuts.ts
+│   ├── vscode/                     # VS Code extension target
+│   │   ├── package.json            # Extension manifest
+│   │   ├── tsconfig.json
+│   │   ├── esbuild.js
+│   │   ├── .vscodeignore
+│   │   └── src/
+│   │       ├── extension.ts
+│   │       ├── providers/
+│   │       │   ├── TableEditorProvider.ts
+│   │       │   └── ServerConnectionManager.ts
+│   │       ├── VSCodeMessageBridge.ts
+│   │       └── vscodeThemeBridge.css
+│   └── desktop/                    # Electron desktop target
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── electron-builder.yml
+│       └── src/
+│           ├── main/
+│           │   ├── main.ts
+│           │   ├── ipc.ts
+│           │   ├── ConnectionManager.ts
+│           │   └── WindowManager.ts
+│           ├── renderer/
+│           │   ├── preload.ts
+│           │   ├── ElectronMessageBridge.ts
+│           │   └── desktopThemeBridge.css
+│           └── ui/
+│               ├── connection/     # Server list, server form
+│               └── settings/       # App preferences
 ├── resources/
-│   └── icon.png                    # Extension icon for marketplace
-├── package.json                    # Extension manifest, commands, views, settings
-├── tsconfig.json                   # TypeScript configuration (strict mode)
-├── esbuild.js                      # Build configuration
-├── .eslintrc.json                  # ESLint configuration
+│   └── icon.png                    # Shared icon
+├── package.json                    # Root workspace config
+├── tsconfig.base.json              # Shared TypeScript config
+├── eslint.config.mjs               # ESLint configuration
 ├── .prettierrc                     # Prettier configuration
-├── .gitignore                      # Git ignore patterns
-├── .vscodeignore                   # Files to exclude from .vsix package
-├── README.md                       # User documentation
-├── CHANGELOG.md                    # Version history
-└── LICENSE                         # License file
+├── .gitignore
+├── README.md                       # VS Code extension docs
+├── README-desktop.md               # Desktop app docs
+├── CHANGELOG.md
+└── LICENSE
 ```
 
 ### Architectural Boundaries
 
-**Extension Host ↔ Webview Boundary:**
+**Host ↔ Webview Boundary (Both Targets):**
 
 | Boundary | Protocol | Direction |
 |----------|----------|-----------|
-| Commands | `vscode.postMessage()` | Webview → Extension |
-| Events | `webview.postMessage()` | Extension → Webview |
+| Commands | `IMessageBridge.sendCommand()` | Webview → Host |
+| Events | `IMessageBridge.onEvent()` | Host → Webview |
 | State | Managed in webview `AppState` | Internal to webview |
 
-**Extension ↔ Server Manager Boundary:**
+The webview never calls `vscode.postMessage()` or `ipcRenderer.send()` directly — it uses the IMessageBridge abstraction.
+
+**VS Code Extension ↔ Server Manager Boundary:**
 
 | Integration Point | Method |
 |-------------------|--------|
@@ -1196,7 +1665,16 @@ iris-table-editor/
 | Get credentials | `vscode.authentication.getSession()` |
 | Pick server UI | `serverManagerApi.pickServer()` |
 
-**Extension ↔ IRIS Boundary:**
+**Desktop App ↔ Credential Store Boundary:**
+
+| Integration Point | Method |
+|-------------------|--------|
+| Save credentials | `safeStorage.encryptString()` → `electron-store` |
+| Load credentials | `electron-store` → `safeStorage.decryptString()` |
+| Server CRUD | `ConnectionManager.saveServer()` / `.getServers()` / `.deleteServer()` |
+| Test connection | `ConnectionManager.testConnection()` → `AtelierApiService` |
+
+**Both Targets ↔ IRIS Boundary:**
 
 | Operation | Endpoint | Method |
 |-----------|----------|--------|
@@ -1254,77 +1732,108 @@ media/main.js                             # FR33: Error display/dismissal
 
 **User Interface (FR35-FR38):**
 ```
-media/styles.css                          # FR35-FR36: Theme support
-package.json                              # FR37-FR38: View/command registration
-src/extension.ts                          # FR38: Command palette registration
+packages/webview/src/styles.css           # FR35-FR36: Theme support (via --ite-* vars)
+packages/vscode/package.json              # FR37-FR38: View/command registration
+packages/vscode/src/extension.ts          # FR38: Command palette registration
+```
+
+**Desktop Connection Management (FR39-FR44):**
+```
+packages/desktop/src/ui/connection/       # FR39-FR42: Server list and form UI
+packages/desktop/src/main/ConnectionManager.ts  # FR39-FR44: Server CRUD + test connection
+packages/core/src/services/AtelierApiService.ts # FR43: Test connection uses existing API client
+```
+
+**Desktop Window Management (FR45-FR47):**
+```
+packages/desktop/src/main/WindowManager.ts      # FR45-FR47: Tab management, window state
+packages/desktop/src/main/main.ts               # FR45: BrowserWindow creation
+```
+
+**Desktop Application Lifecycle (FR48-FR50):**
+```
+packages/desktop/src/main/WindowManager.ts      # FR48: Window state persistence
+packages/desktop/src/main/main.ts               # FR49: Auto-update check on startup
+packages/desktop/src/ui/connection/              # FR50: First-run welcome screen
 ```
 
 ### Integration Points
 
-**Internal Communication Flow:**
+**Internal Communication Flow (Multi-Target):**
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                         Extension Host                            │
-│  ┌─────────────────┐    ┌──────────────────────────────────────┐ │
-│  │ extension.ts    │───►│ TableEditorProvider                   │ │
-│  │ (entry point)   │    │  ├─► ServerConnectionManager          │ │
-│  └─────────────────┘    │  │    └─► Server Manager API          │ │
-│                         │  │    └─► vscode.authentication       │ │
-│                         │  ├─► AtelierApiService                │ │
-│                         │  │    └─► fetch() → IRIS Server       │ │
-│                         │  ├─► QueryExecutor                    │ │
-│                         │  │    ├─► SqlBuilder                  │ │
-│                         │  │    └─► AtelierApiService           │ │
-│                         │  ├─► TableMetadataService             │ │
-│                         │  │    └─► AtelierApiService           │ │
-│                         │  └─► ErrorHandler                     │ │
-│                         └───────────────┬──────────────────────┘ │
-│                                         │ postMessage            │
-│                                         ▼                        │
-│  ┌──────────────────────────────────────────────────────────────┐│
-│  │                        Webview                                ││
-│  │   main.js (AppState) ◄─► webview.html ◄─► styles.css         ││
-│  └──────────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────┘
+┌─ VS Code Target ──────────────────────────────────────────────────┐
+│  ┌─────────────────┐    ┌──────────────────────────────────────┐  │
+│  │ extension.ts    │───►│ TableEditorProvider                   │  │
+│  │ (entry point)   │    │  ├─► ServerConnectionManager          │  │
+│  └─────────────────┘    │  │    └─► Server Manager API          │  │
+│                         │  ├─► @iris-te/core services            │  │
+│                         │  └─► ErrorHandler                      │  │
+│                         └───────────────┬────────────────────────┘  │
+│                                         │ VSCodeMessageBridge       │
+│                                         ▼                           │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │              @iris-te/webview (shared UI)                     │   │
+│  │   main.js (AppState) ◄─► webview.html ◄─► styles.css         │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────┘
+
+┌─ Desktop Target ──────────────────────────────────────────────────┐
+│  ┌─────────────────┐    ┌──────────────────────────────────────┐  │
+│  │ main.ts         │───►│ IPC Handlers (ipc.ts)                 │  │
+│  │ (Electron main) │    │  ├─► ConnectionManager (safeStorage)   │  │
+│  └─────────────────┘    │  ├─► @iris-te/core services            │  │
+│                         │  └─► ErrorHandler                      │  │
+│                         └───────────────┬────────────────────────┘  │
+│                                         │ ElectronMessageBridge     │
+│                                         │ (preload + contextBridge) │
+│                                         ▼                           │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │              @iris-te/webview (shared UI)                     │   │
+│  │   main.js (AppState) ◄─► webview.html ◄─► styles.css         │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 **External Integrations:**
 
-| Integration | Package/API | Location |
-|-------------|-------------|----------|
-| Server Manager | `@intersystems-community/intersystems-servermanager` | ServerConnectionManager.ts |
-| VS Code Auth | `vscode.authentication` | ServerConnectionManager.ts |
-| Atelier REST API | Native fetch | AtelierApiService.ts |
+| Integration | Package/API | Location | Target |
+|-------------|-------------|----------|--------|
+| Server Manager | `@intersystems-community/intersystems-servermanager` | ServerConnectionManager.ts | VS Code |
+| VS Code Auth | `vscode.authentication` | ServerConnectionManager.ts | VS Code |
+| Electron safeStorage | `electron.safeStorage` | ConnectionManager.ts | Desktop |
+| electron-store | `electron-store` | ConnectionManager.ts | Desktop |
+| electron-updater | `electron-updater` | main.ts | Desktop |
+| Atelier REST API | Native fetch | AtelierApiService.ts | Both (shared core) |
 
-**Data Flow:**
+**Data Flow (Shared — Both Targets):**
 
 ```
 User Action (webview)
        │
-       ▼ Command
-┌─────────────────┐
-│ TableEditorProvider │
-└────────┬────────┘
+       ▼ bridge.sendCommand()
+┌─────────────────────────┐
+│ Host Handler             │  (TableEditorProvider OR Electron IPC)
+└────────┬────────────────┘
          │
          ▼
 ┌─────────────────┐     ┌──────────────────┐
-│  QueryExecutor  │────►│   SqlBuilder     │
+│  QueryExecutor  │────►│   SqlBuilder     │   ← @iris-te/core (shared)
 └────────┬────────┘     └──────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ AtelierApiService │──► fetch() ──► IRIS Server
+│ AtelierApiService │──► fetch() ──► IRIS Server   ← @iris-te/core (shared)
 └────────┬────────┘
          │
          ▼ Response
 ┌─────────────────┐
-│  ErrorHandler   │ (if error)
+│  ErrorHandler   │ (if error)   ← @iris-te/core (shared)
 └────────┬────────┘
          │
-         ▼ Event
+         ▼ bridge.onEvent()
 ┌─────────────────┐
-│    Webview      │──► AppState.update() ──► UI Render
+│    Webview      │──► AppState.update() ──► UI Render   ← @iris-te/webview (shared)
 └─────────────────┘
 ```
 
@@ -1340,45 +1849,80 @@ User Action (webview)
 | `.eslintrc.json` | Linting rules enforcement |
 | `.vscodeignore` | Exclude dev files from .vsix package |
 
-**Source Organization:**
+**Source Organization (Monorepo):**
 
 | Directory | Contents | Naming |
 |-----------|----------|--------|
-| `src/providers/` | VS Code extension points | PascalCase |
-| `src/services/` | Business logic, API clients | PascalCase |
-| `src/models/` | TypeScript interfaces | PascalCase with `I` prefix |
-| `src/utils/` | Pure utility functions | PascalCase for classes, camelCase for modules |
-| `media/` | Webview assets | lowercase |
+| `packages/core/src/services/` | Shared business logic, API clients | PascalCase |
+| `packages/core/src/models/` | Shared TypeScript interfaces | PascalCase with `I` prefix |
+| `packages/core/src/utils/` | Shared utility functions | PascalCase for classes, camelCase for modules |
+| `packages/webview/src/` | Shared webview assets | lowercase |
+| `packages/vscode/src/providers/` | VS Code extension points | PascalCase |
+| `packages/vscode/src/` | VS Code-specific adapters | PascalCase |
+| `packages/desktop/src/main/` | Electron main process | PascalCase |
+| `packages/desktop/src/renderer/` | Electron renderer adapters | PascalCase |
+| `packages/desktop/src/ui/` | Desktop-specific UI screens | lowercase directories |
 
 **Test Organization:**
 
 | Location | Test Type | Naming |
 |----------|-----------|--------|
-| `src/test/*.test.ts` | Unit tests | `{ClassName}.test.ts` |
-| `src/test/mocks/` | Mock data | `{category}.ts` |
+| `packages/core/src/test/*.test.ts` | Shared unit tests | `{ClassName}.test.ts` |
+| `packages/core/src/test/mocks/` | Mock data | `{category}.ts` |
+| `packages/vscode/src/test/*.test.ts` | VS Code integration tests | `{ClassName}.test.ts` |
+| `packages/desktop/src/test/*.test.ts` | Desktop integration tests | `{ClassName}.test.ts` |
 
 ### Development Workflow Integration
 
-**Development Server:**
-- Run `npm run watch` for continuous esbuild compilation
+**Development Server (VS Code):**
+- Run `npm run watch --workspace=@iris-te/vscode` for continuous esbuild compilation
 - Press F5 to launch Extension Development Host
 - Changes to TypeScript require rebuild; webview changes are instant with refresh
 
+**Development Server (Desktop):**
+- Run `npm run dev --workspace=@iris-te/desktop` for Electron dev mode with hot reload
+- Uses electron-reload or similar for fast iteration
+- Changes to webview assets reflect immediately; main process changes require restart
+
 **Build Process:**
 ```bash
-npm run compile     # esbuild → dist/extension.js
-npm run package     # vsce package → iris-table-editor-{version}.vsix
+# Shared
+npm run compile                              # Build all packages
+npm run lint                                 # Lint all packages
+npm run test                                 # Test all packages
+
+# VS Code target
+npm run compile --workspace=@iris-te/vscode  # esbuild → dist/extension.js
+npm run package --workspace=@iris-te/vscode  # vsce package → .vsix
+
+# Desktop target
+npm run compile --workspace=@iris-te/desktop # esbuild → dist/
+npm run dist --workspace=@iris-te/desktop    # electron-builder → installers
 ```
 
-**Deployment Structure:**
+**Deployment Structure (VS Code):**
 ```
 .vsix package contains:
 ├── extension/
 │   ├── dist/extension.js    # Bundled extension code
-│   ├── media/               # Webview assets
+│   ├── media/               # Webview assets (copied from @iris-te/webview)
 │   ├── resources/           # Icons
 │   ├── package.json         # Manifest
 │   └── README.md            # Marketplace description
+```
+
+**Deployment Structure (Desktop):**
+```
+Electron installer contains:
+├── app/
+│   ├── dist/main.js         # Bundled main process
+│   ├── dist/preload.js      # Bundled preload script
+│   ├── webview/             # Shared webview assets (from @iris-te/webview)
+│   ├── ui/                  # Desktop-specific screens
+│   ├── package.json
+│   └── node_modules/        # Production dependencies only
+├── resources/               # App icon, installer assets
+└── electron runtime
 ```
 
 ## Architecture Validation Results
@@ -1410,27 +1954,33 @@ Project structure enables all architectural decisions:
 
 ### Requirements Coverage Validation ✅
 
-**Functional Requirements Coverage (38/38):**
+**Functional Requirements Coverage (50/50):**
 
 | Category | FRs | Architectural Support |
 |----------|-----|----------------------|
-| Server Connection | FR1-FR5 | ServerConnectionManager.ts + Server Manager API |
-| Table Navigation | FR6-FR10 | AtelierApiService.ts + TableEditorProvider.ts |
-| Data Display | FR11-FR15 | webview.html + main.js + styles.css |
-| Data Editing | FR16-FR20 | main.js + QueryExecutor.ts + SqlBuilder.ts |
-| Data Creation | FR21-FR25 | main.js + QueryExecutor.ts (INSERT) |
-| Data Deletion | FR26-FR30 | main.js + QueryExecutor.ts (DELETE) |
-| Error Handling | FR31-FR34 | ErrorHandler.ts + IUserError.ts |
+| Server Connection | FR1-FR5 | ServerConnectionManager.ts + Server Manager API (VS Code) |
+| Table Navigation | FR6-FR10 | AtelierApiService.ts + TableEditorProvider.ts / IPC handlers |
+| Data Display | FR11-FR15 | webview.html + main.js + styles.css (shared webview) |
+| Data Editing | FR16-FR20 | main.js + QueryExecutor.ts + SqlBuilder.ts (shared core) |
+| Data Creation | FR21-FR25 | main.js + QueryExecutor.ts (INSERT) (shared core) |
+| Data Deletion | FR26-FR30 | main.js + QueryExecutor.ts (DELETE) (shared core) |
+| Error Handling | FR31-FR34 | ErrorHandler.ts + IUserError.ts (shared core) |
 | User Interface | FR35-FR38 | styles.css (themes) + package.json (views/commands) |
+| Desktop Connection Mgmt | FR39-FR44 | ConnectionManager.ts + connection UI (desktop) |
+| Desktop Window Mgmt | FR45-FR47 | WindowManager.ts + tab bar (desktop) |
+| Desktop App Lifecycle | FR48-FR50 | WindowManager.ts + electron-updater + welcome screen (desktop) |
 
-**Non-Functional Requirements Coverage (18/18):**
+**Non-Functional Requirements Coverage (24/24):**
 
 | Category | NFRs | Architectural Support |
 |----------|------|----------------------|
 | Performance | NFR1-NFR5 | Server-side pagination (50 rows), async fetch, esbuild bundling |
-| Security | NFR6-NFR10 | Server Manager auth, SqlBuilder parameterization, no credential logging |
+| Security | NFR6-NFR10 | Server Manager auth (VS Code), SqlBuilder parameterization, no credential logging |
 | Integration | NFR11-NFR14 | Extension dependency, UrlBuilder encoding (%→%25) |
 | Reliability | NFR15-NFR18 | ErrorHandler categorization, AppState consistency |
+| Desktop Performance | NFR19-NFR20 | Electron 28+ launch optimization, tree-shaking |
+| Desktop Security | NFR21-NFR23 | safeStorage API, context isolation, typed IPC channels |
+| Desktop Reliability | NFR24 | electron-store for window state persistence |
 
 ### Implementation Readiness Validation ✅
 
@@ -1442,10 +1992,10 @@ Project structure enables all architectural decisions:
 - ✅ Caching strategy specified (1-hour TTL, session-based)
 
 **Structure Completeness:**
-- ✅ Complete directory tree with all files named
-- ✅ All 10 major components mapped to file locations
-- ✅ Integration boundaries clearly defined (Extension ↔ Webview ↔ IRIS)
-- ✅ Requirements mapped to specific files (FR→file matrix)
+- ✅ Complete directory tree with all files named (monorepo layout)
+- ✅ All ~15 major components mapped to file locations across 4 packages
+- ✅ Integration boundaries clearly defined (Host ↔ IMessageBridge ↔ Webview ↔ IRIS)
+- ✅ Requirements mapped to specific files (FR→file matrix, including FR39-FR50)
 
 **Pattern Completeness:**
 - ✅ Naming conventions cover files, functions, CSS classes
@@ -1474,8 +2024,8 @@ No blocking issues found during validation. The architecture is coherent and com
 
 **✅ Requirements Analysis**
 
-- [x] Project context thoroughly analyzed (38 FRs, 18 NFRs)
-- [x] Scale and complexity assessed (Low-Medium, ~10 components)
+- [x] Project context thoroughly analyzed (50 FRs, 24 NFRs)
+- [x] Scale and complexity assessed (Medium, ~15 components)
 - [x] Technical constraints identified (Atelier API, Server Manager dependency)
 - [x] Cross-cutting concerns mapped (auth, errors, theming, parameterized queries)
 
@@ -1507,21 +2057,31 @@ No blocking issues found during validation. The architecture is coherent and com
 **Confidence Level:** High - based on comprehensive validation results
 
 **Key Strengths:**
-- Clear separation of concerns between extension host and webview
-- Single source of truth for error handling (ErrorHandler class)
-- Type-safe message passing with concrete interfaces
-- Security-first design (no credential storage, parameterized queries)
-- Aligned with existing InterSystems ecosystem (Server Manager integration)
+- Clear separation of concerns between host and webview via IMessageBridge abstraction
+- Single source of truth for error handling (ErrorHandler class in shared core)
+- Type-safe message passing with concrete interfaces (same types, both targets)
+- Security-first design (no credential storage in extension state; OS keychain for desktop)
+- Aligned with existing InterSystems ecosystem (Server Manager integration for VS Code)
+- ~80% code reuse between targets via monorepo shared packages
+- Theme abstraction layer enables consistent styling across both targets
 
 **Areas for Future Enhancement:**
 - Virtual scrolling for very large datasets (1000+ rows)
 - Offline mode / connection recovery
 - Query builder for custom SELECT statements
+- Multi-window support for desktop (multiple independent windows)
 
-**Growth Phase Features (Now Planned):**
+**Growth Phase Features (Complete):**
 - Data Type Polish (Epic 7): Type-appropriate controls for boolean, date, time, numeric, NULL
 - Keyboard Shortcuts (Epic 8): Full keyboard navigation and editing
 - Export/Import (Epic 9): CSV/Excel export and import with validation
+
+**Desktop Phase Features (Planned):**
+- Monorepo Restructure (Epic 10): npm workspaces, shared core/webview extraction
+- Electron Shell (Epic 11): Main process, IPC bridge, tabs, native menus
+- Connection Manager (Epic 12): Server CRUD, test connection, safeStorage credentials
+- Build & Distribution (Epic 13): electron-builder, auto-update, CI/CD
+- Feature Parity & Testing (Epic 14): Cross-platform verification, polish
 
 ### Implementation Handoff
 
@@ -1529,19 +2089,16 @@ No blocking issues found during validation. The architecture is coherent and com
 
 - Follow all architectural decisions exactly as documented
 - Use implementation patterns consistently across all components
-- Respect project structure and boundaries
+- Respect package boundaries (see Package Dependency Rules)
+- Use IMessageBridge for all webview↔host communication — never raw postMessage or ipcRenderer
+- Use `--ite-*` CSS variables in shared styles — never `--vscode-*` directly
 - Refer to this document for all architectural questions
-- Prioritize security patterns (parameterized queries, no credential logging)
+- Prioritize security patterns (parameterized queries, no credential logging, context isolation)
 
-**First Implementation Priority:**
-```bash
-npx --package yo --package generator-code -- yo code
-# Select: TypeScript, esbuild, iris-table-editor
-```
-
-Then expand with:
-1. Add Server Manager dependency to package.json
-2. Create src/providers/ServerConnectionManager.ts
-3. Create src/services/AtelierApiService.ts
-4. Create media/webview.html with CSP headers
+**Next Implementation Priority (Epic 10 — Monorepo Restructure):**
+1. Initialize monorepo with npm workspaces root package.json
+2. Create packages/core with extracted services, models, utils
+3. Create packages/webview with extracted UI assets and theme abstraction
+4. Create packages/vscode with remaining VS Code-specific code
+5. Verify VS Code extension builds and functions identically
 

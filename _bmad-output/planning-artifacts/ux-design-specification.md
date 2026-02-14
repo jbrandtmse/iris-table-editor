@@ -19,7 +19,10 @@ workflowComplete: true
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
+  - _bmad-output/planning-artifacts/sprint-change-proposal-2026-02-13.md
   - docs/initial-prompt.md
+lastUpdated: '2026-02-13'
+updateReason: 'Sprint Change Proposal - Desktop target UX (Connection Manager, navigation, theme)'
 documentCounts:
   prd: 1
   architecture: 1
@@ -43,26 +46,29 @@ date: '2026-01-27'
 
 ### Project Vision
 
-IRIS Table Editor delivers an **Excel-like grid editing experience** for InterSystems IRIS database tables within VS Code. The core UX promise is enabling users to **edit table data in 30 seconds** instead of minutes spent writing SQL queries.
+IRIS Table Editor delivers an **Excel-like grid editing experience** for InterSystems IRIS database tables. Available as both a **VS Code extension** and a **standalone desktop application (Electron)**, the core UX promise is enabling users to **edit table data in 30 seconds** instead of minutes spent writing SQL queries.
 
-The extension follows a **navigation + editor pattern**:
-- **Sidebar panel** for server connection, namespace browsing, and table selection
-- **Main editor area** for full-width table grid editing (opens as editor tabs)
+Both targets follow a **navigation + editor pattern**:
+- **VS Code target:** Sidebar panel for server/namespace/table navigation, editor tabs for grid editing — mirrors VS Code's native file explorer → editor paradigm
+- **Desktop target:** Built-in connection manager sidebar, tab bar for multiple open tables — standalone window with native menus and familiar desktop application feel
 
-This mirrors VS Code's native file explorer → editor paradigm, making the interaction model immediately familiar to users.
+The interaction model is **identical across both targets** — the grid editing experience, keyboard shortcuts, filtering, sorting, and export/import all work the same way regardless of target.
 
 ### Target Users
 
-| Persona | Role | Primary Use Case | UX Priority |
-|---------|------|------------------|-------------|
-| **Marcus** | Backend Developer | Quick data inspection during development; spot and fix data issues without context-switching | Speed, keyboard navigation, minimal friction |
-| **Sarah** | Operations/Support | Production data fixes for support tickets; needs confidence she's editing the right data | Clarity, confirmation, server/namespace visibility |
+| Persona | Role | Target | Primary Use Case | UX Priority |
+|---------|------|--------|------------------|-------------|
+| **Marcus** | Backend Developer | VS Code Extension | Quick data inspection during development; spot and fix data issues without context-switching | Speed, keyboard navigation, minimal friction |
+| **Sarah** | Operations/Support | Desktop Application | Production data fixes for support tickets; needs confidence she's editing the right data | Clarity, confirmation, server/namespace visibility |
 
 **Shared Characteristics:**
-- Comfortable with VS Code environment
 - Familiar with database concepts (tables, rows, columns, primary keys)
 - Value efficiency over hand-holding
 - Expect professional-grade error messages
+
+**Target-Specific Characteristics:**
+- **Marcus (VS Code):** Comfortable with VS Code; wants extension to feel native to the editor
+- **Sarah (Desktop):** May not have VS Code installed; needs standalone app with simple install and connection setup
 
 ### Key Design Challenges
 
@@ -112,12 +118,23 @@ The experience must feel like editing a local spreadsheet, with the added confid
 
 ### Platform Strategy
 
-| Aspect | Decision | Rationale |
-|--------|----------|-----------|
-| **Platform** | VS Code Extension (Desktop) | Target users already live in VS Code |
-| **Input Model** | Mouse + Keyboard | Developer tooling standard |
-| **Offline Support** | None | Requires live IRIS connection by nature |
-| **VS Code Integration** | Sidebar navigation, editor tabs, theming, command palette | Leverage familiar patterns |
+| Aspect | VS Code Extension | Desktop Application |
+|--------|-------------------|---------------------|
+| **Platform** | VS Code Extension (WebviewView) | Standalone Electron 28+ app |
+| **Target User** | Developers (Marcus) | Ops/Support (Sarah) |
+| **Input Model** | Mouse + Keyboard | Mouse + Keyboard |
+| **Offline Support** | None — live IRIS connection required | None — live IRIS connection required |
+| **Navigation** | VS Code sidebar + editor tabs | Built-in connection manager + tab bar |
+| **Theming** | VS Code CSS variables (`--vscode-*`) | Built-in light/dark toggle (`--ite-*` bridge) |
+| **Connection Management** | InterSystems Server Manager extension | Built-in connection manager with safeStorage |
+| **Installation** | VS Code Marketplace | Windows .exe / macOS .dmg installer |
+| **Distribution** | VSIX package | electron-builder + GitHub Releases |
+
+**Shared across both targets:**
+- Grid editing UI (webview HTML/CSS/JS)
+- Keyboard shortcuts, filtering, sorting
+- Export/Import functionality
+- All interaction patterns and feedback mechanisms
 
 ### Effortless Interactions
 
@@ -261,11 +278,12 @@ For a VS Code extension, the design system is constrained by platform requiremen
 
 | Factor | Decision Driver |
 |--------|-----------------|
-| **Platform Constraint** | VS Code extensions must use VS Code CSS variables for theming |
-| **User Expectation** | Extension UI should feel native to VS Code |
+| **Multi-Target** | Shared webview must work in both VS Code and Electron |
+| **Theme Abstraction** | `--ite-*` CSS variables abstract `--vscode-*` for portability |
+| **User Expectation** | UI should feel native to whichever target it runs in |
 | **Core Interaction** | Data grid needs custom behavior for Excel-like editing |
-| **Development Speed** | Toolkit provides ready-made standard components |
-| **Theme Compatibility** | Automatic support for all VS Code themes |
+| **Development Speed** | Toolkit provides ready-made standard components (VS Code target) |
+| **Theme Compatibility** | Automatic support for all VS Code themes + built-in light/dark toggle (desktop) |
 
 ### Implementation Approach
 
@@ -276,7 +294,7 @@ For a VS Code extension, the design system is constrained by platform requiremen
 | **Toolbar** | VS Code Webview UI Toolkit | Action buttons, refresh, filters |
 | **Dialogs** | VS Code Webview UI Toolkit | Confirmations, error displays |
 | **Notifications** | VS Code API | Toast messages for save confirmation |
-| **All Styling** | VS Code CSS Variables | `--vscode-*` for theme compatibility |
+| **All Styling** | `--ite-*` CSS Variables | Abstracted theme variables mapped per target |
 
 ### Customization Strategy
 
@@ -291,9 +309,9 @@ For a VS Code extension, the design system is constrained by platform requiremen
 - Keyboard navigation within grid
 
 **Theming (Mandatory):**
-- All colors via `--vscode-editor-*`, `--vscode-input-*`, etc.
-- No hardcoded colors
-- Automatic light/dark theme support
+- All colors via `--ite-*` abstract CSS variables (mapped from `--vscode-*` in VS Code, hardcoded tokens in desktop)
+- No hardcoded colors in shared webview CSS
+- Automatic light/dark theme support (VS Code theme detection / desktop toggle)
 
 ### CSS Architecture
 
@@ -307,12 +325,16 @@ Use BEM naming with `ite-` prefix (per architecture.md):
 .ite-grid__row--selected { }
 ```
 
-All colors reference VS Code variables:
+All colors reference abstract `--ite-*` variables (never raw `--vscode-*` in shared CSS):
 
 ```css
+/* Shared webview CSS uses abstract variables */
 .ite-grid__cell--modified {
-  background-color: var(--vscode-diffEditor-insertedTextBackground);
+  background-color: var(--ite-diff-inserted-bg);
 }
+
+/* VS Code bridge maps: --ite-diff-inserted-bg: var(--vscode-diffEditor-insertedTextBackground); */
+/* Desktop bridge maps: --ite-diff-inserted-bg: #dff0d8 (light) / #1e3a1e (dark); */
 ```
 
 ## Defining Experience
@@ -400,28 +422,33 @@ This is what users will describe to colleagues: *"You just click on the cell, ty
 
 ### Color System
 
-**Strategy: Full VS Code Theme Adaptation**
+**Strategy: Abstract Theme Variable Layer (`--ite-*`)**
 
-No custom brand colors. All visual styling derives from VS Code's CSS variables, ensuring the extension looks native in any theme (light, dark, high contrast).
+All visual styling derives from `--ite-*` CSS variables, which are mapped per-target:
+- **VS Code target:** `--ite-*` → `--vscode-*` (via `vscodeThemeBridge.css`)
+- **Desktop target:** `--ite-*` → hardcoded light/dark tokens (via `desktopThemeBridge.css`)
 
 **Semantic Color Mapping:**
 
-| Purpose | VS Code Variable | Usage |
-|---------|------------------|-------|
-| Background | `--vscode-editor-background` | Grid background |
-| Foreground | `--vscode-editor-foreground` | Cell text |
-| Border | `--vscode-editorGroup-border` | Cell borders, dividers |
-| Selection | `--vscode-list-activeSelectionBackground` | Selected cell/row |
-| Hover | `--vscode-list-hoverBackground` | Row hover state |
-| Modified | `--vscode-diffEditor-insertedTextBackground` | Unsaved cell changes |
-| Error | `--vscode-inputValidation-errorBackground` | Failed save, validation error |
-| Input | `--vscode-input-background` | Cell in edit mode |
-| Header | `--vscode-editorWidget-background` | Column headers |
+| Purpose | Abstract Variable | VS Code Source | Usage |
+|---------|-------------------|----------------|-------|
+| Background | `--ite-bg` | `--vscode-editor-background` | Grid background |
+| Foreground | `--ite-fg` | `--vscode-editor-foreground` | Cell text |
+| Border | `--ite-border` | `--vscode-editorGroup-border` | Cell borders, dividers |
+| Selection | `--ite-selection-bg` | `--vscode-list-activeSelectionBackground` | Selected cell/row |
+| Hover | `--ite-hover-bg` | `--vscode-list-hoverBackground` | Row hover state |
+| Modified | `--ite-diff-inserted-bg` | `--vscode-diffEditor-insertedTextBackground` | Unsaved cell changes |
+| Error | `--ite-error-bg` | `--vscode-inputValidation-errorBackground` | Failed save, validation error |
+| Input | `--ite-input-bg` | `--vscode-input-background` | Cell in edit mode |
+| Header | `--ite-widget-bg` | `--vscode-editorWidget-background` | Column headers |
+| Accent | `--ite-accent` | `--vscode-button-background` | Active tab, CTA buttons |
+| Focus | `--ite-focus-border` | `--vscode-focusBorder` | Focus indicators |
 
 **Color Principles:**
-1. Never hardcode colors - always use CSS variables
-2. Test in light, dark, and high contrast themes
-3. Semantic meaning comes from VS Code's existing conventions
+1. Never hardcode colors in shared webview CSS — always use `--ite-*` variables
+2. Each target provides a bridge CSS file mapping `--ite-*` to platform values
+3. Test in light, dark, and high contrast themes (VS Code) and light/dark toggle (desktop)
+4. Semantic meaning is consistent across both targets
 
 ### Typography System
 
@@ -2247,5 +2274,418 @@ flowchart TD
 
 ---
 
-*Updated: 2026-02-01*
-*Added UX specifications for Epics 7, 8, and 9*
+## Desktop Application UX (Epics 10-14)
+
+This section defines UX components specific to the standalone Electron desktop application.
+
+### Connection Manager UI
+
+**Purpose:** Replace VS Code Server Manager with a built-in server connection management experience for non-developer users.
+
+#### Server List Screen
+
+**Purpose:** Primary navigation for managing and connecting to IRIS servers
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ IRIS Table Editor                          [─] [□] [✕]          │
+├──────────────────────────────────────────────────────────────────┤
+│ ┌──────────────────────┐ ┌──────────────────────────────────────┐│
+│ │ Servers         [+]  │ │                                      ││
+│ ├──────────────────────┤ │                                      ││
+│ │ ● prod-iris          │ │   Welcome to IRIS Table Editor       ││
+│ │   Production         │ │                                      ││
+│ │   192.168.1.10:52773 │ │   Select a server to get started,   ││
+│ │                      │ │   or add a new one.                  ││
+│ │ ○ dev-iris           │ │                                      ││
+│ │   Development        │ │   [+ Add Server]                     ││
+│ │   localhost:52773    │ │                                      ││
+│ │                      │ │                                      ││
+│ │ ○ staging-iris       │ │                                      ││
+│ │   Staging            │ │                                      ││
+│ │   10.0.0.50:52773    │ │                                      ││
+│ ├──────────────────────┤ │                                      ││
+│ │ [⚙ Edit] [🗑 Delete] │ │                                      ││
+│ └──────────────────────┘ └──────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Server List Item:**
+
+| Element | Description |
+|---------|-------------|
+| Status indicator | ● Green = connected, ○ Gray = disconnected, 🔴 Red = error |
+| Server name | User-defined label (e.g., "prod-iris") |
+| Description | Optional description (e.g., "Production") |
+| Host:Port | Connection address |
+
+**Interactions:**
+
+| Action | Result |
+|--------|--------|
+| Click server | Select server, show details in main area |
+| Double-click server | Connect to server |
+| Click [+] button | Open Add Server form |
+| Click [Edit] | Open Edit Server form (with selected server) |
+| Click [Delete] | Confirmation dialog → remove server |
+| Right-click server | Context menu: Connect, Edit, Delete, Test Connection |
+
+**CSS Classes:**
+
+```css
+.ite-server-list { }
+.ite-server-list__item { }
+.ite-server-list__item--selected { }
+.ite-server-list__item--connected { }
+.ite-server-list__item--error { }
+.ite-server-list__status { }
+.ite-server-list__name { font-weight: bold; }
+.ite-server-list__description { font-size: 0.9em; opacity: 0.8; }
+.ite-server-list__address { font-family: monospace; font-size: 0.85em; }
+.ite-server-list__actions { }
+```
+
+---
+
+#### Server Form (Add/Edit)
+
+**Purpose:** Add or edit server connection details
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Add Server                                              [✕]      │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Server Name *                                                    │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ Production IRIS                                            │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  Description                                                      │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ Main production server                                     │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  Host *                            Port *                         │
+│  ┌──────────────────────────────┐  ┌──────────────────────────┐  │
+│  │ 192.168.1.10                 │  │ 52773                    │  │
+│  └──────────────────────────────┘  └──────────────────────────┘  │
+│                                                                   │
+│  Path Prefix                                                      │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ /iris                                                      │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ☐ Use HTTPS                                                      │
+│                                                                   │
+│  Username *                                                       │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ _SYSTEM                                                    │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  Password *                                                       │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ ••••••••                                                   │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  [Test Connection]                      [Cancel]  [Save]         │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Field Validation:**
+
+| Field | Validation | Error Message |
+|-------|------------|---------------|
+| Server Name | Required, unique | "Server name is required" / "A server with this name already exists" |
+| Host | Required, valid hostname/IP | "Host is required" / "Invalid hostname" |
+| Port | Required, 1-65535 | "Port must be between 1 and 65535" |
+| Username | Required | "Username is required" |
+| Password | Required | "Password is required" |
+
+**Test Connection Flow:**
+
+```
+┌──────────────────────────────────────────┐
+│ [Test Connection]                         │
+│    ↓ Click                               │
+│ [Testing...  ⟳]     ← Spinner, disabled │
+│    ↓ Success                             │
+│ [✓ Connection successful]  ← Green text  │
+│    ↓ Failure                             │
+│ [✕ Could not connect: timeout]  ← Red   │
+└──────────────────────────────────────────┘
+```
+
+**Security:**
+- Password field always masked (type="password")
+- Passwords encrypted via Electron safeStorage API before disk storage
+- Never stored in plaintext, never logged
+
+**CSS Classes:**
+
+```css
+.ite-server-form { }
+.ite-server-form__field { margin-bottom: var(--ite-space-md); }
+.ite-server-form__label { font-weight: bold; }
+.ite-server-form__label--required::after { content: ' *'; color: var(--ite-error-fg); }
+.ite-server-form__input { width: 100%; }
+.ite-server-form__row { display: flex; gap: var(--ite-space-md); }
+.ite-server-form__test { }
+.ite-server-form__test--testing { opacity: 0.7; }
+.ite-server-form__test--success { color: var(--ite-success-fg); }
+.ite-server-form__test--failure { color: var(--ite-error-fg); }
+.ite-server-form__actions { display: flex; justify-content: flex-end; gap: var(--ite-space-sm); }
+```
+
+**Accessibility:**
+- All fields have associated `<label>` elements
+- Required fields marked with `aria-required="true"`
+- Validation errors linked via `aria-describedby`
+- Tab order follows visual layout
+- Test Connection result announced via live region
+
+---
+
+### First-Run Experience
+
+**Purpose:** Guide new desktop users through initial server setup
+
+**Layout:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ IRIS Table Editor                          [─] [□] [✕]          │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│                                                                   │
+│              Welcome to IRIS Table Editor                         │
+│                                                                   │
+│      Edit your IRIS database tables like a spreadsheet.          │
+│      No SQL required.                                             │
+│                                                                   │
+│      Get started by adding your first server connection:         │
+│                                                                   │
+│                    [+ Add Your First Server]                      │
+│                                                                   │
+│                                                                   │
+│      ─────────────────────────────────────                       │
+│      Quick Start:                                                 │
+│      1. Add a server connection                                   │
+│      2. Select a namespace and table                              │
+│      3. Click any cell to start editing                           │
+│                                                                   │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Behavior:**
+- Shown only on first launch (no servers configured)
+- After adding first server, transitions to normal server list view
+- "Add Your First Server" opens the Server Form
+- Quick Start text provides orientation for non-developer users
+
+**CSS Classes:**
+
+```css
+.ite-welcome { text-align: center; padding: var(--ite-space-lg) 48px; }
+.ite-welcome__title { font-size: 1.5em; font-weight: bold; margin-bottom: var(--ite-space-md); }
+.ite-welcome__subtitle { opacity: 0.8; margin-bottom: var(--ite-space-lg); }
+.ite-welcome__cta { margin-bottom: var(--ite-space-lg); }
+.ite-welcome__quickstart { text-align: left; max-width: 400px; margin: 0 auto; }
+.ite-welcome__quickstart-title { font-weight: bold; margin-bottom: var(--ite-space-sm); }
+.ite-welcome__quickstart-list { list-style: decimal; padding-left: 20px; }
+```
+
+---
+
+### Desktop Navigation Layout
+
+**Purpose:** Define the desktop application's navigation structure (distinct from VS Code sidebar)
+
+**Layout — Connected State:**
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ File   Edit   View   Help                       [─] [□] [✕]        │
+├──────────────────────────────────────────────────────────────────────┤
+│ ┌──────────────────────┐ ┌──────────────────────────────────────────┐│
+│ │ prod-iris        [⚙] │ │ [Customer ✕] [Orders ✕] [Products ✕]   ││
+│ ├──────────────────────┤ ├──────────────────────────────────────────┤│
+│ │ ▼ Namespaces         │ │ [🔄] [➕] [🗑️] [🔽] [📥▼] [📤] [⌨️]       ││
+│ │   SAMPLES            │ │ prod-iris > SAMPLES > Customer          ││
+│ │ ► USER               │ ├──────────────────────────────────────────┤│
+│ │ ► %SYS               │ │                                          ││
+│ ├──────────────────────┤ │        [ Grid Content ]                  ││
+│ │ ▼ Tables (SAMPLES)   │ │                                          ││
+│ │   📂 Customer        │ │                                          ││
+│ │      Address         │ │                                          ││
+│ │      Contact         │ │                                          ││
+│ │      Person          │ │                                          ││
+│ │   📁 Order           │ │                                          ││
+│ │   📁 Product         │ │                                          ││
+│ ├──────────────────────┤ ├──────────────────────────────────────────┤│
+│ │ [🔌 Disconnect]      │ │ Rows 1-50 of 1,234  [⏮][◀] 1 of 25 [▶][⏭]│
+│ └──────────────────────┘ └──────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Sidebar Sections:**
+
+| Section | Content |
+|---------|---------|
+| **Server header** | Connected server name + settings gear icon |
+| **Namespaces** | Collapsible list of available namespaces |
+| **Tables** | Schema-based tree view (same as Epic 6 tree view) |
+| **Actions** | Disconnect button at bottom |
+
+**Tab Bar:**
+
+| Element | Description |
+|---------|-------------|
+| Tab label | Table name (e.g., "Customer") |
+| Close button (✕) | Close tab, prompt if unsaved changes |
+| Active tab | Visually highlighted |
+| Tab overflow | Scroll arrows or dropdown when many tabs |
+
+**Native Menu Bar:**
+
+| Menu | Items |
+|------|-------|
+| **File** | New Connection, Disconnect, Close Tab, Close All Tabs, Exit |
+| **Edit** | Undo (Ctrl+Z), Copy (Ctrl+C), Paste (Ctrl+V), Set NULL (Ctrl+Shift+N) |
+| **View** | Toggle Sidebar, Toggle Filter Panel, Keyboard Shortcuts, Toggle Theme |
+| **Help** | Keyboard Shortcuts, About |
+
+**CSS Classes:**
+
+```css
+.ite-desktop-layout { display: flex; height: 100vh; }
+.ite-desktop-sidebar { width: 250px; min-width: 200px; max-width: 400px; resize: horizontal; }
+.ite-desktop-sidebar__header { padding: var(--ite-space-md); font-weight: bold; }
+.ite-desktop-sidebar__section { }
+.ite-desktop-sidebar__section-title { font-weight: bold; text-transform: uppercase; font-size: 0.85em; }
+.ite-desktop-main { flex: 1; display: flex; flex-direction: column; }
+.ite-desktop-tabbar { display: flex; overflow-x: auto; }
+.ite-desktop-tabbar__tab { padding: var(--ite-space-sm) var(--ite-space-md); cursor: pointer; }
+.ite-desktop-tabbar__tab--active { border-bottom: 2px solid var(--ite-accent); }
+.ite-desktop-tabbar__close { margin-left: var(--ite-space-sm); opacity: 0.6; }
+.ite-desktop-tabbar__close:hover { opacity: 1; }
+```
+
+**Accessibility:**
+- Tab bar uses `role="tablist"` with `role="tab"` for each tab
+- Sidebar sections use `role="tree"` for namespace/table navigation
+- Keyboard: Ctrl+Tab / Ctrl+Shift+Tab to switch tabs
+- Sidebar can be toggled with Ctrl+B (matches VS Code pattern)
+
+---
+
+### Desktop Theme Toggle
+
+**Purpose:** Light/dark mode switch for standalone desktop app (no VS Code theme system available)
+
+**Location:** View menu → "Toggle Theme" or toolbar icon
+
+**Layout:**
+
+```
+┌────────────────────────┐
+│ View                   │
+├────────────────────────┤
+│ Toggle Sidebar  Ctrl+B │
+│ Filter Panel           │
+│ ─────────────────────  │
+│ ☀ Light Theme          │  ← Radio selection
+│ ● Dark Theme           │  ← Currently active
+│ ─────────────────────  │
+│ Keyboard Shortcuts     │
+└────────────────────────┘
+```
+
+**Behavior:**
+- Theme preference saved to electron-store (persists across sessions)
+- Toggle switches between light and dark `--ite-*` variable sets
+- Transition: instant (no animation needed for full-page repaint)
+- Default: follows OS preference via `prefers-color-scheme` media query
+
+**Implementation:**
+- Desktop theme bridge CSS provides two sets of `--ite-*` values
+- `data-theme="light"` or `data-theme="dark"` attribute on `<html>` element
+- Theme toggle updates attribute + persists preference
+
+---
+
+### User Journey 6: Desktop First-Time Setup
+
+**Persona:** Sarah (Operations/Support)
+**Goal:** Install app, connect to server, make first edit
+**Success:** From install to first edit in < 60 seconds
+
+```mermaid
+flowchart TD
+    A[Download and install .exe] --> B[Launch IRIS Table Editor]
+    B --> C{First launch?}
+    C -->|Yes| D[See Welcome screen]
+    C -->|No| E[See server list]
+    D --> F[Click 'Add Your First Server']
+    F --> G[Fill in server details]
+    G --> H[Click 'Test Connection']
+    H --> I{Test result?}
+    I -->|Success| J[Click Save]
+    I -->|Failure| K[See error, fix details]
+    K --> H
+    J --> L[Server appears in list]
+    L --> M[Double-click server to connect]
+    M --> N[See namespaces in sidebar]
+    N --> O[Click namespace]
+    O --> P[See tables in tree view]
+    P --> Q[Double-click table]
+    Q --> R[Grid opens in tab]
+    R --> S[Double-click cell to edit]
+    S --> T[Type new value, press Tab]
+    T --> U{Save successful?}
+    U -->|Yes| V[See green confirmation flash]
+    V --> W[First edit complete!]
+    U -->|No| X[See error, fix and retry]
+    X --> S
+```
+
+---
+
+### Desktop Responsive Strategy
+
+**Platform: Electron Desktop Window**
+
+The desktop application runs in a resizable native window. Unlike VS Code panels, the app controls the entire window.
+
+**Window Size Scenarios:**
+
+| Scenario | Width Range | Adaptation |
+|----------|-------------|------------|
+| **Minimum window** | 800×600px | Sidebar collapses, grid with horizontal scroll |
+| **Default window** | 1280×720px | Sidebar + grid comfortable layout |
+| **Large/maximized** | 1920×1080+ | Maximum data visibility, wide grid |
+
+**Responsive Behaviors:**
+
+| Element | Behavior |
+|---------|----------|
+| **Sidebar** | Collapsible with Ctrl+B; resizable via drag handle |
+| **Tab bar** | Scrolls horizontally when many tabs open |
+| **Grid** | Same responsive behavior as VS Code target |
+| **Toolbar** | Same responsive behavior as VS Code target |
+
+**Window State Persistence:**
+- Window position, size, and maximized state saved via electron-store
+- Restored on next launch
+- Sidebar width remembered across sessions
+
+---
+
+*Updated: 2026-02-13*
+*Added desktop application UX specifications (Connection Manager, navigation, theme, Journey 6) for Epics 10-14*

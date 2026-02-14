@@ -21,14 +21,17 @@ workflowType: 'prd'
 projectType: 'greenfield'
 classification:
   projectType: developer_tool
-  projectTypeDetail: VS Code Extension
+  projectTypeDetail: VS Code Extension + Standalone Desktop Application
   domain: general
   domainDetail: Developer Tooling
-  complexity: low
+  complexity: medium
   distribution: open_source_marketplace
+  distributionTargets:
+    - VS Code Marketplace (extension)
+    - GitHub Releases (desktop installer)
   targetAudience:
-    - IRIS developers
-    - Operations users
+    - IRIS developers (VS Code extension)
+    - Operations and support staff (standalone desktop)
 ---
 
 # Product Requirements Document - iris-table-editor
@@ -38,15 +41,17 @@ classification:
 
 ## Executive Summary
 
-**IRIS Table Editor** is a VS Code extension that enables visual editing of InterSystems IRIS database tables without writing SQL. It provides an Excel-like grid interface integrated directly into the VS Code development environment.
+**IRIS Table Editor** is a multi-target tool for visual editing of InterSystems IRIS database tables without writing SQL. It provides an Excel-like grid interface available as both a **VS Code extension** for developers and a **standalone desktop application** (Windows/macOS) for operations and support staff.
 
-**Core Value Proposition:** Edit IRIS table data in 30 seconds instead of minutes spent writing SQL queries.
+**Core Value Proposition:** Edit IRIS table data in 30 seconds instead of minutes spent writing SQL queries — regardless of whether users have VS Code installed.
 
-**Target Users:** IRIS developers and operations users who need to inspect or modify table data during development and maintenance.
+**Target Users:**
+- **IRIS developers** — VS Code extension integrated into their existing development environment
+- **Operations and support staff** — Standalone desktop application with built-in connection management, no VS Code required
 
-**Distribution:** Open source, published on VS Code Marketplace.
+**Distribution:** Open source. VS Code extension via Marketplace; desktop application via GitHub Releases (Windows .exe, macOS .dmg).
 
-**Key Dependencies:** InterSystems Server Manager extension, Atelier REST API.
+**Key Dependencies:** Atelier REST API (both targets). InterSystems Server Manager extension (VS Code target only). Electron (desktop target).
 
 ## Success Criteria
 
@@ -55,28 +60,37 @@ classification:
 - **Primary Value**: Users can view and edit IRIS table data in an Excel-like grid without writing SQL
 - **Aha Moment**: First successful inline edit and save - "I just changed a value and hit save, no SQL required"
 - **Pain Eliminated**: No more writing manual UPDATE/INSERT statements for simple data changes
-- **Target Experience**: Browse → Select table → View grid → Edit cell → Save - all within VS Code
+- **Target Experience (VS Code)**: Browse → Select table → View grid → Edit cell → Save — all within VS Code
+- **Target Experience (Desktop)**: Launch app → Connect to server → Select table → Edit → Save — no IDE required
 
 ### Business Success
 
 | Milestone | Target | Indicators |
 |-----------|--------|------------|
-| 3 months | Internal adoption | Development team actively using the tool daily instead of manual SQL |
-| 12 months | Community adoption | External users installing from VS Code Marketplace, positive reviews (4+ stars) |
+| 3 months | Internal dev adoption | Development team actively using VS Code extension daily instead of manual SQL |
+| 6 months | Ops/support adoption | Operations and support staff using standalone desktop app for routine data fixes |
+| 12 months | Community adoption | External users installing from VS Code Marketplace and GitHub Releases, positive reviews (4+ stars) |
+| 12 months | Cross-team standard | Both developer and operations teams using IRIS Table Editor as primary data editing tool |
 
 ### Technical Success
 
-- Server Manager integration works seamlessly for authentication
+- Server Manager integration works seamlessly for authentication (VS Code target)
+- Built-in connection manager with secure credential storage (desktop target)
 - All CRUD operations use HTTP-only Atelier API (no superserver port required)
-- Secure credential handling via VS Code authentication provider
+- Secure credential handling — VS Code auth provider (extension) / OS keychain via safeStorage (desktop)
 - SQL injection prevention through parameterized queries
 - Responsive performance with tables up to 1000+ rows (MVP)
-- Full support for VS Code light and dark themes
+- Full support for light and dark themes via abstracted CSS variable layer
+- Shared core logic and webview UI across both targets (~80% code reuse)
 - **(Growth - Epic 6)** Scalable navigation for namespaces with thousands of tables
 - **(Growth - Epic 6)** Efficient handling of tables with millions of rows via server-side operations
 - **(Growth - Epic 7)** Type-appropriate controls for boolean, date, time, numeric, and NULL values
 - **(Growth - Epic 8)** Full keyboard navigation and editing without mouse dependency
 - **(Growth - Epic 9)** Reliable CSV/Excel export and import for bulk data operations
+- **(Desktop - Epic 10-14)** Monorepo structure enabling single-source bug fixes across both targets
+- **(Desktop - Epic 11)** Desktop app launches in under 3 seconds
+- **(Desktop - Epic 12)** Connection manager supports add/edit/delete/test with OS-encrypted credentials
+- **(Desktop - Epic 14)** Feature parity across 24 checkpoints between VS Code and desktop targets
 
 ### Measurable Outcomes
 
@@ -89,6 +103,9 @@ classification:
 - **(Growth - Epic 8)** Power users can perform common operations without leaving keyboard
 - **(Growth - Epic 9)** Export 10,000 rows to CSV in under 10 seconds
 - **(Growth - Epic 9)** Import 10,000 rows from CSV in under 30 seconds
+- **(Desktop - Epic 11)** Desktop app launches in under 3 seconds on standard hardware
+- **(Desktop - Epic 12)** Ops/support staff can go from install to first edit in under 60 seconds
+- **(Desktop - Epic 14)** All 24 feature parity checkpoints pass between VS Code and desktop targets
 
 ## Product Scope
 
@@ -139,6 +156,39 @@ classification:
 - Pre-import validation with error reporting and partial import options
 - Large dataset handling with streaming, progress indicators, and cancellation support
 
+### Standalone Desktop Application (Epics 10-14)
+
+**Monorepo Restructure (Epic 10):**
+- Restructure into monorepo: packages/core, packages/webview, packages/vscode, packages/desktop
+- Extract shared services, models, and utilities into packages/core
+- Extract shared webview UI into packages/webview with abstracted theme variables
+- Verify VS Code extension builds and functions identically after restructure
+
+**Electron Shell & Window Management (Epic 11):**
+- Electron main process with context isolation and secure preload script
+- IPC bridge implementing IMessageBridge abstraction (same interface as VS Code messaging)
+- Tab bar for multiple open tables within single window
+- Native menu bar with standard application menus
+- Window state persistence (position, size, last connection)
+
+**Connection Manager (Epic 12):**
+- Server list UI with add/edit/delete operations
+- Server form with hostname, port, namespace, username/password fields
+- Test connection functionality with timeout and cancel
+- Credential storage via Electron safeStorage (OS keychain encryption)
+- Connection lifecycle management (connect, disconnect, reconnect)
+
+**Build, Package & Distribution (Epic 13):**
+- electron-builder configuration for Windows .exe and macOS .dmg
+- Auto-update via electron-updater + GitHub Releases
+- CI/CD pipeline for dual-target builds
+- Code signing (optional — can ship unsigned initially)
+
+**Integration Testing & Feature Parity (Epic 14):**
+- Feature parity verification across 24 checkpoints
+- Cross-platform testing (Windows + macOS)
+- Desktop-specific polish (first-run experience, native feel)
+
 ### Vision (Future)
 
 - Query builder UI for custom SELECT queries
@@ -146,6 +196,7 @@ classification:
 - Custom SQL execution panel
 - Multiple namespace support
 - Auto-refresh capability
+- Multi-window support for desktop (multiple independent windows)
 
 ## User Journeys
 
@@ -222,6 +273,21 @@ After using IRIS Table Editor daily, Sarah wants to work faster without constant
 
 ---
 
+### Journey 6: Operations User - Standalone Desktop (Desktop Target)
+
+**Persona: Sarah, Application Support Specialist (no VS Code)**
+
+Sarah's team has adopted IRIS Table Editor but she doesn't use VS Code for any other purpose. Installing an entire IDE just for table editing feels like overkill.
+
+- **Opening Scene**: Sarah downloads the IRIS Table Editor desktop app from the team's shared drive. She runs the installer — it takes 30 seconds.
+- **Rising Action**: On first launch, a welcome screen guides her through adding her first server connection. She enters the hostname, port, and credentials. She clicks "Test Connection" and sees a green checkmark.
+- **Climax**: Sarah selects the production namespace, picks the customer table, and sees the same familiar grid she saw in the VS Code demo. She fixes the email address from the support ticket, saves, done.
+- **Resolution**: Sarah resolves 5 tickets that afternoon using the standalone app. No IDE installation, no learning curve beyond the grid she already understood.
+
+**Capabilities Revealed**: Desktop installer, first-run setup, connection manager, credential storage, feature parity with VS Code
+
+---
+
 ### Journey Requirements Summary
 
 | Capability | Revealed By Journey |
@@ -229,8 +295,8 @@ After using IRIS Table Editor daily, Sarah wants to work faster without constant
 | Server selection & connection | Marcus (J1), Sarah (J2) |
 | Table browsing & selection | Marcus (J1), Sarah (J2) |
 | Grid data display | All journeys |
-| Inline cell editing | Marcus (J1), Sarah (J2), Sarah Power (J5) |
-| Quick save (UPDATE) | Marcus (J1), Sarah (J2) |
+| Inline cell editing | Marcus (J1), Sarah (J2), Sarah Power (J5), Sarah Desktop (J6) |
+| Quick save (UPDATE) | Marcus (J1), Sarah (J2), Sarah Desktop (J6) |
 | User-friendly error messages | Marcus - Error (J3) |
 | Change confirmation | Sarah (J2) |
 | **(Growth)** Excel/CSV import | Marcus Bulk (J4) |
@@ -240,27 +306,41 @@ After using IRIS Table Editor daily, Sarah wants to work faster without constant
 | **(Growth)** Keyboard shortcuts | Sarah Power (J5) |
 | **(Growth)** Shortcut discovery | Sarah Power (J5) |
 | **(Growth)** CSV/Excel export | Sarah Power (J5) |
+| **(Desktop)** Desktop installer | Sarah Desktop (J6) |
+| **(Desktop)** First-run setup | Sarah Desktop (J6) |
+| **(Desktop)** Connection manager | Sarah Desktop (J6) |
+| **(Desktop)** Credential storage | Sarah Desktop (J6) |
+| **(Desktop)** Feature parity | Sarah Desktop (J6) |
 
 ## Developer Tool Specific Requirements
 
 ### Project-Type Overview
 
-IRIS Table Editor is a **VS Code Extension** providing visual database editing capabilities for InterSystems IRIS. It integrates with the existing InterSystems ecosystem through the Server Manager extension and Atelier REST API.
+IRIS Table Editor is a **multi-target tool** providing visual database editing capabilities for InterSystems IRIS. It ships as both a **VS Code extension** (for developers) and a **standalone Electron desktop application** (for operations/support staff). Both targets share core logic and webview UI via a monorepo structure, connecting to IRIS through the Atelier REST API.
 
 ### Technical Stack
 
-| Component | Technology |
-|-----------|------------|
-| Language | TypeScript |
-| Runtime | Node.js 20+ |
-| Package Manager | npm |
-| Build Tool | esbuild |
-| IDE Platform | VS Code 1.85.0+ |
-| UI Framework | VS Code Webview API + vscode-webview-ui-toolkit |
-| Data Grid | vscode-data-grid component |
-| API Layer | Atelier REST API (HTTP-based) |
+| Component | Technology | Target |
+|-----------|------------|--------|
+| Language | TypeScript | Both |
+| Runtime | Node.js 20+ | Both |
+| Package Manager | npm (workspaces) | Both |
+| Build Tool | esbuild | Both |
+| Codebase Structure | Monorepo (npm workspaces) | Both |
+| IDE Platform | VS Code 1.85.0+ | VS Code |
+| Desktop Shell | Electron 28+ | Desktop |
+| UI Framework | VS Code Webview API | VS Code |
+| UI Framework | Electron BrowserWindow | Desktop |
+| Data Grid | Custom grid component | Both (shared webview) |
+| API Layer | Atelier REST API (HTTP-based) | Both |
+| Message Bridge | IMessageBridge abstraction | Both |
+| Theme System | `--ite-*` CSS variable abstraction | Both |
+| Credential Storage | Server Manager auth provider | VS Code |
+| Credential Storage | Electron safeStorage API | Desktop |
+| Packaging | vsce (VS Code), electron-builder (desktop) | Per-target |
+| Auto-Update | electron-updater + GitHub Releases | Desktop |
 
-### IDE Integration
+### VS Code Integration
 
 - **Extension Type**: WebviewViewProvider (sidebar panel)
 - **Activation**: On command or when view is opened
@@ -270,36 +350,54 @@ IRIS Table Editor is a **VS Code Extension** providing visual database editing c
   - `iris-table-editor.openTableEditor` - Launch editor
   - `iris-table-editor.editTable` - Context menu integration
 
+### Desktop Application Architecture
+
+- **Window Model**: Single window with tab bar (MVP)
+- **Security**: Context isolation enabled, nodeIntegration disabled, preload script with contextBridge
+- **IPC**: Typed channels via IMessageBridge abstraction (same interface as VS Code webview messaging)
+- **Connection Management**: Built-in server list, add/edit/delete/test connections
+- **Credential Storage**: OS keychain via Electron safeStorage (Windows Credential Manager / macOS Keychain)
+- **Theme System**: Light/dark mode toggle with `--ite-*` CSS variables mapped to hardcoded design tokens
+
 ### Installation Methods
 
-| Method | Description |
-|--------|-------------|
-| VS Code Marketplace | Primary distribution (open source) |
-| .vsix package | Manual installation for offline/enterprise environments |
-| Source build | `npm run compile` for development |
+| Method | Description | Target |
+|--------|-------------|--------|
+| VS Code Marketplace | Primary distribution for developers | VS Code |
+| .vsix package | Manual installation for offline/enterprise | VS Code |
+| Windows .exe installer | Desktop app for Windows 10+ | Desktop |
+| macOS .dmg installer | Desktop app for macOS 11+ | Desktop |
+| Portable .zip | No-install option for locked-down machines | Desktop |
+| Source build | `npm run compile` for development | Both |
 
 ### Compatibility Requirements
 
-| Dependency | Minimum Version |
-|------------|-----------------|
-| VS Code | 1.85.0+ |
-| Node.js | 20+ |
-| InterSystems IRIS | 2021.1+ |
-| Server Manager Extension | Latest |
+| Dependency | Minimum Version | Target |
+|------------|-----------------|--------|
+| VS Code | 1.85.0+ | VS Code |
+| Node.js | 20+ | Both |
+| InterSystems IRIS | 2021.1+ | Both |
+| Server Manager Extension | Latest | VS Code |
+| Electron | 28+ | Desktop |
+| Windows | 10+ | Desktop |
+| macOS | 11+ (Big Sur) | Desktop |
 
 ### Documentation Requirements
 
-- **README.md**: Installation, quickstart guide, screenshots, feature overview
-- **CHANGELOG.md**: Version history and release notes
-- **Marketplace Description**: Feature highlights, requirements, usage examples
-- **In-extension**: Tooltips on UI elements, clear error messages
+- **README.md**: Installation, quickstart guide, screenshots, feature overview (per target)
+- **CHANGELOG.md**: Version history and release notes (shared)
+- **Marketplace Description**: Feature highlights, requirements, usage examples (VS Code)
+- **Desktop Install Guide**: Download, install, first-run setup for non-developer audience
+- **In-app**: Tooltips on UI elements, clear error messages (both targets)
 
 ### Implementation Considerations
 
-- **Security**: Credentials handled by Server Manager (never stored in extension state)
+- **Security (VS Code)**: Credentials handled by Server Manager (never stored in extension state)
+- **Security (Desktop)**: Credentials encrypted via OS keychain (safeStorage API), never plaintext on disk
 - **Performance**: Lazy loading of table data, pagination for large datasets
-- **Theming**: Full support for VS Code light/dark themes via CSS variables
+- **Theming**: Abstracted `--ite-*` CSS variables with per-target bridge files
 - **Error Handling**: User-friendly messages, no raw SQL errors exposed
+- **Code Sharing**: Monorepo with shared core (services, models, utils) and shared webview (UI, styles)
 
 ## Project Scoping & Phased Development
 
@@ -416,6 +514,27 @@ IRIS Table Editor is a **VS Code Extension** providing visual database editing c
 - **FR37**: User can access the table editor from VS Code sidebar
 - **FR38**: User can access the table editor via command palette
 
+### Desktop Connection Management (Desktop Target)
+
+- **FR39**: User can view a list of saved IRIS server connections
+- **FR40**: User can add a new server connection (hostname, port, namespace, credentials)
+- **FR41**: User can edit an existing server connection
+- **FR42**: User can delete a saved server connection with confirmation
+- **FR43**: User can test a server connection before saving (with timeout and cancel)
+- **FR44**: User can see connection test results (success with server version, or failure with actionable error)
+
+### Desktop Window Management (Desktop Target)
+
+- **FR45**: User can open multiple tables in tabs within a single window
+- **FR46**: User can switch between open table tabs
+- **FR47**: User can close individual table tabs
+
+### Desktop Application Lifecycle (Desktop Target)
+
+- **FR48**: Application remembers window position, size, and last-used connection on restart
+- **FR49**: Application checks for updates on startup and notifies user when an update is available
+- **FR50**: Application provides a first-run welcome screen with guided server setup
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -447,4 +566,19 @@ IRIS Table Editor is a **VS Code Extension** providing visual database editing c
 - **NFR16**: Partial failures do not corrupt data or leave UI in inconsistent state
 - **NFR17**: Network disconnection is detected and reported to user
 - **NFR18**: Extension recovers gracefully from server connection loss, including when re-entering the extension with a previously selected server that is no longer available. Connection attempts must be cancellable and time-bounded.
+
+### Desktop Performance (Desktop Target)
+
+- **NFR19**: Desktop application launches and displays the main window in under 3 seconds on standard hardware
+- **NFR20**: Desktop application installer size is under 200MB
+
+### Desktop Security (Desktop Target)
+
+- **NFR21**: Credentials are encrypted using OS-provided keychain (Electron safeStorage API) — never stored in plaintext
+- **NFR22**: Electron renderer runs with context isolation enabled and nodeIntegration disabled
+- **NFR23**: All IPC communication between main and renderer processes uses typed, validated channels
+
+### Desktop Reliability (Desktop Target)
+
+- **NFR24**: Desktop application persists window state (position, size, last connection) across restarts via electron-store
 

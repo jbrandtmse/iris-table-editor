@@ -119,3 +119,50 @@ development_status:
   9-5-import-validation-rollback: done
   9-6-export-import-large-datasets: done
   epic-9-retrospective: optional
+
+  # ============================================================
+  # DESKTOP APPLICATION - Sprint Change Proposal 2026-02-13
+  # Standalone Electron app for ops/support staff
+  # Sequence: 10 → 12 → 11 → 13 → 14
+  # ============================================================
+
+  # Epic 10: Monorepo Restructure & Shared Core Extraction (FOUNDATION)
+  epic-10: backlog
+  10-1-monorepo-initialization: backlog
+  10-2-shared-core-extraction: backlog
+  10-3-webview-extraction-theme-abstraction: backlog
+  10-4-vscode-regression-verification: backlog
+  epic-10-retrospective: optional
+
+  # Epic 11: Electron Shell & Window Management
+  epic-11: backlog
+  11-1-electron-bootstrap: backlog
+  11-2-ipc-bridge: backlog
+  11-3-tab-bar: backlog
+  11-4-native-menu: backlog
+  11-5-window-state-persistence: backlog
+  epic-11-retrospective: optional
+
+  # Epic 12: Connection Manager
+  epic-12: backlog
+  12-1-server-list-ui: backlog
+  12-2-server-form: backlog
+  12-3-test-connection: backlog
+  12-4-credential-storage: backlog
+  12-5-connection-lifecycle: backlog
+  epic-12-retrospective: optional
+
+  # Epic 13: Build, Package & Distribution
+  epic-13: backlog
+  13-1-electron-builder-config: backlog
+  13-2-auto-update: backlog
+  13-3-ci-cd-pipeline: backlog
+  13-4-code-signing: backlog  # Optional - can ship unsigned initially
+  epic-13-retrospective: optional
+
+  # Epic 14: Integration Testing & Feature Parity
+  epic-14: backlog
+  14-1-feature-parity-verification: backlog
+  14-2-cross-platform-testing: backlog
+  14-3-desktop-polish: backlog
+  epic-14-retrospective: optional

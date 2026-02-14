@@ -76,6 +76,24 @@ This document provides the complete epic and story breakdown for iris-table-edit
 - FR37: User can access the table editor from VS Code sidebar
 - FR38: User can access the table editor via command palette
 
+**Desktop Connection Management (FR39-FR44) — Desktop Target**
+- FR39: User can view a list of saved server connections
+- FR40: User can add a new server connection with name, host, port, credentials
+- FR41: User can edit an existing server connection
+- FR42: User can delete a server connection with confirmation
+- FR43: User can test a server connection before saving
+- FR44: User can connect/disconnect from a saved server
+
+**Desktop Window Management (FR45-FR47) — Desktop Target**
+- FR45: User can open multiple tables as tabs within the application window
+- FR46: User can switch between open table tabs
+- FR47: User can close table tabs (with unsaved changes prompt)
+
+**Desktop Application Lifecycle (FR48-FR50) — Desktop Target**
+- FR48: Application remembers window position, size, and state across sessions
+- FR49: Application checks for and installs updates automatically
+- FR50: Application shows a first-run welcome screen when no servers are configured
+
 ### NonFunctional Requirements
 
 **Performance (NFR1-NFR5)**
@@ -103,6 +121,18 @@ This document provides the complete epic and story breakdown for iris-table-edit
 - NFR16: Partial failures do not corrupt data or leave UI in inconsistent state
 - NFR17: Network disconnection is detected and reported to user
 - NFR18: Extension recovers gracefully from server connection loss
+
+**Desktop Performance (NFR19-NFR20) — Desktop Target**
+- NFR19: Desktop application launches in under 3 seconds on standard hardware
+- NFR20: Installer size is under 200MB
+
+**Desktop Security (NFR21-NFR23) — Desktop Target**
+- NFR21: Credentials are encrypted using Electron safeStorage API (OS keychain)
+- NFR22: Renderer process runs with context isolation and sandbox enabled
+- NFR23: All IPC messages use typed channels (no arbitrary code execution)
+
+**Desktop Reliability (NFR24) — Desktop Target**
+- NFR24: Window state (position, size, sidebar width) persists across sessions via electron-store
 
 ### Additional Requirements
 
@@ -147,6 +177,24 @@ This document provides the complete epic and story breakdown for iris-table-edit
 - UX17: Context bar truncates with ellipsis, full text in tooltip
 - UX18: Toolbar collapses to icons at narrow widths
 
+**From Architecture - Desktop Target Requirements**
+- AR14: Monorepo structure with packages/core, packages/webview, packages/vscode, packages/desktop
+- AR15: IMessageBridge abstraction for webview↔host communication (VS Code and Electron implementations)
+- AR16: Theme abstraction layer with `--ite-*` CSS variables and per-target bridge CSS
+- AR17: Electron main process with context isolation, sandbox, and preload script
+- AR18: safeStorage-based credential encryption for desktop connection manager
+- AR19: electron-store for persistent settings (window state, theme preference, connection list)
+- AR20: electron-builder for Windows .exe and macOS .dmg packaging
+- AR21: electron-updater for auto-update via GitHub Releases
+
+**From UX - Desktop Target Requirements**
+- UX19: Connection Manager with server list, add/edit/delete server form, test connection
+- UX20: First-run welcome screen when no servers configured
+- UX21: Desktop navigation layout with sidebar + tab bar
+- UX22: Native menu bar (File, Edit, View, Help)
+- UX23: Light/dark theme toggle (desktop target)
+- UX24: Window state persistence (position, size, sidebar width)
+
 ### FR Coverage Map
 
 | FR | Epic | Description |
@@ -189,6 +237,18 @@ This document provides the complete epic and story breakdown for iris-table-edit
 | FR36 | Epic 2 | Display correctly in dark theme |
 | FR37 | Epic 1 | Access from VS Code sidebar |
 | FR38 | Epic 1 | Access via command palette |
+| FR39 | Epic 12 | View list of saved server connections (Desktop) |
+| FR40 | Epic 12 | Add new server connection (Desktop) |
+| FR41 | Epic 12 | Edit existing server connection (Desktop) |
+| FR42 | Epic 12 | Delete server connection with confirmation (Desktop) |
+| FR43 | Epic 12 | Test server connection before saving (Desktop) |
+| FR44 | Epic 12 | Connect/disconnect from saved server (Desktop) |
+| FR45 | Epic 11 | Open multiple tables as tabs (Desktop) |
+| FR46 | Epic 11 | Switch between open table tabs (Desktop) |
+| FR47 | Epic 11 | Close table tabs with unsaved changes prompt (Desktop) |
+| FR48 | Epic 11 | Window state persistence across sessions (Desktop) |
+| FR49 | Epic 13 | Auto-update from GitHub Releases (Desktop) |
+| FR50 | Epic 12 | First-run welcome screen (Desktop) |
 
 ## Epic List
 
@@ -236,6 +296,46 @@ Users can efficiently navigate namespaces with thousands of tables and work with
 **NFRs addressed:** NFR1, NFR4
 **Growth Features:** Pagination enhancement, Column sorting and filtering, Performance optimization
 **Dependencies:** Requires Epics 1 & 2 complete
+
+### Epic 10: Monorepo Restructure & Shared Core Extraction (Desktop Foundation)
+Restructure the project into a monorepo with shared packages so that core logic and webview UI can be reused by both the VS Code extension and the standalone desktop application.
+
+**ARs covered:** AR14, AR15, AR16
+**NFRs addressed:** NFR1-NFR18 (regression verification)
+**UX covered:** UX19-UX24 (theme abstraction foundation)
+**Dependencies:** None — foundation epic, must come first
+
+### Epic 11: Electron Shell & Window Management (Desktop Target)
+Create the Electron application shell with window management, IPC bridge, tab bar, and native menus.
+
+**FRs covered:** FR45, FR46, FR47, FR48
+**ARs covered:** AR17, AR19
+**NFRs addressed:** NFR19, NFR22, NFR23, NFR24
+**UX covered:** UX21, UX22, UX24
+**Dependencies:** Requires Epic 10 (monorepo) and Epic 12 (connection manager)
+
+### Epic 12: Connection Manager (Desktop Target)
+Built-in connection management for the desktop application, replacing VS Code Server Manager with a self-contained server CRUD UI and secure credential storage.
+
+**FRs covered:** FR39, FR40, FR41, FR42, FR43, FR44, FR50
+**ARs covered:** AR18, AR19
+**NFRs addressed:** NFR21
+**UX covered:** UX19, UX20, UX23
+**Dependencies:** Requires Epic 10 (monorepo)
+
+### Epic 13: Build, Package & Distribution (Desktop Target)
+Configure electron-builder for Windows/macOS installers, auto-update via GitHub Releases, and CI/CD pipeline for dual-target builds.
+
+**FRs covered:** FR49
+**ARs covered:** AR20, AR21
+**NFRs addressed:** NFR19, NFR20
+**Dependencies:** Requires Epic 11 (Electron shell)
+
+### Epic 14: Integration Testing & Feature Parity (Desktop Target)
+Verify feature parity between VS Code and desktop targets, cross-platform testing, and desktop-specific polish.
+
+**NFRs addressed:** NFR19-NFR24 (verification)
+**Dependencies:** Requires Epics 10, 11, 12, 13
 
 ---
 
@@ -1978,3 +2078,891 @@ So that **I can work with tables containing hundreds of thousands of rows**.
 | Export 10,000 rows to Excel | < 15 seconds |
 | Import 10,000 rows from CSV | < 30 seconds |
 | Import 10,000 rows from Excel | < 45 seconds |
+
+---
+
+## Epic 10: Monorepo Restructure & Shared Core Extraction
+
+**Goal:** Restructure the project into a monorepo with shared packages so that core logic and webview UI can be reused by both the VS Code extension and the standalone desktop application.
+
+**Phase:** Desktop Application (Foundation)
+**Dependencies:** None — must come first before any other desktop epic.
+
+**ARs covered:** AR14, AR15, AR16
+**Implementation Sequence:** 10.1 → 10.2 → 10.3 → 10.4
+
+---
+
+### Story 10.1: Monorepo Initialization
+
+As a **developer**,
+I want **the project restructured as an npm workspaces monorepo**,
+So that **shared code can be consumed by both VS Code and desktop targets**.
+
+**Acceptance Criteria:**
+
+**Given** the current flat project structure
+**When** the monorepo restructure is applied
+**Then** the root contains a `packages/` directory with:
+- `packages/core/` — shared TypeScript services, models, utils
+- `packages/webview/` — shared HTML, CSS, JS for the grid UI
+- `packages/vscode/` — VS Code extension entry point and providers
+**And** the root `package.json` has `"workspaces": ["packages/*"]`
+**And** `npm install` at root succeeds and links all packages
+
+**Given** the monorepo is initialized
+**When** I run `npm run compile` at root
+**Then** all packages compile without errors
+**And** the VS Code extension builds to a runnable VSIX
+
+**Given** each package has its own `package.json`
+**When** I inspect dependency declarations
+**Then** `packages/core` has no VS Code or Electron dependencies
+**And** `packages/webview` has no VS Code or Electron dependencies
+**And** `packages/vscode` can import from `@iris-table-editor/core` and `@iris-table-editor/webview`
+
+**Given** the monorepo uses npm workspaces
+**When** I run `npm run lint` at root
+**Then** ESLint runs across all packages
+**And** no new lint errors are introduced
+
+---
+
+### Story 10.2: Shared Core Extraction
+
+As a **developer**,
+I want **all pure TypeScript services, models, and utilities extracted into packages/core**,
+So that **both VS Code and desktop targets share a single source of truth for business logic**.
+
+**Acceptance Criteria:**
+
+**Given** the current `src/services/`, `src/models/`, and `src/utils/` directories
+**When** extraction is complete
+**Then** the following are in `packages/core/src/`:
+- `services/AtelierApiService.ts`
+- `services/QueryExecutor.ts`
+- `services/TableMetadataService.ts`
+- `models/` (all TypeScript interfaces)
+- `utils/SqlBuilder.ts`
+- `utils/UrlBuilder.ts`
+- `utils/ErrorHandler.ts`
+- `utils/DataTypeFormatter.ts`
+**And** none of these files import from `vscode` or `electron`
+
+**Given** the core package is extracted
+**When** `packages/vscode` imports from `@iris-table-editor/core`
+**Then** all existing functionality works identically
+**And** no runtime errors occur
+
+**Given** the core package exports its public API
+**When** I check `packages/core/src/index.ts`
+**Then** all services, models, and utilities are re-exported
+**And** the package can be consumed as a standard npm module
+
+---
+
+### Story 10.3: Webview Extraction & Theme Abstraction
+
+As a **developer**,
+I want **the webview HTML/CSS/JS extracted into packages/webview with `--ite-*` CSS variables replacing `--vscode-*`**,
+So that **the grid UI can run identically in both VS Code and Electron targets**.
+
+**Acceptance Criteria:**
+
+**Given** the current `media/` directory contains webview files
+**When** extraction is complete
+**Then** `packages/webview/` contains:
+- `webview.html` — shared grid HTML structure
+- `styles.css` — all CSS using `--ite-*` variables (no direct `--vscode-*` references)
+- `main.js` — webview logic using IMessageBridge abstraction
+- `theme.css` — abstract `--ite-*` variable definitions
+- `vscodeThemeBridge.css` — maps `--ite-*` → `--vscode-*`
+- `desktopThemeBridge.css` — maps `--ite-*` → hardcoded light/dark tokens
+
+**Given** `styles.css` has been migrated
+**When** I search for `--vscode-` in `packages/webview/styles.css`
+**Then** zero results are found
+**And** all color references use `--ite-*` variables
+
+**Given** `main.js` has been migrated to use IMessageBridge
+**When** I search for `acquireVsCodeApi` in `packages/webview/main.js`
+**Then** zero results are found
+**And** all host communication uses `messageBridge.sendCommand()` and `messageBridge.onEvent()`
+
+**Given** the VS Code target includes `vscodeThemeBridge.css`
+**When** the grid renders in VS Code
+**Then** the visual appearance is identical to before the migration
+**And** all VS Code themes (light, dark, high contrast) render correctly
+
+**Given** the desktop target includes `desktopThemeBridge.css`
+**When** the grid renders in Electron
+**Then** light theme and dark theme both render correctly
+**And** colors match the VS Code dark/light theme appearance closely
+
+---
+
+### Story 10.4: VS Code Regression Verification
+
+As a **developer**,
+I want **to verify the VS Code extension works identically after the monorepo restructure**,
+So that **existing users are not impacted by the desktop expansion**.
+
+**Acceptance Criteria:**
+
+**Given** the monorepo restructure is complete (Stories 10.1-10.3)
+**When** I build the VS Code extension from `packages/vscode`
+**Then** `npm run compile` succeeds without errors
+**And** the extension activates in VS Code Extension Development Host
+
+**Given** the restructured extension is running
+**When** I perform the following operations
+**Then** each works identically to before the restructure:
+
+| Operation | Expected Result |
+|-----------|-----------------|
+| Connect to server | Server Manager authentication works |
+| Browse namespaces | Namespaces list loads |
+| Browse tables | Schema-based tree view works |
+| Open table | Grid displays with data |
+| Edit cell | Inline editing + save works |
+| Add row | New row insertion works |
+| Delete row | Confirmation + deletion works |
+| Filter data | Inline + panel filtering works |
+| Sort columns | Column sorting works |
+| Pagination | Navigation controls work |
+| Export CSV/Excel | Export downloads correctly |
+| Import CSV/Excel | Import with mapping works |
+| Keyboard shortcuts | All shortcuts work |
+| Theme switching | Light/dark/HC themes work |
+
+**Given** all existing tests exist
+**When** I run `npm run test`
+**Then** all tests pass
+**And** no test modifications were needed beyond import path changes
+
+**Given** the extension is packaged
+**When** I run `npm run package` from `packages/vscode`
+**Then** a valid .vsix file is produced
+**And** installing it in VS Code works correctly
+
+---
+
+## Epic 11: Electron Shell & Window Management
+
+**Goal:** Create the Electron application shell with window management, IPC bridge, tab bar, and native menus.
+
+**Phase:** Desktop Application
+**Dependencies:** Requires Epic 10 (monorepo) and Epic 12 (connection manager).
+
+**FRs covered:** FR45, FR46, FR47, FR48
+**ARs covered:** AR17, AR19
+**NFRs addressed:** NFR19, NFR22, NFR23, NFR24
+**Implementation Sequence:** 11.1 → 11.2 → 11.3 → 11.4 → 11.5
+
+---
+
+### Story 11.1: Electron Bootstrap
+
+As a **developer**,
+I want **a minimal Electron application that loads the shared webview**,
+So that **we have a working desktop shell to build upon**.
+
+**Acceptance Criteria:**
+
+**Given** `packages/desktop/` exists in the monorepo
+**When** I run the desktop application
+**Then** an Electron window opens with the shared webview HTML
+**And** the window has a title "IRIS Table Editor"
+
+**Given** the Electron main process is configured
+**When** I inspect the BrowserWindow options
+**Then** `nodeIntegration` is `false`
+**And** `contextIsolation` is `true`
+**And** `sandbox` is `true`
+**And** a preload script is configured
+
+**Given** the preload script is loaded
+**When** the renderer process starts
+**Then** `window.electronAPI` is available via contextBridge
+**And** no Node.js APIs are exposed to the renderer
+
+**Given** the desktop app launches
+**When** I measure startup time
+**Then** the window is visible within 3 seconds on standard hardware
+
+**Given** the desktop app is running
+**When** I check the process tree
+**Then** the main process and renderer are separate
+**And** the renderer has restricted permissions (sandboxed)
+
+---
+
+### Story 11.2: IPC Bridge
+
+As a **developer**,
+I want **a typed IPC bridge connecting the Electron main process to the shared webview**,
+So that **the webview can send commands and receive events identically to the VS Code target**.
+
+**Acceptance Criteria:**
+
+**Given** the webview uses IMessageBridge interface
+**When** running in Electron
+**Then** `ElectronMessageBridge` is injected
+**And** `messageBridge.sendCommand()` calls `window.electronAPI.send()`
+**And** `messageBridge.onEvent()` registers via `window.electronAPI.on()`
+
+**Given** the main process receives an IPC message
+**When** the message type is a known command (e.g., `selectServer`, `loadTables`, `updateRow`)
+**Then** the main process routes to the appropriate handler
+**And** the handler uses `@iris-table-editor/core` services
+
+**Given** the main process completes an operation
+**When** a response or event needs to be sent to the renderer
+**Then** the main process sends via `webContents.send()`
+**And** the webview receives via `messageBridge.onEvent()`
+
+**Given** all IPC channels are defined
+**When** I inspect the type definitions
+**Then** each channel has typed payloads (no `any` types)
+**And** the preload script only exposes declared channels
+
+**Given** the IPC bridge is functional
+**When** the webview sends `loadTables` with a namespace
+**Then** the main process queries the IRIS server via AtelierApiService
+**And** the result is sent back to the webview
+**And** the grid displays the table data
+
+---
+
+### Story 11.3: Tab Bar
+
+As a **user**,
+I want **to open multiple tables as tabs within the desktop window**,
+So that **I can work with several tables simultaneously**.
+
+**Acceptance Criteria:**
+
+**Given** the desktop application is running and connected to a server
+**When** I double-click a table in the sidebar
+**Then** a new tab opens in the tab bar with the table name
+**And** the grid loads in the main content area
+
+**Given** I have multiple tabs open
+**When** I click a different tab
+**Then** the active tab changes
+**And** the main content area shows that tab's grid
+**And** each tab retains its own state (filters, sort, scroll position, page)
+
+**Given** I have a tab open
+**When** I click the close button (✕) on the tab
+**Then** the tab closes
+**And** if there are unsaved changes, a confirmation prompt appears
+
+**Given** the tab bar has many tabs
+**When** tabs exceed the available width
+**Then** the tab bar scrolls horizontally
+**Or** overflow tabs are accessible via a dropdown
+
+**Given** I open a table that is already open in another tab
+**When** the table matches by name and namespace
+**Then** the existing tab is focused (no duplicate tab created)
+
+**Given** keyboard navigation
+**When** I press Ctrl+Tab
+**Then** focus moves to the next tab
+**And** Ctrl+Shift+Tab moves to the previous tab
+**And** Ctrl+W closes the current tab
+
+---
+
+### Story 11.4: Native Menu
+
+As a **user**,
+I want **a native menu bar with standard application menus**,
+So that **the desktop app feels like a proper native application**.
+
+**Acceptance Criteria:**
+
+**Given** the desktop application is running
+**When** I look at the title bar area
+**Then** I see a native menu bar with: File, Edit, View, Help
+
+**Given** the File menu
+**When** I open it
+**Then** I see:
+- New Connection (opens server form)
+- Disconnect (if connected)
+- Close Tab (Ctrl+W)
+- Close All Tabs
+- Separator
+- Exit (Alt+F4)
+
+**Given** the Edit menu
+**When** I open it
+**Then** I see standard operations:
+- Undo (Ctrl+Z)
+- Separator
+- Copy (Ctrl+C)
+- Paste (Ctrl+V)
+- Separator
+- Set NULL (Ctrl+Shift+N)
+
+**Given** the View menu
+**When** I open it
+**Then** I see:
+- Toggle Sidebar (Ctrl+B)
+- Toggle Filter Panel
+- Separator
+- Light Theme / Dark Theme (radio selection)
+- Separator
+- Keyboard Shortcuts (Ctrl+/)
+
+**Given** the Help menu
+**When** I open it
+**Then** I see:
+- Keyboard Shortcuts
+- About IRIS Table Editor
+
+**Given** menu items with keyboard shortcuts
+**When** I use the shortcut directly
+**Then** the action fires without opening the menu
+
+---
+
+### Story 11.5: Window State Persistence
+
+As a **user**,
+I want **the application to remember my window position and size**,
+So that **I don't have to resize and reposition it every time I launch**.
+
+**Acceptance Criteria:**
+
+**Given** I resize the application window
+**When** I close and reopen the app
+**Then** the window opens at the same position and size
+
+**Given** I maximize the window
+**When** I close and reopen the app
+**Then** the window opens maximized
+
+**Given** I adjust the sidebar width by dragging
+**When** I close and reopen the app
+**Then** the sidebar width is restored
+
+**Given** I toggle the sidebar closed
+**When** I close and reopen the app
+**Then** the sidebar state is restored (closed)
+
+**Given** window state is stored via electron-store
+**When** I check the storage location
+**Then** settings are in the standard Electron userData directory
+**And** no sensitive data is stored in the window state file
+
+**Given** the stored window position is off-screen (e.g., monitor was disconnected)
+**When** the app launches
+**Then** the window is repositioned to be visible on the primary display
+
+---
+
+## Epic 12: Connection Manager
+
+**Goal:** Built-in connection management for the desktop application, replacing VS Code Server Manager with a self-contained server CRUD UI and secure credential storage.
+
+**Phase:** Desktop Application
+**Dependencies:** Requires Epic 10 (monorepo).
+
+**FRs covered:** FR39, FR40, FR41, FR42, FR43, FR44, FR50
+**ARs covered:** AR18, AR19
+**NFRs addressed:** NFR21
+**Implementation Sequence:** 12.1 → 12.2 → 12.3 → 12.4 → 12.5
+
+---
+
+### Story 12.1: Server List UI
+
+As a **user**,
+I want **to see a list of my saved IRIS server connections**,
+So that **I can choose which server to work with**.
+
+**Acceptance Criteria:**
+
+**Given** the desktop application launches
+**When** I have no saved servers
+**Then** I see the first-run welcome screen with "Add Your First Server" button
+
+**Given** I have saved servers
+**When** the application launches
+**Then** I see a server list in the sidebar showing each server with:
+- Status indicator (connected/disconnected)
+- Server name
+- Optional description
+- Host:port
+
+**Given** I see the server list
+**When** I click on a server
+**Then** the server is highlighted as selected
+**And** Edit and Delete actions become available
+
+**Given** I see the server list
+**When** I double-click a server
+**Then** the application connects to that server
+**And** namespaces load in the sidebar below
+
+**Given** I right-click a server
+**When** the context menu opens
+**Then** I see: Connect, Edit, Delete, Test Connection
+
+---
+
+### Story 12.2: Server Form
+
+As a **user**,
+I want **to add and edit server connection details through a form**,
+So that **I can configure how the application connects to my IRIS servers**.
+
+**Acceptance Criteria:**
+
+**Given** I click the "Add" button ([+]) in the server list
+**When** the server form opens
+**Then** I see fields for:
+- Server Name (required, unique)
+- Description (optional)
+- Host (required)
+- Port (required, default 52773)
+- Path Prefix (optional, default empty)
+- Use HTTPS (checkbox)
+- Username (required)
+- Password (required, masked)
+
+**Given** I fill in all required fields
+**When** I click "Save"
+**Then** the server is added to the list
+**And** the form closes
+**And** the new server appears in the sidebar
+
+**Given** I leave a required field empty
+**When** I click "Save"
+**Then** I see validation errors on the empty fields
+**And** the form is not submitted
+
+**Given** I try to save a server with a duplicate name
+**When** validation runs
+**Then** I see "A server with this name already exists"
+**And** the form is not submitted
+
+**Given** I select an existing server and click "Edit"
+**When** the form opens
+**Then** all fields are pre-populated with the server's current values
+**And** the password field shows dots (masked, not the actual password)
+**And** I can modify any field and save
+
+**Given** I am editing a server form
+**When** I click "Cancel"
+**Then** the form closes without saving
+**And** no changes are applied
+
+---
+
+### Story 12.3: Test Connection
+
+As a **user**,
+I want **to test a server connection before saving it**,
+So that **I can verify my settings are correct**.
+
+**Acceptance Criteria:**
+
+**Given** the server form is open with all required fields filled
+**When** I click "Test Connection"
+**Then** the button shows a spinner and "Testing..." text
+**And** the button is disabled during the test
+
+**Given** the test connection succeeds
+**When** the result returns
+**Then** I see a green "Connection successful" message
+**And** the message appears near the Test Connection button
+**And** the button returns to normal state
+
+**Given** the test connection fails (wrong host, wrong credentials, timeout)
+**When** the result returns
+**Then** I see a red error message explaining the failure:
+- "Could not reach host" (network error)
+- "Authentication failed" (wrong credentials)
+- "Connection timed out" (timeout)
+**And** the button returns to normal state
+
+**Given** the test connection is in progress
+**When** the connection attempt takes more than 10 seconds
+**Then** the test times out
+**And** I see "Connection timed out. Check host and port."
+
+**Given** I test with empty required fields
+**When** I click "Test Connection"
+**Then** form validation runs first
+**And** if fields are missing, validation errors show instead of testing
+
+---
+
+### Story 12.4: Credential Storage
+
+As a **developer**,
+I want **server credentials stored securely using Electron's safeStorage API**,
+So that **passwords are never stored in plaintext on disk**.
+
+**Acceptance Criteria:**
+
+**Given** a user saves a server with a password
+**When** the password is persisted
+**Then** it is encrypted using `safeStorage.encryptString()`
+**And** the encrypted buffer is stored in electron-store
+**And** the plaintext password is never written to disk
+
+**Given** a user connects to a server
+**When** the password is needed for authentication
+**Then** it is decrypted using `safeStorage.decryptString()`
+**And** the plaintext password is only held in memory during the connection attempt
+
+**Given** server connection data is stored
+**When** I inspect the electron-store data file
+**Then** passwords appear as encrypted binary (not readable text)
+**And** server names, hosts, and ports are stored in plaintext (not sensitive)
+**And** usernames are stored in plaintext
+
+**Given** safeStorage is available on the OS
+**When** `safeStorage.isEncryptionAvailable()` returns true
+**Then** encryption is used for all password storage
+**And** the app functions normally
+
+**Given** safeStorage is NOT available (rare edge case)
+**When** `safeStorage.isEncryptionAvailable()` returns false
+**Then** the app warns the user that passwords cannot be securely stored
+**And** passwords are not persisted (user must re-enter each session)
+
+---
+
+### Story 12.5: Connection Lifecycle
+
+As a **user**,
+I want **to connect, disconnect, and switch between servers**,
+So that **I can work with multiple IRIS environments from one application**.
+
+**Acceptance Criteria:**
+
+**Given** I double-click a server in the list (or select "Connect" from context menu)
+**When** the connection initiates
+**Then** I see "Connecting to [server name]..." with a progress indicator
+**And** I see a Cancel button to abort the connection
+
+**Given** the connection succeeds
+**When** the server responds
+**Then** the server status indicator changes to green (connected)
+**And** namespaces load in the sidebar
+**And** I can browse tables and open grids
+
+**Given** the connection fails
+**When** the error is returned
+**Then** I see a clear error message
+**And** the server status remains disconnected
+**And** I can retry or edit the connection details
+
+**Given** I am connected to a server
+**When** I click "Disconnect" (sidebar button or File menu)
+**Then** the connection is closed
+**And** all open table tabs are closed (with unsaved changes prompt if needed)
+**And** the server status returns to disconnected
+
+**Given** I am connected to server A
+**When** I double-click server B
+**Then** server A is disconnected first (with unsaved changes prompt)
+**And** server B connection initiates
+**And** only one server is connected at a time (MVP)
+
+**Given** I am connected and the network drops
+**When** the next API call fails
+**Then** I see "Connection lost. Check your network and try reconnecting."
+**And** the server status changes to disconnected (red indicator)
+**And** I can click "Reconnect" to attempt recovery
+
+---
+
+## Epic 13: Build, Package & Distribution
+
+**Goal:** Configure electron-builder for Windows/macOS installers, auto-update via GitHub Releases, and CI/CD pipeline for dual-target builds.
+
+**Phase:** Desktop Application
+**Dependencies:** Requires Epic 11 (Electron shell).
+
+**FRs covered:** FR49
+**ARs covered:** AR20, AR21
+**NFRs addressed:** NFR19, NFR20
+**Implementation Sequence:** 13.1 → 13.2 → 13.3 → 13.4 (optional)
+
+---
+
+### Story 13.1: Electron Builder Config
+
+As a **developer**,
+I want **electron-builder configured to produce Windows and macOS installers**,
+So that **end users can install the desktop application easily**.
+
+**Acceptance Criteria:**
+
+**Given** `packages/desktop/` has electron-builder configuration
+**When** I run the build command for Windows
+**Then** a `.exe` installer is produced (NSIS or Squirrel)
+**And** the installer installs the app to Program Files
+**And** a desktop shortcut and Start Menu entry are created
+
+**Given** I run the build command for macOS
+**When** the build completes
+**Then** a `.dmg` installer is produced
+**And** the DMG contains the `.app` bundle
+**And** the app can be dragged to Applications
+
+**Given** the installer is produced
+**When** I check the file size
+**Then** the installer is under 200MB
+
+**Given** the build configuration
+**When** I inspect `electron-builder.yml` or `package.json` build config
+**Then** app ID, product name, and icon are configured
+**And** file associations are not needed (no custom file types)
+
+**Given** the app is installed via the installer
+**When** I launch it
+**Then** the app starts correctly
+**And** the window shows "IRIS Table Editor" in the title bar
+
+---
+
+### Story 13.2: Auto-Update
+
+As a **user**,
+I want **the application to automatically check for and install updates**,
+So that **I always have the latest features and fixes without manual downloads**.
+
+**Acceptance Criteria:**
+
+**Given** the app uses electron-updater
+**When** the app launches
+**Then** it checks for updates from GitHub Releases in the background
+**And** the update check does not block app startup
+
+**Given** an update is available
+**When** the check completes
+**Then** I see a non-intrusive notification: "Update available (v1.2.0). Restart to update."
+**And** I can choose to "Restart Now" or "Later"
+
+**Given** I click "Restart Now"
+**When** the update installs
+**Then** the app closes, installs the update, and restarts
+**And** I see the new version running
+
+**Given** I click "Later"
+**When** the app continues
+**Then** the update is downloaded in the background
+**And** it installs automatically on next app close/restart
+
+**Given** there is no update available
+**When** the check completes
+**Then** no notification is shown
+**And** the app continues normally
+
+**Given** the update check fails (no internet, server down)
+**When** the check times out
+**Then** no error is shown to the user
+**And** the app continues normally
+**And** the next check occurs on next launch
+
+---
+
+### Story 13.3: CI/CD Pipeline
+
+As a **developer**,
+I want **a CI/CD pipeline that builds both VS Code extension and desktop installers**,
+So that **releases are automated and consistent across both targets**.
+
+**Acceptance Criteria:**
+
+**Given** a GitHub Actions workflow is configured
+**When** I push a tag (e.g., `v1.0.0`)
+**Then** the pipeline:
+1. Runs lint and tests for all packages
+2. Builds the VS Code extension (.vsix)
+3. Builds Windows .exe installer
+4. Builds macOS .dmg installer
+5. Creates a GitHub Release with all artifacts
+
+**Given** the pipeline runs
+**When** it reaches the build step
+**Then** each target builds independently
+**And** failure in one target does not block others
+
+**Given** a GitHub Release is created
+**When** I view the release page
+**Then** I see:
+- `.vsix` file for VS Code
+- `.exe` installer for Windows
+- `.dmg` installer for macOS
+- Release notes (from tag message or CHANGELOG)
+
+**Given** the pipeline completes
+**When** electron-updater checks for updates
+**Then** it finds the new version on GitHub Releases
+**And** the update flow works end-to-end
+
+---
+
+### Story 13.4: Code Signing (Optional)
+
+As a **developer**,
+I want **the desktop installers to be code-signed**,
+So that **users don't see "Unknown Publisher" warnings on installation**.
+
+**Acceptance Criteria:**
+
+**Given** code signing certificates are configured
+**When** the Windows build runs
+**Then** the .exe is signed with the certificate
+**And** Windows SmartScreen does not block installation
+
+**Given** code signing certificates are configured
+**When** the macOS build runs
+**Then** the .app is signed and notarized
+**And** macOS Gatekeeper allows installation
+
+**Given** code signing is NOT configured (MVP)
+**When** the unsigned builds are distributed
+**Then** users see OS warnings but can still install
+**And** documentation explains how to bypass the warnings
+
+**Note:** This story is optional for initial release. The app can ship unsigned with known OS warnings.
+
+---
+
+## Epic 14: Integration Testing & Feature Parity
+
+**Goal:** Verify feature parity between VS Code and desktop targets, cross-platform testing, and desktop-specific polish.
+
+**Phase:** Desktop Application
+**Dependencies:** Requires Epics 10, 11, 12, 13.
+
+**NFRs addressed:** NFR19-NFR24 (verification)
+**Implementation Sequence:** 14.1 → 14.2 → 14.3
+
+---
+
+### Story 14.1: Feature Parity Verification
+
+As a **developer**,
+I want **to verify that the desktop app has full feature parity with the VS Code extension**,
+So that **users get the same experience regardless of which target they use**.
+
+**Acceptance Criteria:**
+
+**Given** the desktop app is running and connected to a server
+**When** I perform each of the following operations
+**Then** each works identically to the VS Code extension:
+
+| # | Feature | Expected Behavior |
+|---|---------|-------------------|
+| 1 | Connect to server | Authentication succeeds, namespaces load |
+| 2 | Browse namespaces | All namespaces listed, % encoding works |
+| 3 | Browse tables | Schema-based tree view with expand/collapse |
+| 4 | Open table | Grid displays with column headers and data |
+| 5 | Pagination | First/prev/next/last + page input work |
+| 6 | Cell selection | Click and keyboard navigation |
+| 7 | Cell editing | Double-click/F2/type to edit, Tab/Enter to save |
+| 8 | Edit cancellation | Escape restores original value |
+| 9 | Add row | New row affordance, data entry, INSERT |
+| 10 | Delete row | Selection, confirmation dialog, DELETE |
+| 11 | Boolean checkbox | Single-click toggle, NULL state |
+| 12 | Date picker | Calendar popup, flexible input |
+| 13 | Time field | Multiple format acceptance |
+| 14 | Numeric field | Right-aligned, thousands separators |
+| 15 | NULL display | Italic gray "NULL", Set to NULL action |
+| 16 | Timestamp field | Combined date-time editing |
+| 17 | Inline filtering | Text wildcards, checklist dropdowns |
+| 18 | Filter panel | Operators, sync with inline row |
+| 19 | Column sorting | Click header cycle: asc → desc → clear |
+| 20 | Export CSV | Current page, all data, filtered results |
+| 21 | Export Excel | Formatted .xlsx with proper types |
+| 22 | Import CSV | Template, mapping, validation, progress |
+| 23 | Import Excel | Sheet selection, type recognition |
+| 24 | Keyboard shortcuts | All categories work per shortcut reference |
+
+**Given** all 24 checkpoints pass
+**When** the verification is complete
+**Then** feature parity is confirmed
+**And** any discrepancies are documented as bugs
+
+---
+
+### Story 14.2: Cross-Platform Testing
+
+As a **developer**,
+I want **to verify the desktop app works correctly on Windows and macOS**,
+So that **all target users can use the application reliably**.
+
+**Acceptance Criteria:**
+
+**Given** the Windows .exe installer
+**When** installed on Windows 10 and Windows 11
+**Then** the app installs, launches, and functions correctly
+**And** window management (resize, maximize, minimize) works
+**And** native menu bar renders correctly
+**And** safeStorage encryption works with Windows Credential Manager
+
+**Given** the macOS .dmg installer
+**When** installed on macOS 11+
+**Then** the app installs to Applications, launches, and functions correctly
+**And** window management works with macOS conventions
+**And** native menu bar renders in the macOS menu bar (not in window)
+**And** safeStorage encryption works with macOS Keychain
+
+**Given** either platform
+**When** I test keyboard shortcuts
+**Then** Ctrl-based shortcuts work on Windows
+**And** Cmd-based shortcuts work on macOS (standard platform mapping)
+
+**Given** either platform
+**When** I test the auto-update flow
+**Then** update detection, download, and installation work
+**And** the app restarts successfully after update
+
+---
+
+### Story 14.3: Desktop Polish
+
+As a **user**,
+I want **the desktop app to feel polished and native**,
+So that **it meets the same quality bar as the VS Code extension**.
+
+**Acceptance Criteria:**
+
+**Given** the desktop app is installed
+**When** I look at the app icon in taskbar/dock
+**Then** it shows the IRIS Table Editor icon (not the default Electron icon)
+
+**Given** the About dialog
+**When** I open it from Help menu
+**Then** I see the app name, version, and credits
+
+**Given** the first-run experience
+**When** I launch the app for the first time
+**Then** the welcome screen guides me through adding a server
+**And** the flow is intuitive for non-developer users (< 60 seconds to first edit)
+
+**Given** the app is running
+**When** I use it for extended periods
+**Then** no memory leaks are observed
+**And** performance remains consistent
+
+**Given** the dark theme is active
+**When** I toggle to light theme
+**Then** all UI elements update correctly
+**And** no elements retain the wrong theme colors
+
+**Given** error states
+**When** connection fails, saves fail, or imports fail
+**Then** error messages are clear and actionable
+**And** the app recovers gracefully (no stuck states)
