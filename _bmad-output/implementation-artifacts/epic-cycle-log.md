@@ -6,3 +6,34 @@ Execution sequence: 10 → 12 → 11 → 13 → 14
 
 ---
 
+## Story 10.1: Monorepo Initialization
+
+**Status:** Complete
+**Files touched:**
+- packages/core/ (package.json, tsconfig.json, src/index.ts, models/*, services/*, utils/*)
+- packages/webview/ (package.json, src/webview.html, src/styles.css, src/main.js, src/grid.js, src/grid-styles.css)
+- packages/vscode/ (package.json, tsconfig.json, esbuild.js, .vscode-test.mjs, .vscodeignore, src/extension.ts, src/providers/*, src/test/*)
+- Root: package.json, tsconfig.json, eslint.config.mjs, .vscode/launch.json, package-lock.json
+- Deleted: src/, media/, root esbuild.js, root .vscode-test.mjs, root .vscodeignore
+
+**Key design decisions:**
+- AtelierApiService.ts has zero vscode imports — moved entirely to core (no splitting needed)
+- ErrorHandler.ts has zero vscode imports — moved entirely to core
+- Package scope: @iris-te/* (per architecture)
+- TypeScript project references used for cross-package compilation
+- Webview assets referenced via node_modules/@iris-te/webview/src/
+
+**Issues auto-resolved:** 3
+- HIGH: Root compile script fails without --if-present (webview has no compile script) → Added --if-present flag
+- MEDIUM: Stale require paths in atelierApiService.test.ts → Updated to @iris-te/core
+- MEDIUM: ESLint flat config structural bug (rules in separate config object) → Merged config objects
+
+**Rework iterations:** 0
+
+**User input required:** 0
+
+**Commits:**
+- Implementation: fdf4ceb
+
+---
+

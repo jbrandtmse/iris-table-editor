@@ -47,7 +47,33 @@ export type {
 
 // Services
 export { AtelierApiService } from './services/AtelierApiService';
+export { QueryExecutor } from './services/QueryExecutor';
+export { TableMetadataService } from './services/TableMetadataService';
 
 // Utils
 export { ErrorHandler, ErrorCodes } from './utils/ErrorHandler';
 export { UrlBuilder } from './utils/UrlBuilder';
+export {
+    validateAndEscapeIdentifier,
+    validateNumeric,
+    parseQualifiedTableName,
+    escapeTableName,
+    buildFilterWhereClause,
+    buildOrderByClause
+} from './utils/SqlBuilder';
+export {
+    formatDateTimeValue,
+    formatNumericValue,
+    parseUserTimeInput,
+    formatTimeForIRIS,
+    parseUserDateInput,
+    formatDateForIRIS,
+    parseUserTimestampInput,
+    formatTimestampForIRIS,
+    parseNumericInput
+} from './utils/DataTypeFormatter';
+export type {
+    ITimeParts,
+    ITimestampParts,
+    INumericParseResult
+} from './utils/DataTypeFormatter';

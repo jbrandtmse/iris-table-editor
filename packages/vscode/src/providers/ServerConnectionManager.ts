@@ -18,6 +18,8 @@ import {
     ITableSchema,
     ITableRow,
     AtelierApiService,
+    QueryExecutor,
+    TableMetadataService,
     ErrorHandler,
     ErrorCodes
 } from '@iris-te/core';
@@ -41,12 +43,16 @@ export class ServerConnectionManager {
     private _serverSpec: IServerSpec | null = null;
     private _credentials: ICredentials | null = null;
     private _atelierApiService: AtelierApiService;
+    private _queryExecutor: QueryExecutor;
+    private _metadataService: TableMetadataService;
     private _schemaCache: Map<string, ISchemaCacheEntry> = new Map();
     private _connectionAbortController: AbortController | null = null;
     private static readonly SCHEMA_CACHE_TTL_MS = 3600000; // 1 hour TTL
 
     constructor() {
         this._atelierApiService = new AtelierApiService();
+        this._queryExecutor = new QueryExecutor(this._atelierApiService);
+        this._metadataService = new TableMetadataService(this._atelierApiService);
     }
 
     /**
@@ -336,8 +342,8 @@ export class ServerConnectionManager {
         }
 
         try {
-            console.debug(`${LOG_PREFIX} getNamespaces: Calling AtelierApiService.getNamespaces`);
-            const result = await this._atelierApiService.getNamespaces(
+            console.debug(`${LOG_PREFIX} getNamespaces: Calling TableMetadataService.getNamespaces`);
+            const result = await this._metadataService.getNamespaces(
                 this._serverSpec,
                 this._credentials.username,
                 this._credentials.password
@@ -395,7 +401,7 @@ export class ServerConnectionManager {
         }
 
         try {
-            return this._atelierApiService.getTables(
+            return this._metadataService.getTables(
                 this._serverSpec,
                 namespace,
                 this._credentials.username,
@@ -474,7 +480,7 @@ export class ServerConnectionManager {
 
         try {
             console.debug(`${LOG_PREFIX} Fetching schema for ${tableName} in ${namespace}`);
-            const result = await this._atelierApiService.getTableSchema(
+            const result = await this._metadataService.getTableSchema(
                 this._serverSpec,
                 namespace,
                 tableName,
@@ -584,9 +590,9 @@ export class ServerConnectionManager {
             }
 
             console.debug(`${LOG_PREFIX} Fetching data for ${tableName} in ${namespace} (pageSize: ${pageSize}, offset: ${offset}, filters: ${filters.length}, sort: ${sortColumn || 'none'} ${sortDirection || ''})`);
-            // Story 6.2: Pass filters to AtelierApiService
-            // Story 6.4: Pass sort parameters to AtelierApiService
-            return this._atelierApiService.getTableData(
+            // Story 6.2: Pass filters to QueryExecutor
+            // Story 6.4: Pass sort parameters to QueryExecutor
+            return this._queryExecutor.getTableData(
                 this._serverSpec,
                 namespace,
                 tableName,
@@ -659,7 +665,7 @@ export class ServerConnectionManager {
 
         try {
             console.debug(`${LOG_PREFIX} Updating cell: ${tableName}.${columnName} WHERE ${primaryKeyColumn}=${primaryKeyValue}`);
-            return this._atelierApiService.updateCell(
+            return this._queryExecutor.updateCell(
                 this._serverSpec,
                 namespace,
                 tableName,
@@ -725,7 +731,7 @@ export class ServerConnectionManager {
 
         try {
             console.debug(`${LOG_PREFIX} Inserting row into ${tableName}`);
-            return this._atelierApiService.insertRow(
+            return this._queryExecutor.insertRow(
                 this._serverSpec,
                 namespace,
                 tableName,
@@ -789,7 +795,7 @@ export class ServerConnectionManager {
 
         try {
             console.debug(`${LOG_PREFIX} Deleting row from ${tableName} WHERE ${primaryKeyColumn}=${primaryKeyValue}`);
-            return this._atelierApiService.deleteRow(
+            return this._queryExecutor.deleteRow(
                 this._serverSpec,
                 namespace,
                 tableName,
