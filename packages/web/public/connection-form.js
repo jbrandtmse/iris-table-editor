@@ -360,7 +360,14 @@
             setConnecting(false);
 
             if (result.ok && result.body.status === 'connected') {
+                // Clear password from form and local variable FIRST (Story 16.2, Task 4.2/4.3)
+                if (fields.password) {
+                    fields.password.value = '';
+                }
+                data.password = '';
+
                 // Save to recent connections if "Remember" is checked
+                // (saveRecentConnection explicitly excludes password from saved entry)
                 if (fields.remember && fields.remember.checked) {
                     saveRecentConnection(data);
                 }

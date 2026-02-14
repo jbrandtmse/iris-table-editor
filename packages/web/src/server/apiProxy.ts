@@ -216,6 +216,21 @@ export function setupApiProxy(app: Express, sessionManager: SessionManager, opti
     // POST /api/connect - Establish session (Task 3)
     // ============================================
     app.post('/api/connect', async (req: Request, res: Response) => {
+        // HTTPS enforcement: reject non-HTTPS connect requests in production (Story 16.2, Task 1.5)
+        // Check req.secure (which respects Express 'trust proxy') and x-forwarded-proto header
+        // for deployments behind a reverse proxy (nginx, load balancer, etc.)
+        if (process.env.NODE_ENV === 'production') {
+            const isSecure = req.secure ||
+                req.headers['x-forwarded-proto'] === 'https';
+            if (!isSecure) {
+                res.status(403).json({
+                    error: 'HTTPS is required for credential transmission.',
+                    code: ErrorCodes.AUTH_FAILED,
+                });
+                return;
+            }
+        }
+
         const { host, port, namespace, username, password, pathPrefix, useHTTPS } = req.body as Partial<ConnectionDetails>;
 
         // Validate required fields
