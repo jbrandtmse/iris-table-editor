@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "compile": "tsc",
+    "compile": "tsc && node -e \"require('esbuild').buildSync({entryPoints:['dist/main/preload.js'],bundle:true,platform:'node',outfile:'dist/main/preload.js',allowOverwrite:true,external:['electron']})\"",
     "watch": "tsc --watch",
     "lint": "eslint src",
     "check-types": "tsc --noEmit",
