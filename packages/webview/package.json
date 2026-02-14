@@ -1,6 +1,6 @@
 {
   "name": "@iris-te/webview",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared webview HTML, CSS, and JS for IRIS Table Editor grid UI",
   "files": [
     "src"

@@ -186,7 +186,24 @@ function stageAssets(options) {
     const realCorePkgJson = fs.realpathSync(corePkgJson);
     fs.copyFileSync(realCorePkgJson, path.join(coreDest, 'package.json'));
 
-    // 6. Generate minimal package.json for electron-builder
+    // 6. Stage @vscode/codicons font and CSS
+    const codiconsSrc = path.join(resolvedRootModules, '@vscode', 'codicons', 'dist');
+    const codiconsDest = path.join(desktopStaged, 'src', 'ui', 'codicons');
+    if (fs.existsSync(codiconsSrc)) {
+        fs.mkdirSync(codiconsDest, { recursive: true });
+        // Copy only the CSS and font files needed at runtime
+        for (const file of ['codicon.css', 'codicon.ttf']) {
+            const src = path.join(codiconsSrc, file);
+            if (fs.existsSync(src)) {
+                fs.copyFileSync(src, path.join(codiconsDest, file));
+            }
+        }
+        console.log(`${LOG_PREFIX} Staging @vscode/codicons → app-dist/desktop/src/ui/codicons/`);
+    } else {
+        console.warn(`${LOG_PREFIX} @vscode/codicons not found at ${codiconsSrc} — toolbar icons will be missing`);
+    }
+
+    // 7. Generate minimal package.json for electron-builder
     // Main entry points to desktop/dist/main/main.js (the Electron entry)
     const desktopPkg = JSON.parse(fs.readFileSync(path.join(desktopDir, 'package.json'), 'utf-8'));
     const stagedPkg = {

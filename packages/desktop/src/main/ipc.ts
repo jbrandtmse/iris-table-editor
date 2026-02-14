@@ -326,7 +326,6 @@ export async function routeCommand(
             const schemaResult = await sessionManager!.getMetadataService()!.getTableSchema(
                 session.spec, stNamespace, stTableName, session.username, session.password
             );
-            sendEvent(win, 'tableLoading', { loading: false, context: '' });
 
             if (schemaResult.success && schemaResult.schema) {
                 sessionManager!.setNamespace(stNamespace);
@@ -337,7 +336,28 @@ export async function routeCommand(
                     serverName: sessionManager!.getServerName() || '',
                     columns: schemaResult.schema.columns,
                 });
+
+                // Load initial page of data after schema
+                sendEvent(win, 'tableLoading', { loading: true, context: 'Loading table data...' });
+                const dataResult = await sessionManager!.getQueryExecutor()!.getTableData(
+                    session.spec, stNamespace, stTableName, schemaResult.schema,
+                    DEFAULT_PAGE_SIZE, 0, session.username, session.password,
+                    undefined, null, undefined
+                );
+                sendEvent(win, 'tableLoading', { loading: false, context: '' });
+
+                if (dataResult.success) {
+                    sendEvent(win, 'tableData', {
+                        rows: dataResult.rows || [],
+                        totalRows: dataResult.totalRows || 0,
+                        page: 0,
+                        pageSize: DEFAULT_PAGE_SIZE,
+                    });
+                } else {
+                    sendError(win, dataResult.error?.message || 'Failed to load table data', command);
+                }
             } else {
+                sendEvent(win, 'tableLoading', { loading: false, context: '' });
                 sendError(win, schemaResult.error?.message || 'Failed to get table schema', command);
             }
             break;
@@ -358,8 +378,8 @@ export async function routeCommand(
             }
 
             const pageSize = reqPayload.pageSize || DEFAULT_PAGE_SIZE;
-            const page = reqPayload.page || 1;
-            const offset = (page - 1) * pageSize;
+            const page = reqPayload.page ?? 0;
+            const offset = page * pageSize;
 
             sendEvent(win, 'tableLoading', { loading: true, context: 'Loading table data...' });
             const dataResult = await sessionManager!.getQueryExecutor()!.getTableData(

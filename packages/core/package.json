@@ -1,6 +1,6 @@
 {
   "name": "@iris-te/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Core services, models, and utilities for IRIS Table Editor",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

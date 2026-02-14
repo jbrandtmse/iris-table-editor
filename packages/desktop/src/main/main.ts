@@ -166,6 +166,12 @@ function createWindow(
             menuState.themeSource = theme;
             updateMenuState(menuState);
 
+            // Tell the renderer to update the data-theme attribute
+            const resolvedTheme = theme === 'system'
+                ? (nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
+                : theme;
+            sendEvent(win, 'themeChanged', { theme: resolvedTheme });
+
             // Story 11.5: Persist theme change
             if (currentAppState) {
                 currentAppState.theme = theme;
@@ -203,6 +209,12 @@ function createWindow(
     // Story 11.5: Send restoreAppState event after page loads
     win.webContents.on('did-finish-load', () => {
         injectThemeCSS(win);
+
+        // Send initial theme to renderer so data-theme attribute is set
+        const resolvedTheme = savedState.theme === 'system'
+            ? (nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
+            : savedState.theme;
+        sendEvent(win, 'themeChanged', { theme: resolvedTheme });
 
         // Story 11.5: Restore sidebar state in the renderer
         sendEvent(win, 'restoreAppState', {

@@ -118,5 +118,17 @@
     // Register for menuAction events from the main process
     messageBridge.onEvent('menuAction', handleMenuAction);
 
+    // Handle theme changes from the main process
+    messageBridge.onEvent('themeChanged', function (payload) {
+        if (payload && payload.theme) {
+            if (payload.theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            console.log(LOG_PREFIX, 'Theme applied:', payload.theme);
+        }
+    });
+
     console.debug(LOG_PREFIX, 'Menu handler initialized');
 })();

@@ -441,6 +441,9 @@
             return;
         }
 
+        // Preserve scroll position across re-renders
+        var savedScrollTop = container.scrollTop;
+
         container.innerHTML = renderServerList(
             currentState.servers,
             currentState.selectedServer,
@@ -450,13 +453,8 @@
             currentState.connectionErrorServer
         ) + renderNamespaceTree(currentState);
 
-        // Focus management after render
-        const serverList = container.querySelector('.ite-server-list');
-        if (serverList) {
-            const selectedItem = serverList.querySelector('.ite-server-list__item--selected');
-            const firstItem = serverList.querySelector('.ite-server-list__item');
-            (selectedItem || firstItem)?.focus();
-        }
+        // Restore scroll position after innerHTML replacement
+        container.scrollTop = savedScrollTop;
     }
 
     // ============================================

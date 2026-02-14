@@ -4,6 +4,8 @@
 src/**
 out/**
 node_modules/**
+_bmad*/**
+_bmad*
 .gitignore
 eslint.config.mjs
 tsconfig.json

@@ -81,6 +81,8 @@ export const ALLOWED_EVENTS = new Set([
     'menuShowShortcuts',
     // State persistence events (Story 11.5)
     'restoreAppState',
+    // Theme events
+    'themeChanged',
 ]);
 
 /**
