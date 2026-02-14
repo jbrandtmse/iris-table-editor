@@ -194,7 +194,7 @@ describe('SPA Shell (Story 17.1)', () => {
             assert.ok(body.includes('/webview/theme.css'), 'Should link webview theme.css');
             assert.ok(body.includes('/webview/styles.css'), 'Should link webview styles.css');
             assert.ok(body.includes('/webview/grid-styles.css'), 'Should link webview grid-styles.css');
-            assert.ok(body.includes('/webview/desktopThemeBridge.css'), 'Should link webview desktopThemeBridge.css');
+            assert.ok(body.includes('webThemeBridge.css'), 'Should link webThemeBridge.css');
         });
 
         it('should include webview script tags', async () => {

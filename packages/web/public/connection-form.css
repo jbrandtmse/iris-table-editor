@@ -5,39 +5,16 @@
  */
 
 /* ============================================
-   Theme Variables (standalone web — no VS Code host)
+   Alias Layer (maps --ite-theme-* from webThemeBridge.css to short --ite-* names)
    ============================================ */
 
 :root {
-    /* Dark theme defaults for standalone web */
-    --ite-theme-fg: #d4d4d4;
-    --ite-theme-bg: #1e1e1e;
-    --ite-theme-bg-secondary: #252526;
-    --ite-theme-description-fg: #9d9d9d;
-    --ite-theme-error-fg: #f44747;
-    --ite-theme-success-fg: #89d185;
-    --ite-theme-border: #3c3c3c;
-    --ite-theme-focus-ring: #0078d4;
-    --ite-theme-button-bg: #0078d4;
-    --ite-theme-button-fg: #ffffff;
-    --ite-theme-button-hover-bg: #026ec1;
-    --ite-theme-button-secondary-bg: #3a3d41;
-    --ite-theme-button-secondary-fg: #ffffff;
-    --ite-theme-button-secondary-hover-bg: #45494e;
-    --ite-theme-input-bg: #3c3c3c;
-    --ite-theme-input-fg: #d4d4d4;
-    --ite-theme-input-border: #5a5a5a;
-    --ite-theme-input-placeholder-fg: #a6a6a6;
-    --ite-theme-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    --ite-theme-font-size: 13px;
-
-    /* Alias layer */
     --ite-fg: var(--ite-theme-fg);
     --ite-bg: var(--ite-theme-bg);
     --ite-bg-secondary: var(--ite-theme-bg-secondary);
     --ite-description-fg: var(--ite-theme-description-fg);
     --ite-error-fg: var(--ite-theme-error-fg);
-    --ite-success-fg: var(--ite-theme-success-fg);
+    --ite-success-fg: var(--ite-theme-success);
     --ite-border: var(--ite-theme-border);
     --ite-focus-ring: var(--ite-theme-focus-ring);
     --ite-button-bg: var(--ite-theme-button-bg);
@@ -86,12 +63,51 @@ body {
     padding: 16px 24px;
     border-bottom: 1px solid var(--ite-border);
     background-color: var(--ite-bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .ite-page__title {
     font-size: 1.1em;
     font-weight: 600;
     color: var(--ite-fg);
+}
+
+/* ============================================
+   Theme Toggle (Story 17.3)
+   ============================================ */
+
+.ite-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--ite-border);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ite-fg);
+    font-size: 16px;
+    line-height: 1;
+    transition: background-color 0.1s ease;
+}
+
+.ite-theme-toggle:hover {
+    background-color: var(--ite-bg-secondary);
+}
+
+.ite-theme-toggle:focus-visible {
+    outline: 1px solid var(--ite-focus-ring);
+    outline-offset: 1px;
+}
+
+.ite-theme-toggle__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .ite-page__content {
@@ -528,7 +544,7 @@ body {
     padding: 8px 16px;
     background-color: rgba(244, 171, 71, 0.15);
     border-bottom: 1px solid rgba(244, 171, 71, 0.4);
-    color: #f4ab47;
+    color: var(--ite-theme-warning-fg);
     font-size: 0.9em;
     width: 100%;
 }

@@ -195,7 +195,7 @@ development_status:
   epic-17: in-progress
   17-1-spa-shell: done
   17-2-web-message-bridge: done
-  17-3-web-theme-bridge: backlog
+  17-3-web-theme-bridge: ready-for-dev
   17-4-responsive-layout: backlog
   17-5-browser-navigation: backlog
   epic-17-retrospective: optional

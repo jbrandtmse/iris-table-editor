@@ -8,9 +8,12 @@
          The server CSP adds ws:/wss: to connect-src for WebSocket support. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self' ws: wss:;">
     <title>IRIS Table Editor</title>
+    <!-- Web theme bridge FIRST: provides --ite-* variables for light/dark themes (Story 17.3) -->
+    <link rel="stylesheet" href="webThemeBridge.css">
+    <!-- Theme initialization: sets data-theme before first paint to prevent flash (Story 17.3) -->
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="connection-form.css">
     <!-- Webview theme and styles (served from /webview/) -->
-    <link rel="stylesheet" href="/webview/desktopThemeBridge.css">
     <link rel="stylesheet" href="/webview/theme.css">
     <link rel="stylesheet" href="/webview/styles.css">
     <link rel="stylesheet" href="/webview/grid-styles.css">
@@ -27,6 +30,10 @@
 
         <div class="ite-page__header">
             <h1 class="ite-page__title">IRIS Table Editor</h1>
+            <button class="ite-theme-toggle" id="themeToggle" type="button"
+                    aria-label="Toggle dark mode" title="Toggle dark mode">
+                <span class="ite-theme-toggle__icon" id="themeToggleIcon" aria-hidden="true"></span>
+            </button>
         </div>
 
         <div class="ite-page__content">

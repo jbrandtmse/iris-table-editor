@@ -1,0 +1,401 @@
+/* Web Theme Bridge
+ * Story 17.3: Provides hardcoded light/dark theme tokens for the web target.
+ * Colors closely match VS Code's default dark and light themes.
+ * Light theme is default; dark theme activated via data-theme="dark" attribute.
+ * OS preference via prefers-color-scheme is applied when no user preference exists.
+ */
+
+/* Light theme (default) */
+:root {
+    /* Core colors */
+    --ite-theme-fg: #1e1e1e;
+    --ite-theme-bg: #ffffff;
+    --ite-theme-bg-secondary: #f3f3f3;
+    --ite-theme-description-fg: #505050;
+    --ite-theme-error-fg: #d32f2f;
+    --ite-theme-warning-fg: #bf8803;
+    --ite-theme-info-fg: #1a85ff;
+    --ite-theme-icon-fg: #424242;
+
+    /* Typography */
+    --ite-theme-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --ite-theme-font-size: 13px;
+    --ite-theme-editor-font-family: 'Consolas', 'Courier New', monospace;
+
+    /* Borders and focus */
+    --ite-theme-border: #e0e0e0;
+    --ite-theme-focus-ring: #0078d4;
+    --ite-theme-contrast-border: transparent;
+    --ite-theme-contrast-active-border: transparent;
+    --ite-theme-widget-border: #d4d4d4;
+    --ite-theme-widget-shadow: rgba(0, 0, 0, 0.16);
+
+    /* Buttons */
+    --ite-theme-button-bg: #0078d4;
+    --ite-theme-button-fg: #ffffff;
+    --ite-theme-button-hover-bg: #026ec1;
+    --ite-theme-button-border: transparent;
+    --ite-theme-button-secondary-bg: #5f6a79;
+    --ite-theme-button-secondary-fg: #ffffff;
+    --ite-theme-button-secondary-hover-bg: #4c5561;
+
+    /* Inputs */
+    --ite-theme-input-bg: #ffffff;
+    --ite-theme-input-fg: #1e1e1e;
+    --ite-theme-input-border: #cccccc;
+    --ite-theme-input-placeholder-fg: #767676;
+    --ite-theme-input-option-active-bg: rgba(0, 120, 212, 0.15);
+    --ite-theme-input-option-active-border: #0078d4;
+    --ite-theme-input-validation-error-bg: #fce4e4;
+    --ite-theme-input-validation-error-border: #d32f2f;
+    --ite-theme-input-validation-warning-bg: #fff4ce;
+    --ite-theme-input-validation-warning-border: #bf8803;
+    --ite-theme-input-validation-info-bg: #e6f0ff;
+    --ite-theme-input-validation-info-border: #1a85ff;
+
+    /* Checkbox */
+    --ite-theme-checkbox-bg: #ffffff;
+    --ite-theme-checkbox-fg: #1e1e1e;
+    --ite-theme-checkbox-select-bg: #e8e8e8;
+
+    /* Dropdown */
+    --ite-theme-dropdown-bg: #ffffff;
+    --ite-theme-dropdown-fg: #1e1e1e;
+    --ite-theme-dropdown-border: #cccccc;
+
+    /* Lists */
+    --ite-theme-list-hover-bg: #e8e8e8;
+    --ite-theme-list-focus-bg: #d6ebff;
+    --ite-theme-list-active-selection-bg: #0078d4;
+    --ite-theme-list-active-selection-fg: #ffffff;
+
+    /* Sidebar */
+    --ite-theme-sidebar-bg: #f3f3f3;
+    --ite-theme-sidebar-section-header-fg: #616161;
+    --ite-theme-sidebar-section-header-border: #e0e0e0;
+    --ite-theme-sidebar-section-header-bg: #f3f3f3;
+
+    /* Toolbar */
+    --ite-theme-toolbar-hover-bg: rgba(0, 0, 0, 0.08);
+    --ite-theme-toolbar-active-bg: rgba(0, 0, 0, 0.12);
+
+    /* Badge */
+    --ite-theme-badge-bg: #0078d4;
+    --ite-theme-badge-fg: #ffffff;
+
+    /* Progress */
+    --ite-theme-progress-bg: #0078d4;
+
+    /* Scrollbar */
+    --ite-theme-scrollbar-bg: rgba(100, 100, 100, 0.4);
+
+    /* Editor */
+    --ite-theme-editor-selection-bg: #add6ff;
+    --ite-theme-editor-widget-bg: #f3f3f3;
+
+    /* Status bar */
+    --ite-theme-statusbar-bg: #0078d4;
+    --ite-theme-statusbar-fg: #ffffff;
+
+    /* Notifications */
+    --ite-theme-notifications-bg: #f3f3f3;
+    --ite-theme-notifications-fg: #1e1e1e;
+    --ite-theme-notifications-border: #e0e0e0;
+
+    /* Menu */
+    --ite-theme-menu-bg: #ffffff;
+    --ite-theme-menu-fg: #1e1e1e;
+    --ite-theme-menu-border: #d4d4d4;
+    --ite-theme-menu-selection-bg: #0078d4;
+    --ite-theme-menu-selection-fg: #ffffff;
+
+    /* Breadcrumb */
+    --ite-theme-breadcrumb-bg: #f3f3f3;
+    --ite-theme-breadcrumb-fg: #616161;
+    --ite-theme-breadcrumb-focus-fg: #1e1e1e;
+
+    /* Text / Code blocks */
+    --ite-theme-text-link-fg: #0078d4;
+    --ite-theme-text-blockquote-bg: #f3f3f3;
+    --ite-theme-text-codeblock-bg: #f3f3f3;
+
+    /* Symbol icons */
+    --ite-theme-symbol-class-fg: #d67e00;
+    --ite-theme-symbol-folder-fg: #c09553;
+    --ite-theme-symbol-namespace-fg: #1e1e1e;
+
+    /* Git / Testing */
+    --ite-theme-success: #388e3c;
+    --ite-theme-success-glow: #388e3c;
+    --ite-theme-git-added-fg: #388e3c;
+    --ite-theme-testing-passed: #388e3c;
+    --ite-theme-testing-failed: #d32f2f;
+
+    /* Diff */
+    --ite-theme-diff-inserted-bg: rgba(155, 185, 85, 0.2);
+    --ite-theme-diff-inserted-line-bg: rgba(155, 185, 85, 0.1);
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+    /* Core colors */
+    --ite-theme-fg: #d4d4d4;
+    --ite-theme-bg: #1e1e1e;
+    --ite-theme-bg-secondary: #252526;
+    --ite-theme-description-fg: #9d9d9d;
+    --ite-theme-error-fg: #f44747;
+    --ite-theme-warning-fg: #cca700;
+    --ite-theme-info-fg: #3794ff;
+    --ite-theme-icon-fg: #c5c5c5;
+
+    /* Typography */
+    --ite-theme-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --ite-theme-font-size: 13px;
+    --ite-theme-editor-font-family: 'Consolas', 'Courier New', monospace;
+
+    /* Borders and focus */
+    --ite-theme-border: #3c3c3c;
+    --ite-theme-focus-ring: #0078d4;
+    --ite-theme-contrast-border: transparent;
+    --ite-theme-contrast-active-border: transparent;
+    --ite-theme-widget-border: #454545;
+    --ite-theme-widget-shadow: rgba(0, 0, 0, 0.36);
+
+    /* Buttons */
+    --ite-theme-button-bg: #0078d4;
+    --ite-theme-button-fg: #ffffff;
+    --ite-theme-button-hover-bg: #026ec1;
+    --ite-theme-button-border: transparent;
+    --ite-theme-button-secondary-bg: #3a3d41;
+    --ite-theme-button-secondary-fg: #ffffff;
+    --ite-theme-button-secondary-hover-bg: #45494e;
+
+    /* Inputs */
+    --ite-theme-input-bg: #3c3c3c;
+    --ite-theme-input-fg: #d4d4d4;
+    --ite-theme-input-border: #5a5a5a;
+    --ite-theme-input-placeholder-fg: #a6a6a6;
+    --ite-theme-input-option-active-bg: rgba(0, 120, 212, 0.25);
+    --ite-theme-input-option-active-border: #0078d4;
+    --ite-theme-input-validation-error-bg: #5a1d1d;
+    --ite-theme-input-validation-error-border: #be1100;
+    --ite-theme-input-validation-warning-bg: #352a05;
+    --ite-theme-input-validation-warning-border: #9d8500;
+    --ite-theme-input-validation-info-bg: #063b49;
+    --ite-theme-input-validation-info-border: #007acc;
+
+    /* Checkbox */
+    --ite-theme-checkbox-bg: #3c3c3c;
+    --ite-theme-checkbox-fg: #d4d4d4;
+    --ite-theme-checkbox-select-bg: #252526;
+
+    /* Dropdown */
+    --ite-theme-dropdown-bg: #3c3c3c;
+    --ite-theme-dropdown-fg: #d4d4d4;
+    --ite-theme-dropdown-border: #5a5a5a;
+
+    /* Lists */
+    --ite-theme-list-hover-bg: #2a2d2e;
+    --ite-theme-list-focus-bg: #062f4a;
+    --ite-theme-list-active-selection-bg: #094771;
+    --ite-theme-list-active-selection-fg: #ffffff;
+
+    /* Sidebar */
+    --ite-theme-sidebar-bg: #252526;
+    --ite-theme-sidebar-section-header-fg: #bbbbbb;
+    --ite-theme-sidebar-section-header-border: #3c3c3c;
+    --ite-theme-sidebar-section-header-bg: #252526;
+
+    /* Toolbar */
+    --ite-theme-toolbar-hover-bg: rgba(255, 255, 255, 0.08);
+    --ite-theme-toolbar-active-bg: rgba(255, 255, 255, 0.12);
+
+    /* Badge */
+    --ite-theme-badge-bg: #4d4d4d;
+    --ite-theme-badge-fg: #ffffff;
+
+    /* Progress */
+    --ite-theme-progress-bg: #0078d4;
+
+    /* Scrollbar */
+    --ite-theme-scrollbar-bg: rgba(121, 121, 121, 0.4);
+
+    /* Editor */
+    --ite-theme-editor-selection-bg: #264f78;
+    --ite-theme-editor-widget-bg: #252526;
+
+    /* Status bar */
+    --ite-theme-statusbar-bg: #007acc;
+    --ite-theme-statusbar-fg: #ffffff;
+
+    /* Notifications */
+    --ite-theme-notifications-bg: #252526;
+    --ite-theme-notifications-fg: #d4d4d4;
+    --ite-theme-notifications-border: #3c3c3c;
+
+    /* Menu */
+    --ite-theme-menu-bg: #252526;
+    --ite-theme-menu-fg: #d4d4d4;
+    --ite-theme-menu-border: #454545;
+    --ite-theme-menu-selection-bg: #094771;
+    --ite-theme-menu-selection-fg: #ffffff;
+
+    /* Breadcrumb */
+    --ite-theme-breadcrumb-bg: #252526;
+    --ite-theme-breadcrumb-fg: #9d9d9d;
+    --ite-theme-breadcrumb-focus-fg: #d4d4d4;
+
+    /* Text / Code blocks */
+    --ite-theme-text-link-fg: #3794ff;
+    --ite-theme-text-blockquote-bg: #252526;
+    --ite-theme-text-codeblock-bg: #252526;
+
+    /* Symbol icons */
+    --ite-theme-symbol-class-fg: #ee9d28;
+    --ite-theme-symbol-folder-fg: #c09553;
+    --ite-theme-symbol-namespace-fg: #d4d4d4;
+
+    /* Git / Testing */
+    --ite-theme-success: #89d185;
+    --ite-theme-success-glow: #89d185;
+    --ite-theme-git-added-fg: #81b88b;
+    --ite-theme-testing-passed: #89d185;
+    --ite-theme-testing-failed: #f44747;
+
+    /* Diff */
+    --ite-theme-diff-inserted-bg: rgba(155, 185, 85, 0.2);
+    --ite-theme-diff-inserted-line-bg: rgba(155, 185, 85, 0.1);
+}
+
+/* Auto dark theme via OS preference (when no user preference is set) */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        /* Core colors */
+        --ite-theme-fg: #d4d4d4;
+        --ite-theme-bg: #1e1e1e;
+        --ite-theme-bg-secondary: #252526;
+        --ite-theme-description-fg: #9d9d9d;
+        --ite-theme-error-fg: #f44747;
+        --ite-theme-warning-fg: #cca700;
+        --ite-theme-info-fg: #3794ff;
+        --ite-theme-icon-fg: #c5c5c5;
+
+        /* Typography */
+        --ite-theme-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        --ite-theme-font-size: 13px;
+        --ite-theme-editor-font-family: 'Consolas', 'Courier New', monospace;
+
+        /* Borders and focus */
+        --ite-theme-border: #3c3c3c;
+        --ite-theme-focus-ring: #0078d4;
+        --ite-theme-contrast-border: transparent;
+        --ite-theme-contrast-active-border: transparent;
+        --ite-theme-widget-border: #454545;
+        --ite-theme-widget-shadow: rgba(0, 0, 0, 0.36);
+
+        /* Buttons */
+        --ite-theme-button-bg: #0078d4;
+        --ite-theme-button-fg: #ffffff;
+        --ite-theme-button-hover-bg: #026ec1;
+        --ite-theme-button-border: transparent;
+        --ite-theme-button-secondary-bg: #3a3d41;
+        --ite-theme-button-secondary-fg: #ffffff;
+        --ite-theme-button-secondary-hover-bg: #45494e;
+
+        /* Inputs */
+        --ite-theme-input-bg: #3c3c3c;
+        --ite-theme-input-fg: #d4d4d4;
+        --ite-theme-input-border: #5a5a5a;
+        --ite-theme-input-placeholder-fg: #a6a6a6;
+        --ite-theme-input-option-active-bg: rgba(0, 120, 212, 0.25);
+        --ite-theme-input-option-active-border: #0078d4;
+        --ite-theme-input-validation-error-bg: #5a1d1d;
+        --ite-theme-input-validation-error-border: #be1100;
+        --ite-theme-input-validation-warning-bg: #352a05;
+        --ite-theme-input-validation-warning-border: #9d8500;
+        --ite-theme-input-validation-info-bg: #063b49;
+        --ite-theme-input-validation-info-border: #007acc;
+
+        /* Checkbox */
+        --ite-theme-checkbox-bg: #3c3c3c;
+        --ite-theme-checkbox-fg: #d4d4d4;
+        --ite-theme-checkbox-select-bg: #252526;
+
+        /* Dropdown */
+        --ite-theme-dropdown-bg: #3c3c3c;
+        --ite-theme-dropdown-fg: #d4d4d4;
+        --ite-theme-dropdown-border: #5a5a5a;
+
+        /* Lists */
+        --ite-theme-list-hover-bg: #2a2d2e;
+        --ite-theme-list-focus-bg: #062f4a;
+        --ite-theme-list-active-selection-bg: #094771;
+        --ite-theme-list-active-selection-fg: #ffffff;
+
+        /* Sidebar */
+        --ite-theme-sidebar-bg: #252526;
+        --ite-theme-sidebar-section-header-fg: #bbbbbb;
+        --ite-theme-sidebar-section-header-border: #3c3c3c;
+        --ite-theme-sidebar-section-header-bg: #252526;
+
+        /* Toolbar */
+        --ite-theme-toolbar-hover-bg: rgba(255, 255, 255, 0.08);
+        --ite-theme-toolbar-active-bg: rgba(255, 255, 255, 0.12);
+
+        /* Badge */
+        --ite-theme-badge-bg: #4d4d4d;
+        --ite-theme-badge-fg: #ffffff;
+
+        /* Progress */
+        --ite-theme-progress-bg: #0078d4;
+
+        /* Scrollbar */
+        --ite-theme-scrollbar-bg: rgba(121, 121, 121, 0.4);
+
+        /* Editor */
+        --ite-theme-editor-selection-bg: #264f78;
+        --ite-theme-editor-widget-bg: #252526;
+
+        /* Status bar */
+        --ite-theme-statusbar-bg: #007acc;
+        --ite-theme-statusbar-fg: #ffffff;
+
+        /* Notifications */
+        --ite-theme-notifications-bg: #252526;
+        --ite-theme-notifications-fg: #d4d4d4;
+        --ite-theme-notifications-border: #3c3c3c;
+
+        /* Menu */
+        --ite-theme-menu-bg: #252526;
+        --ite-theme-menu-fg: #d4d4d4;
+        --ite-theme-menu-border: #454545;
+        --ite-theme-menu-selection-bg: #094771;
+        --ite-theme-menu-selection-fg: #ffffff;
+
+        /* Breadcrumb */
+        --ite-theme-breadcrumb-bg: #252526;
+        --ite-theme-breadcrumb-fg: #9d9d9d;
+        --ite-theme-breadcrumb-focus-fg: #d4d4d4;
+
+        /* Text / Code blocks */
+        --ite-theme-text-link-fg: #3794ff;
+        --ite-theme-text-blockquote-bg: #252526;
+        --ite-theme-text-codeblock-bg: #252526;
+
+        /* Symbol icons */
+        --ite-theme-symbol-class-fg: #ee9d28;
+        --ite-theme-symbol-folder-fg: #c09553;
+        --ite-theme-symbol-namespace-fg: #d4d4d4;
+
+        /* Git / Testing */
+        --ite-theme-success: #89d185;
+        --ite-theme-success-glow: #89d185;
+        --ite-theme-git-added-fg: #81b88b;
+        --ite-theme-testing-passed: #89d185;
+        --ite-theme-testing-failed: #f44747;
+
+        /* Diff */
+        --ite-theme-diff-inserted-bg: rgba(155, 185, 85, 0.2);
+        --ite-theme-diff-inserted-line-bg: rgba(155, 185, 85, 0.1);
+    }
+}
