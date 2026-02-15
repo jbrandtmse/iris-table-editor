@@ -529,7 +529,7 @@ body {
 
 .ite-connected-view__body {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex: 1;
     min-height: 0;
     padding: 0;
@@ -538,9 +538,22 @@ body {
 .ite-connected-view__body > .ite-container {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    width: 100%;
+    width: 280px;
+    min-width: 220px;
+    max-width: 350px;
     min-height: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--ite-border-color, #333);
+    flex-shrink: 0;
+}
+
+.ite-connected-view__body > .ite-grid-container {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .ite-connected-view__description {

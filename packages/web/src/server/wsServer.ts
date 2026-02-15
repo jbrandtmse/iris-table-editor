@@ -221,7 +221,11 @@ export function setupWebSocket(
             try {
                 const result = await handleCommand(command, payload, session, context, services);
                 if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify(result));
+                    // handleCommand may return a single result or an array of results
+                    const results = Array.isArray(result) ? result : [result];
+                    for (const r of results) {
+                        ws.send(JSON.stringify(r));
+                    }
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);

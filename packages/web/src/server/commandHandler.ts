@@ -127,11 +127,30 @@ export async function handleCommand(
         queryExecutor: QueryExecutor;
         metadataService: TableMetadataService;
     }
-): Promise<CommandResult> {
+): Promise<CommandResult | CommandResult[]> {
     const spec = buildServerSpec(session);
     const { username, password } = session;
 
     switch (command) {
+        // Web-specific: shared webview sends getServerList/selectServer which are VS Code concepts.
+        // In the web target, the user already connected via the form, so we return the
+        // current session as a single "server" and auto-connect.
+        case 'getServerList': {
+            return {
+                event: 'serverList',
+                payload: { servers: [`${session.host}:${session.port}`] },
+            };
+        }
+
+        case 'selectServer': {
+            // Connection is already established via HTTP session — report connected.
+            // The webview will then request getNamespaces to populate the namespace list.
+            return {
+                event: 'connectionStatus',
+                payload: { connected: true, serverName: `${session.host}:${session.port}` },
+            };
+        }
+
         case 'getNamespaces': {
             const result = await services.metadataService.getNamespaces(spec, username, password);
             if (result.success) {
@@ -144,6 +163,7 @@ export async function handleCommand(
             );
         }
 
+        case 'selectNamespace':
         case 'getTables': {
             const { namespace } = (payload || {}) as Partial<IGetTablesPayload>;
             if (!namespace) {
@@ -162,6 +182,7 @@ export async function handleCommand(
             );
         }
 
+        case 'openTable':
         case 'selectTable': {
             const stPayload = (payload || {}) as Partial<ISelectTablePayload>;
             const { namespace: stNamespace, tableName: stTableName } = stPayload;
@@ -193,18 +214,36 @@ export async function handleCommand(
             );
 
             if (dataResult.success) {
-                return {
-                    event: 'tableSelected',
-                    payload: {
-                        tableName: stTableName,
-                        namespace: stNamespace,
-                        columns: schemaResult.schema.columns,
-                        rows: dataResult.rows || [],
-                        totalRows: dataResult.totalRows || 0,
-                        page: 0,
-                        pageSize: DEFAULT_PAGE_SIZE,
+                // Return multiple events: main.js needs tableSelected,
+                // grid.js needs tableSchema + tableLoading + tableData
+                return [
+                    {
+                        event: 'tableSelected',
+                        payload: { tableName: stTableName },
                     },
-                };
+                    {
+                        event: 'tableSchema',
+                        payload: {
+                            tableName: stTableName,
+                            namespace: stNamespace,
+                            serverName: `${session.host}:${session.port}`,
+                            columns: schemaResult.schema.columns,
+                        },
+                    },
+                    {
+                        event: 'tableLoading',
+                        payload: { loading: false, context: '' },
+                    },
+                    {
+                        event: 'tableData',
+                        payload: {
+                            rows: dataResult.rows || [],
+                            totalRows: dataResult.totalRows || 0,
+                            page: 0,
+                            pageSize: DEFAULT_PAGE_SIZE,
+                        },
+                    },
+                ];
             }
             return errorResult(
                 dataResult.error?.message || 'Failed to load table data',
@@ -213,6 +252,7 @@ export async function handleCommand(
             );
         }
 
+        case 'refresh':
         case 'requestData': {
             const reqPayload = (payload || {}) as Partial<IRequestDataPayload>;
             if (!context.namespace || !context.tableName || !context.schema) {
@@ -247,6 +287,8 @@ export async function handleCommand(
             );
         }
 
+        case 'paginateNext':
+        case 'paginatePrev':
         case 'paginate': {
             const pagPayload = (payload || {}) as Partial<IPaginatePayload>;
             if (!context.namespace || !context.tableName || !context.schema) {
@@ -313,6 +355,7 @@ export async function handleCommand(
             );
         }
 
+        case 'saveCell':
         case 'updateRow': {
             const savePayload = (payload || {}) as Partial<ISaveCellPayload>;
             if (!context.namespace || !context.tableName) {
@@ -401,6 +444,14 @@ export async function handleCommand(
                     } : undefined,
                 },
             };
+        }
+
+        case 'disconnect':
+        case 'cancelConnection':
+        case 'openServerManager':
+        case 'installServerManager': {
+            // VS Code-specific commands — no-op in the web target
+            return { event: 'connectionStatus', payload: { connected: true, serverName: `${session.host}:${session.port}` } };
         }
 
         default: {

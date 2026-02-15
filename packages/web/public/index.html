@@ -180,8 +180,88 @@
 
                 <!-- Shared webview UI (Story 17.1) -->
                 <div class="ite-connected-view__body">
+                    <!-- Sidebar: namespace/table selection (rendered by main.js) -->
                     <div class="ite-container">
-                        <!-- Webview main.js renders server/namespace/table selection and grid here -->
+                        <!-- Webview main.js renders server/namespace/table selection here -->
+                    </div>
+
+                    <!-- Grid area: toolbar, data grid, pagination (used by grid.js) -->
+                    <div class="ite-grid-container" id="gridContainer" style="display: none;">
+                        <div class="ite-toolbar">
+                            <button class="ite-toolbar__button" id="refreshBtn" title="Refresh data">&#x21bb;</button>
+                            <button class="ite-toolbar__button" id="addRowBtn" title="Add new row (Ctrl+N)">+</button>
+                            <button class="ite-toolbar__button" id="saveRowBtn" title="Save new row (Ctrl+S)" disabled>&#x1f4be;</button>
+                            <button class="ite-toolbar__button" id="deleteRowBtn" title="Delete row (Del)" disabled>&#x1f5d1;</button>
+                            <span class="ite-toolbar__separator"></span>
+                            <button class="ite-toolbar__button" id="clearFiltersBtn" title="Clear all filters" disabled>&#x2715;</button>
+                            <button class="ite-toolbar__button" id="toggleFiltersBtn" title="Disable filters">&#x1f50d;</button>
+                            <button class="ite-toolbar__button" id="filterPanelBtn" title="Filter panel">
+                                &#x2261;
+                                <span class="ite-toolbar__badge" id="filterBadge" style="display: none;">0</span>
+                            </button>
+                            <span class="ite-toolbar__separator"></span>
+                            <div class="ite-toolbar__slider-group">
+                                <span title="Column width">W</span>
+                                <input type="range" id="columnWidthSlider" class="ite-toolbar__slider"
+                                       min="80" max="400" value="150" title="Adjust column width" />
+                            </div>
+                            <!-- Filter Panel (hidden by default) -->
+                            <div class="ite-filter-panel" id="filterPanel" style="display: none;">
+                                <div class="ite-filter-panel__header">
+                                    <h4 class="ite-filter-panel__title">Active Filters</h4>
+                                    <button class="ite-filter-panel__close" id="filterPanelClose" title="Close panel">&times;</button>
+                                </div>
+                                <div class="ite-filter-panel__content" id="filterPanelContent">
+                                    <p class="ite-filter-panel__empty">No active filters</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ite-grid-loading" id="loadingOverlay" style="display: flex;">
+                            <div class="ite-loading__spinner"></div>
+                            <p class="ite-loading__text">Loading table data...</p>
+                        </div>
+
+                        <div class="ite-grid-wrapper" id="gridWrapper" style="display: none;">
+                            <div class="ite-grid" id="dataGrid" role="grid" aria-label="Table data"></div>
+                        </div>
+
+                        <!-- Pagination Controls -->
+                        <div class="ite-pagination" id="paginationContainer" role="navigation" aria-label="Table pagination" style="display: none;">
+                            <span class="ite-pagination__info" id="paginationInfo" aria-live="polite">Rows 1-50 of 0</span>
+                            <div class="ite-pagination__controls">
+                                <button class="ite-pagination__button ite-pagination__button--icon"
+                                        id="firstPageBtn" aria-label="First page" title="First page" disabled>&#9198;</button>
+                                <button class="ite-pagination__button ite-pagination__button--icon"
+                                        id="prevPageBtn" aria-label="Previous page" title="Previous page" disabled>&#9664;</button>
+                                <div class="ite-pagination__page-input-container">
+                                    <input type="text" class="ite-pagination__page-input" id="pageInput"
+                                           aria-label="Page number" value="1" />
+                                    <span class="ite-pagination__page-total" id="pageTotalLabel">of 1</span>
+                                </div>
+                                <button class="ite-pagination__button ite-pagination__button--icon"
+                                        id="nextPageBtn" aria-label="Next page" title="Next page">&#9654;</button>
+                                <button class="ite-pagination__button ite-pagination__button--icon"
+                                        id="lastPageBtn" aria-label="Last page" title="Last page">&#9197;</button>
+                            </div>
+                        </div>
+
+                        <!-- Toast notification container -->
+                        <div id="toastContainer" class="ite-toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+                        <!-- Delete confirmation dialog -->
+                        <div class="ite-dialog-overlay" id="deleteDialogOverlay" style="display: none;" role="presentation">
+                            <div class="ite-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle" aria-describedby="deleteDialogDesc">
+                                <div class="ite-dialog__content">
+                                    <h2 id="deleteDialogTitle" class="ite-dialog__title">Delete Row</h2>
+                                    <p id="deleteDialogDesc" class="ite-dialog__message">Delete this row? This action cannot be undone.</p>
+                                </div>
+                                <div class="ite-dialog__actions">
+                                    <button type="button" class="ite-dialog__button ite-dialog__button--secondary" id="deleteDialogCancel">Cancel</button>
+                                    <button type="button" class="ite-dialog__button ite-dialog__button--danger" id="deleteDialogConfirm">Delete</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

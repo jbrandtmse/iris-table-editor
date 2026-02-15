@@ -280,7 +280,7 @@ describe('Feature Parity - WebSocket Routing (Task 1.5)', () => {
 
     it('should send results back as JSON', () => {
         assert.ok(
-            wsServerSource.includes('JSON.stringify(result)'),
+            wsServerSource.includes('JSON.stringify(r)'),
             'wsServer should stringify command results before sending'
         );
     });

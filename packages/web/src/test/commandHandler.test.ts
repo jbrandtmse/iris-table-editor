@@ -9,9 +9,15 @@
 import { describe, it, beforeEach } from 'node:test';
 import * as assert from 'assert';
 import { handleCommand } from '../server/commandHandler';
-import type { ConnectionContext } from '../server/commandHandler';
+import type { ConnectionContext, CommandResult } from '../server/commandHandler';
 import type { SessionData } from '../server/sessionManager';
 import type { QueryExecutor, TableMetadataService } from '@iris-te/core';
+
+/** Helper to assert a single CommandResult (not an array) */
+function asSingle(result: CommandResult | CommandResult[]): CommandResult {
+    assert.ok(!Array.isArray(result), 'Expected single CommandResult, got array');
+    return result as CommandResult;
+}
 
 /** Partial mock types for testability */
 type MockQueryExecutor = Pick<QueryExecutor, 'getTableData' | 'updateCell' | 'insertRow' | 'deleteRow'>;
@@ -100,7 +106,7 @@ describe('CommandHandler', () => {
                 },
             };
 
-            const result = await handleCommand('getNamespaces', {}, mockSession, context, services as never);
+            const result = asSingle(await handleCommand('getNamespaces', {}, mockSession, context, services as never));
 
             assert.ok(called, 'Should have called metadataService.getNamespaces');
             assert.strictEqual(result.event, 'namespaceList');
@@ -118,7 +124,7 @@ describe('CommandHandler', () => {
                 },
             } as MockMetadataService;
 
-            const result = await handleCommand('getTables', { namespace: 'USER' }, mockSession, context, services as never);
+            const result = asSingle(await handleCommand('getTables', { namespace: 'USER' }, mockSession, context, services as never));
 
             assert.strictEqual(calledNamespace, 'USER');
             assert.strictEqual(result.event, 'tableList');
@@ -162,7 +168,15 @@ describe('CommandHandler', () => {
 
             assert.ok(schemaCalled, 'Should have called getTableSchema');
             assert.ok(dataCalled, 'Should have called getTableData');
-            assert.strictEqual(result.event, 'tableSelected');
+
+            // selectTable returns an array of [tableSelected, tableSchema, tableLoading, tableData]
+            assert.ok(Array.isArray(result), 'selectTable should return multiple results');
+            const results = result as CommandResult[];
+            assert.strictEqual(results.length, 4);
+            assert.strictEqual(results[0].event, 'tableSelected');
+            assert.strictEqual(results[1].event, 'tableSchema');
+            assert.strictEqual(results[2].event, 'tableLoading');
+            assert.strictEqual(results[3].event, 'tableData');
 
             // Context should be updated
             assert.strictEqual(context.namespace, 'USER');
@@ -189,11 +203,11 @@ describe('CommandHandler', () => {
                 },
             } as MockQueryExecutor;
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'requestData',
                 { page: 1, pageSize: 5 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(calledOffset, 5, 'Offset should be page * pageSize');
             assert.strictEqual(result.event, 'tableData');
@@ -208,11 +222,11 @@ describe('CommandHandler', () => {
                 columns: [{ name: 'ID', dataType: 'INTEGER', nullable: false }],
             };
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'paginate',
                 { direction: 'next', currentPage: 0, pageSize: 10 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(result.event, 'tableData');
             const payload = result.payload as { page: number };
@@ -228,11 +242,11 @@ describe('CommandHandler', () => {
                 columns: [{ name: 'ID', dataType: 'INTEGER', nullable: false }],
             };
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'refreshData',
                 {},
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(result.event, 'tableData');
             const payload = result.payload as { page: number };
@@ -252,7 +266,7 @@ describe('CommandHandler', () => {
                 },
             } as MockQueryExecutor;
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'updateRow',
                 {
                     rowIndex: 0,
@@ -264,7 +278,7 @@ describe('CommandHandler', () => {
                     primaryKeyValue: 1,
                 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.ok(updateCalled, 'Should have called updateCell');
             assert.strictEqual(result.event, 'saveCellResult');
@@ -285,7 +299,7 @@ describe('CommandHandler', () => {
                 },
             } as MockQueryExecutor;
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'insertRow',
                 {
                     newRowIndex: 0,
@@ -293,7 +307,7 @@ describe('CommandHandler', () => {
                     values: ['Test Person'],
                 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.ok(insertCalled, 'Should have called insertRow');
             assert.strictEqual(result.event, 'insertRowResult');
@@ -314,7 +328,7 @@ describe('CommandHandler', () => {
                 },
             } as MockQueryExecutor;
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'deleteRow',
                 {
                     rowIndex: 0,
@@ -322,7 +336,7 @@ describe('CommandHandler', () => {
                     primaryKeyValue: 1,
                 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.ok(deleteCalled, 'Should have called deleteRow');
             assert.strictEqual(result.event, 'deleteRowResult');
@@ -337,7 +351,7 @@ describe('CommandHandler', () => {
 
     describe('Error handling', () => {
         it('should return error event for unknown command (Task 7.9)', async () => {
-            const result = await handleCommand('nonExistent', {}, mockSession, context, services as never);
+            const result = asSingle(await handleCommand('nonExistent', {}, mockSession, context, services as never));
 
             assert.strictEqual(result.event, 'error');
             const payload = result.payload as { code: string; message: string };
@@ -354,7 +368,7 @@ describe('CommandHandler', () => {
                 }),
             } as MockMetadataService;
 
-            const result = await handleCommand('getNamespaces', {}, mockSession, context, services as never);
+            const result = asSingle(await handleCommand('getNamespaces', {}, mockSession, context, services as never));
 
             assert.strictEqual(result.event, 'error');
             const payload = result.payload as { message: string; code: string };
@@ -362,7 +376,7 @@ describe('CommandHandler', () => {
         });
 
         it('should return error when getTables is called without namespace', async () => {
-            const result = await handleCommand('getTables', {}, mockSession, context, services as never);
+            const result = asSingle(await handleCommand('getTables', {}, mockSession, context, services as never));
 
             assert.strictEqual(result.event, 'error');
             const payload = result.payload as { code: string };
@@ -370,11 +384,11 @@ describe('CommandHandler', () => {
         });
 
         it('should return error when requestData is called without table context', async () => {
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'requestData',
                 { page: 0, pageSize: 10 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(result.event, 'error');
             const payload = result.payload as { message: string };
@@ -382,11 +396,11 @@ describe('CommandHandler', () => {
         });
 
         it('should return error when updateRow is called without table context', async () => {
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'updateRow',
                 { columnName: 'Name', newValue: 'Test', primaryKeyColumn: 'ID', primaryKeyValue: 1 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(result.event, 'error');
             const payload = result.payload as { message: string };
@@ -394,11 +408,11 @@ describe('CommandHandler', () => {
         });
 
         it('should return error when selectTable is called without required fields', async () => {
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'selectTable',
                 { namespace: 'USER' }, // missing tableName
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(result.event, 'error');
             const payload = result.payload as { code: string };
@@ -422,7 +436,7 @@ describe('CommandHandler', () => {
             context.namespace = 'USER';
             context.tableName = 'Sample.Person';
 
-            const result = await handleCommand(
+            const result = asSingle(await handleCommand(
                 'updateRow',
                 {
                     columnName: 'BadCol',
@@ -431,7 +445,7 @@ describe('CommandHandler', () => {
                     primaryKeyValue: 1,
                 },
                 mockSession, context, services as never
-            );
+            ));
 
             assert.strictEqual(result.event, 'saveCellResult');
             const payload = result.payload as { success: boolean; error: { message: string; code: string } };

@@ -53,14 +53,14 @@ describe('Responsive Layout (Story 17.4)', () => {
             assert.ok(bodyContent.includes('padding: 0'), 'Should have padding: 0');
         });
 
-        it('ite-container fills full width inside connected view body', () => {
+        it('ite-container is a fixed-width sidebar inside connected view body', () => {
             const containerMatch = connectionFormCss.match(
                 /\.ite-connected-view__body\s*>\s*\.ite-container\s*\{([^}]*)\}/s
             );
             assert.ok(containerMatch, '.ite-container rule inside connected view body should exist');
             const containerContent = containerMatch[1];
-            assert.ok(containerContent.includes('width: 100%'), 'Should have width: 100%');
-            assert.ok(containerContent.includes('flex: 1'), 'Should have flex: 1');
+            assert.ok(containerContent.includes('width: 280px'), 'Should have width: 280px for sidebar');
+            assert.ok(containerContent.includes('flex-shrink: 0'), 'Should have flex-shrink: 0 to keep sidebar fixed');
         });
 
         it('connected view has no fixed max-width constraint', () => {

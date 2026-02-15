@@ -9,7 +9,7 @@
 
     // Message bridge is injected by the host environment
     // eslint-disable-next-line no-undef
-    const messageBridge = window.iteMessageBridge;
+    let messageBridge = window.iteMessageBridge;
 
     /**
      * Grid application state
@@ -5617,6 +5617,20 @@
         }
     }
 
+    /** Register grid event handlers on the message bridge */
+    function registerGridBridgeHandlers(gridEventTypes) {
+        if (!messageBridge) {
+            console.debug(`${LOG_PREFIX} Message bridge not yet available, deferring handler registration`);
+            return;
+        }
+        gridEventTypes.forEach(eventName => {
+            messageBridge.onEvent(eventName, (payload) => {
+                console.debug(`${LOG_PREFIX} Received event:`, eventName);
+                handleMessage({ data: { event: eventName, payload } });
+            });
+        });
+    }
+
     /**
      * Initialize grid
      * Story 2.2: Added pagination button event listeners and keyboard shortcuts
@@ -5672,15 +5686,14 @@
             // Story 11.4: Menu action events (from native menu via menu-handler.js)
             'menuSetNull', 'menuToggleFilterPanel', 'menuShowShortcuts'
         ];
-        if (!messageBridge) {
-            console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);
-            return;
-        }
-        gridEventTypes.forEach(eventName => {
-            messageBridge.onEvent(eventName, (payload) => {
-                console.debug(`${LOG_PREFIX} Received event:`, eventName);
-                handleMessage({ data: { event: eventName, payload } });
-            });
+        registerGridBridgeHandlers(gridEventTypes);
+
+        // Web target: bridge may initialize after scripts load.
+        // Listen for late bridge initialization and register handlers.
+        document.addEventListener('ite-bridge-ready', function() {
+            console.debug(`${LOG_PREFIX} Bridge ready event received, re-registering handlers`);
+            messageBridge = window.iteMessageBridge;
+            registerGridBridgeHandlers(gridEventTypes);
         });
 
         // Setup refresh button

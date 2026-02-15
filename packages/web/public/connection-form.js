@@ -1061,6 +1061,60 @@
         showConnectionForm();
     }
 
+    // Bootstrap the shared webview after the message bridge is ready.
+    // The shared webview (main.js) expects connectionStatus + namespaceList events
+    // to populate the table browser. In the web target, connection is already
+    // established via HTTP before the bridge exists, so we push these events
+    // directly through the bridge once it's initialized.
+    document.addEventListener('ite-bridge-ready', function () {
+        if (!state.isConnected) {
+            return;
+        }
+        console.debug(LOG_PREFIX, 'Bridge ready, bootstrapping webview with session info');
+        fetch('/api/session', { credentials: 'same-origin' })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (data) {
+                if (!data || data.status !== 'connected' || !data.server) {
+                    return;
+                }
+                var bridge = window.iteMessageBridge;
+                if (!bridge) {
+                    return;
+                }
+                var ns = data.server.namespace || '';
+                var host = data.server.host || 'server';
+                // Tell the webview the connection is established.
+                // handleConnectionStatus will request getNamespaces from the server.
+                bridge._dispatch('connectionStatus', {
+                    connected: true,
+                    serverName: host
+                });
+                // Pre-select the namespace the user chose in the connection form.
+                // This sets appState.selectedNamespace so that when namespaceList
+                // arrives from the server, handleNamespaceList auto-fetches tables.
+                bridge._dispatch('namespaceSelected', {
+                    namespace: ns
+                });
+            })
+            .catch(function (err) {
+                console.warn(LOG_PREFIX, 'Failed to bootstrap webview:', err);
+            });
+    });
+
+    // Show the grid container when a table schema is received (web-specific).
+    // In the desktop app, the tab-bar manages gridContainer visibility.
+    // In the web app, we show it as soon as grid.js has schema data to render.
+    document.addEventListener('ite-bridge-ready', function () {
+        var bridge = window.iteMessageBridge;
+        if (!bridge) return;
+        bridge.onEvent('tableSchema', function () {
+            var gc = document.getElementById('gridContainer');
+            if (gc) {
+                gc.style.display = '';
+            }
+        });
+    });
+
     // Expose for testing
     window.iteConnectionForm = {
         validateForm: validateForm,

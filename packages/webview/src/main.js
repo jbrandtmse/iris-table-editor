@@ -5,10 +5,10 @@
 
     // Message bridge is injected by the host environment
     // eslint-disable-next-line no-undef
-    const messageBridge = window.iteMessageBridge;
+    let messageBridge = window.iteMessageBridge;
 
     // Restore previous state if available
-    const previousState = (messageBridge && messageBridge.getState()) || {};
+    let previousState = (messageBridge && messageBridge.getState()) || {};
 
     /**
      * HTML escaping to prevent XSS in text content
@@ -228,10 +228,12 @@
                 connectionState: 'connected',
                 connectedServer: payload.serverName,
                 isLoading: false,
-                namespacesLoading: true, // Namespaces will be fetched automatically
+                namespacesLoading: true,
                 error: null
             });
             announce(`Connected to ${payload.serverName}`);
+            // Request namespaces now that we're connected
+            postCommand('getNamespaces');
         } else {
             appState.update({
                 connectionState: 'disconnected',
@@ -1217,9 +1219,13 @@
         'namespaceList', 'namespaceSelected',
         'tableList', 'tableSelected', 'error'
     ];
-    if (!messageBridge) {
-        console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);
-    } else {
+
+    /** Register event handlers on the message bridge and kick off initial data load */
+    function registerBridgeHandlers() {
+        if (!messageBridge) {
+            console.error(`${LOG_PREFIX} Message bridge not initialized - cannot register event handlers`);
+            return;
+        }
         eventTypes.forEach(eventName => {
             messageBridge.onEvent(eventName, (payload) => {
                 console.debug(`${LOG_PREFIX} Received event: ${eventName}`);
@@ -1227,6 +1233,19 @@
             });
         });
     }
+
+    registerBridgeHandlers();
+
+    // Web target: bridge may initialize after scripts load (connected view hidden at load time).
+    // Listen for late bridge initialization and re-register handlers.
+    // The host environment is responsible for pushing initial data (e.g., connection-form.js
+    // in the web target dispatches connectionStatus + namespaceList after bridge init).
+    document.addEventListener('ite-bridge-ready', function() {
+        console.debug(`${LOG_PREFIX} Bridge ready event received, re-initializing`);
+        messageBridge = window.iteMessageBridge;
+        previousState = (messageBridge && messageBridge.getState()) || {};
+        registerBridgeHandlers();
+    });
     appState.subscribe(render);
 
     // Event delegation on container - persists across renders

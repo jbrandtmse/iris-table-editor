@@ -184,6 +184,8 @@
             window.iteMessageBridge.destroy();
         }
         window.iteMessageBridge = new WebMessageBridge();
+        // Notify webview scripts that the bridge is ready (they may have loaded before it)
+        document.dispatchEvent(new CustomEvent('ite-bridge-ready'));
     }
 
     /**
