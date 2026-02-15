@@ -1,6 +1,6 @@
 # IRIS Table Editor
 
-Excel-like grid editing for InterSystems IRIS database tables. Available as a **VS Code extension** and a **standalone desktop application** (Electron).
+Excel-like grid editing for InterSystems IRIS database tables. Available as a **VS Code extension**, a **standalone desktop application** (Electron), and a **web application** (Express + WebSocket).
 
 ## Features
 
@@ -121,6 +121,56 @@ Press **?** or **F1** to view the full shortcuts help dialog.
 
 ## Installation
 
+### Web Application
+
+A browser-based version that runs as a standalone web server — no VS Code or Electron required. Connect to any IRIS instance from any device with a web browser.
+
+1. Clone and build:
+
+```bash
+git clone https://github.com/jbrandtmse/iris-table-editor.git
+cd iris-table-editor
+npm install
+npm run compile
+```
+
+2. Start the server:
+
+```bash
+# Development mode (auto-reload on changes)
+npm run start:web
+
+# Production mode
+NODE_ENV=production SESSION_SECRET=your-secret-key npm run start --workspace=packages/web
+```
+
+3. Open **http://localhost:3000** in your browser
+4. Enter your IRIS server host, port, namespace, and credentials to connect
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server listening port |
+| `SESSION_SECRET` | random | Secret for session cookies (required in production) |
+| `SESSION_TIMEOUT` | `1800` | Session expiry in seconds (30 min) |
+| `ALLOWED_ORIGINS` | — | CORS origins, comma-separated |
+| `TLS_CERT` / `TLS_KEY` | — | Paths to TLS certificate and key for HTTPS |
+| `FORCE_HTTPS` | `false` | Redirect HTTP to HTTPS |
+| `TRUST_PROXY` | auto | Trust `X-Forwarded-*` headers (auto-enabled in production) |
+
+**Docker:**
+
+```bash
+# Basic
+docker compose -f packages/web/docker-compose.yml up --build
+
+# With TLS
+docker compose -f packages/web/docker-compose.yml -f packages/web/docker-compose.tls.yml up --build
+```
+
+**Requirements:** Node.js 20+ (or Docker). Connects to InterSystems IRIS 2021.1+ via the Atelier REST API.
+
 ### Desktop Application (Windows)
 
 For users who don't use VS Code — a standalone application with the same feature set.
@@ -176,7 +226,8 @@ packages/
 ├── core/       # Shared services, models, and utilities (TypeScript)
 ├── webview/    # Shared grid UI: HTML, CSS, and vanilla JS
 ├── vscode/     # VS Code extension wrapper
-└── desktop/    # Electron desktop application
+├── desktop/    # Electron desktop application
+└── web/        # Express + WebSocket web application server
 ```
 
 ### Build Commands
@@ -188,7 +239,7 @@ npm run compile
 # Run linter across all packages
 npm run lint
 
-# Run tests (VS Code extension + desktop)
+# Run tests (VS Code extension + desktop + web)
 npm run test
 
 # Watch mode for VS Code extension development
@@ -215,6 +266,22 @@ npm run dist:win --workspace=packages/desktop
 npm run pack --workspace=packages/desktop
 ```
 
+### Web App Development
+
+```bash
+# Run the web server in dev mode (auto-reload via tsx watch)
+npm run start:web
+
+# Run web package tests
+npm run test --workspace=packages/web
+
+# Production start (compile first)
+npm run compile
+npm run start --workspace=packages/web
+```
+
+The web server runs on `http://localhost:3000` by default. It serves the shared webview UI and proxies Atelier API requests to the IRIS server specified in the browser connection form.
+
 ### Packaging
 
 ```bash
@@ -223,14 +290,18 @@ cd packages/vscode && npx vsce package --no-dependencies
 
 # Desktop app → platform installer
 npm run dist:desktop
+
+# Web app → Docker image
+docker build -f packages/web/Dockerfile -t iris-table-editor-web .
 ```
 
 ## Technical Overview
 
 - **API**: Atelier REST API over HTTP — no superserver port required
-- **Security**: Parameterized SQL queries for all database operations; Content Security Policy enforcement in webviews; channel validation allowlists for IPC
+- **Security**: Parameterized SQL queries for all database operations; Content Security Policy enforcement in webviews; channel validation allowlists for IPC; CSRF protection and rate limiting in the web server
 - **VS Code**: Integrates with InterSystems Server Manager for connection and credential management
 - **Desktop**: Electron with context isolation and sandbox enabled; encrypted credential storage; auto-update via GitHub Releases
+- **Web**: Express server with WebSocket command routing; session-based auth; optional TLS; Docker-ready with health checks
 - **Build**: TypeScript, esbuild bundling, npm workspaces monorepo
 
 ## License
