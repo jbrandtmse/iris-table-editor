@@ -1,6 +1,6 @@
 {
   "name": "@iris-te/web",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Web-hosted application server for IRIS Table Editor",
   "main": "dist/server/server.js",
   "types": "dist/server/server.d.ts",
