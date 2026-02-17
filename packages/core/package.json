@@ -8,7 +8,8 @@
     "compile": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint src",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "node --test dist/test/**/*.test.js"
   },
   "files": [
     "dist"

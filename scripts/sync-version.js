@@ -60,6 +60,7 @@ if (require.main === module) {
         path.resolve(__dirname, '..', 'packages', 'webview', 'package.json'),
         path.resolve(__dirname, '..', 'packages', 'vscode', 'package.json'),
         path.resolve(__dirname, '..', 'packages', 'desktop', 'package.json'),
+        path.resolve(__dirname, '..', 'packages', 'web', 'package.json'),
     ];
 
     try {

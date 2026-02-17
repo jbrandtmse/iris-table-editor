@@ -1842,7 +1842,12 @@
      * @returns {string | null}
      */
     function findPrimaryKeyColumn() {
-        // Look for common primary key column names
+        // Use isPrimaryKey metadata from INFORMATION_SCHEMA IS_IDENTITY
+        const pkCol = state.columns.find(col => col.isPrimaryKey);
+        if (pkCol) {
+            return pkCol.name;
+        }
+        // Fallback: look for common primary key column names
         const pkNames = ['ID', 'Id', 'id', '%ID'];
         for (const name of pkNames) {
             if (state.columns.some(col => col.name === name)) {
@@ -2642,7 +2647,7 @@
         // Copy all fields except primary key
         const pkColumn = findPrimaryKeyColumn();
         state.columns.forEach(col => {
-            if (col.name === pkColumn || col.name.toUpperCase() === 'ID' || col.name === '%ID') {
+            if (col.isPrimaryKey || col.name === pkColumn) {
                 // Skip primary key - will be auto-generated
                 newRow[col.name] = null;
             } else {

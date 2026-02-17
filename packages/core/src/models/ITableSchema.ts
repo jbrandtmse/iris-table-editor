@@ -17,6 +17,8 @@ export interface IColumnInfo {
     scale?: number;
     /** Whether column is read-only (identity/auto-increment or computed/generated) */
     readOnly?: boolean;
+    /** Whether column is the primary key / RowID (from IS_IDENTITY === 'YES') */
+    isPrimaryKey?: boolean;
 }
 
 /**

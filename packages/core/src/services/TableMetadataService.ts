@@ -266,7 +266,10 @@ export class TableMetadataService {
                 if (r.NUMERIC_SCALE !== undefined && r.NUMERIC_SCALE !== null) {
                     column.scale = r.NUMERIC_SCALE;
                 }
-                if (r.IS_IDENTITY === 'YES' || r.IS_GENERATED === 'YES') {
+                if (r.IS_IDENTITY === 'YES') {
+                    column.readOnly = true;
+                    column.isPrimaryKey = true;
+                } else if (r.IS_GENERATED === 'YES') {
                     column.readOnly = true;
                 }
                 return column;
