@@ -13,8 +13,8 @@ COPY packages/core/package.json packages/core/
 COPY packages/webview/package.json packages/webview/
 COPY packages/web/package.json packages/web/
 
-# Install all dependencies (including devDependencies for compilation)
-RUN npm ci --workspace=packages/web --workspace=packages/core --workspace=packages/webview
+# Install all dependencies (including root devDependencies for tsc)
+RUN npm ci
 
 # Copy source code for all required workspace packages
 COPY packages/core/ packages/core/
