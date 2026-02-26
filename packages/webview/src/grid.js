@@ -428,11 +428,10 @@
             rowIndex: rowIndex,
             colIndex: colIndex,
             columnName: column.name,
-            tableName: state.context.tableName,
-            namespace: state.context.namespace,
-            value: newValue,
-            pkColumn: pkColumn,
-            pkValue: pkValue
+            oldValue: currentValue,
+            newValue: newValue,
+            primaryKeyColumn: pkColumn,
+            primaryKeyValue: pkValue
         });
 
         console.debug(`${LOG_PREFIX} Boolean toggle: ${column.name} from ${currentValue} to ${newValue}`);
@@ -498,11 +497,10 @@
             rowIndex: rowIndex,
             colIndex: colIndex,
             columnName: column.name,
-            tableName: state.context.tableName,
-            namespace: state.context.namespace,
-            value: null,
-            pkColumn: pkColumn,
-            pkValue: pkValue
+            oldValue: currentValue,
+            newValue: null,
+            primaryKeyColumn: pkColumn,
+            primaryKeyValue: pkValue
         });
 
         console.debug(`${LOG_PREFIX} Boolean set to NULL: ${column.name}`);
@@ -576,11 +574,10 @@
             rowIndex: rowIndex,
             colIndex: colIndex,
             columnName: column.name,
-            tableName: state.context.tableName,
-            namespace: state.context.namespace,
-            value: null,
-            pkColumn: pkColumn,
-            pkValue: pkValue
+            oldValue: currentValue,
+            newValue: null,
+            primaryKeyColumn: pkColumn,
+            primaryKeyValue: pkValue
         });
 
         announce(`${column.name} set to NULL`);
@@ -657,11 +654,10 @@
             rowIndex: rowIndex,
             colIndex: colIndex,
             columnName: column.name,
-            tableName: state.context.tableName,
-            namespace: state.context.namespace,
-            value: newValue,
-            pkColumn: pkColumn,
-            pkValue: pkValue
+            oldValue: currentValue,
+            newValue: newValue,
+            primaryKeyColumn: pkColumn,
+            primaryKeyValue: pkValue
         });
 
         announce(`${column.name} cleared`);
